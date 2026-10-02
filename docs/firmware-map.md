@@ -319,3 +319,19 @@ Disassembled with radare2 (`-a 8051`). Keil C51 style: XRAM variables at `0x5000
 **`0x9D54` is a stub.** It loads 0/200/0 into scratch bytes `0x24–0x26` and returns 1 unconditionally. Any activity interrupt on an enabled port therefore wakes the chip, including the DP side-channel (AUX) traffic that the GPU/dock generates in response to the IRQ_HPD burst at standby entry (kernel log: ~27 `DMUB HPD RX IRQ` at the moment the hub dropped).
 
 **Second 8051 image** (`0x20080`): shares about a third of its code with PM51. The bootloader points the PM51 code base at `0x10080`; the main firmware does not reference `0x20080`. Its role is unknown.
+
+## 11. Why the no-signal cycle restarts, and `standby-lhs`
+
+- **Power/OSD state table** `0x3BAAFC` (`0x1C` per state; `+0x08` key map, `+0x10` entry handler, `+0x14` periodic handler):
+  - 0 power off (`power_soft_off`);
+  - 3 "cable not connected" (`cnt`=5);
+  - 4 "No signal" (`cnt`=255);
+  - 7 normal display (entry `sub_26A61C` = panel on);
+  - 0x0E–0x18 OSD menus.
+- **Signal events:** `sub_263995`. In state 4 or 6, a DP link event (port `+0x1C` bit 1) with port status `+0x20 & 0x28` clear sets `0x453C70` bit 14 and arms `0x4551B5`=2 (another path arms 10 with bit 15).
+- When that timer expires, the countdown tick sets `0x453C70` bit 0. `power_key_state_task` then calls `sub_258AB1`, which re-enters state 4: "No signal", `cnt`=255, white LED.
+- So link activity from a source that holds the link without video restarts the cycle.
+- **Port status `+0x20` low nibble** (`sub_23A7CB`, from `sub_23A516`): values with bits 2–3 set mean no signal / unsupported. The vendor relight after a refusal (`0x23AEC3`) already requires a valid timing.
+- **Input state machine** `sub_22F2C7`: per input path, state records at `0x47FA64 + n*0x7C`; state 2 → `sub_226F7A` (detect), states 4–5 → `sub_23ADAF`.
+
+**`standby-lhs`** (source `tools/patches_src_standby_lhs.py`) turns the refusal into a stable link-held standby. This is the DP-conformant behaviour for a source that keeps the sink in D0 without video. Deep power-save follows as soon as the vendor's 5-tick gate re-query sees the link released. See `patches/standby-lhs.json` for the exact hooks.

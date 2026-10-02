@@ -1,0 +1,56 @@
+{
+  "name": "standby-lhs",
+  "summary": "EXPERIMENTAL: link-held standby - when the source keeps the DP link up without video, stay dark (panel+backlight off, standby LED) instead of looping through 'No signal'; wake on valid timing or key; deep standby as soon as the source releases the link",
+  "status": "analysis + assembler-verified, hardware test required. Use INSTEAD of panel-seq (includes it)",
+  "edits": [
+    {
+      "addr": "0x203800",
+      "old": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "new": "c0e008a1f0c751ae50c610f8c751aee40840a3c0e008a1f0c751ccd0c0009ef0c751ae54c610d0c0014ee40841dff0c751ae54c6eff8c751aeecc73c72c8c64000ecc73c7098c2f8c751b5e408419d8529c0e008a1f80751cce4084181c1a008a1f0ed51ccd0e00046e40c0957e40c08abc0c008a1f0c651ccd0c00066c8ea8000e40c0753e40c03d1",
+      "asm": "code cave in linker padding 0x203800-0x203FFF (see notes)"
+    },
+    {
+      "addr": "0x26145E",
+      "old": "e7fc865a",
+      "new": "e7fc8804",
+      "asm": "b.jal 0x24578b -> b.jal 0x245860 (pre-standby: guarded one-shot panel off (was sub_24578B))"
+    },
+    {
+      "addr": "0x261492",
+      "old": "e7fc879d",
+      "new": "e7f446dd",
+      "asm": "b.j 0x245860 -> b.j 0x203800 (refusal tail: set pre-standby flag, then panel off)"
+    },
+    {
+      "addr": "0x23AED5",
+      "old": "e4015488",
+      "new": "e7f9127c",
+      "asm": "b.jal 0x245919 -> b.jal 0x203813 (relight: honour LHS / pre-standby)"
+    },
+    {
+      "addr": "0x259026",
+      "old": "e7fd8faa",
+      "new": "e7f55056",
+      "asm": "b.jal 0x2457fb -> b.jal 0x203851 (cancel pre-standby by key/event (was sub_2457FB))"
+    },
+    {
+      "addr": "0x266B70",
+      "old": "e7fbd916",
+      "new": "e7f399c2",
+      "asm": "b.jal 0x2457fb -> b.jal 0x203851 (cancel pre-standby in sub_266B56 (was sub_2457FB))"
+    },
+    {
+      "addr": "0x263D10",
+      "old": "c1a008a1",
+      "new": "e7f3f69b",
+      "asm": "b.movhi r13,0x45 -> b.j 0x20385d (re-evaluation arming (2 ticks))"
+    },
+    {
+      "addr": "0x263C26",
+      "old": "c8ea8000",
+      "new": "e7f3f897",
+      "asm": "b.ori r7,r10,0x8000 -> b.j 0x203871 (re-evaluation arming (10 ticks))"
+    }
+  ],
+  "notes": "Refusal (standby_gate_query says the source still holds the link) now re-enters the existing pre-standby state (flg 0x4551AE bit4: panel/backlight off via the guarded panel-off, red LED, countdown idle) instead of returning to 'No signal'. While refused (rws 0x4551CC != 0), sub_263995 no longer arms the signal re-evaluation (0x4551B5) on DP link events, which is what restarted the No-signal state, the 255 s countdown and the white LED. The vendor's 5-tick gate re-query (sub_261C04 @0x261DE4) is unchanged, so deep power-save is entered as soon as the source releases the link. Exits: valid timing (vendor relight in sub_23ADAF, which for rws!=0 already requires a valid signal) clears the pre-standby flag and arms one re-evaluation so the OSD state returns to normal; a key/event that cancels pre-standby clears rws and uses the full panel-on (eDP enable + link training). Stock behaviour is kept for normal pre-standby (rws=0): relight requests there stay no-ops as before. Code cave: 137 bytes at 0x203800 in the 2 KB zero padding before .text (0x204000); nothing references 0x203800-0x203FFF. Source: tools/patches_src_standby_lhs.py (aeonasm)."
+}
