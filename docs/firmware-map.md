@@ -223,11 +223,23 @@ All addresses are runtime addresses. Variables are as exposed by `patches/diag-p
 
 Panel: LG LM270WR8-SSA1, eDP 4×4 lanes. It has **no backlight driver of its own**; the LED driver is on the monitor mainboard.
 
-Datasheet power sequence (spec 3-6):
-- T2/T3 = 10–200 ms after VLCD;
-- T8: valid video ≥ 350 ms before the LED supply comes on;
-- T9: LED off ≥ 200 ms before VLCD goes off;
-- T12: VLCD stays off ≥ 1000 ms before it may return.
+Datasheet power sequence (spec 3-6, table 3-7) against the firmware:
+
+| Timing | Limit | Firmware | Status |
+|---|---|---|---|
+| T1 VLCD rise | 0.5–10 ms | board power switch | not firmware |
+| T2/T3 sink ready, HPD | 10–200 ms / 15–200 ms after VLCD | 25 ms, eDP TX on, then per eDP port `sub_21177B` polls a status bit (very likely HPD, `sub_218B75`) every 10 ms, up to 20 times = 200 ms, before training | ok; on timeout it continues without training (fault case only) |
+| T4–T6 link training → valid video | T6 ≤ 100 ms | `sub_2117E1` training, then video | not measurable from code |
+| T8 valid video → LED on | ≥ 350 ms | 550 ms in `sub_245919` | ok; **violated by `sub_2457FB`** (no link at all) → `standby-lhs` |
+| T9 LED off → VLCD off | ≥ 200 ms | 320 + 80 + 20 ms | ok |
+| T10 video end → VLCD off | 0–500 ms | ≈ 100 ms in `sub_245860` | ok; **`sub_24578B` leaves the link on with VLCD off** → `standby-lhs` |
+| T12 VLCD off time | ≥ 1000 ms | timer armed, never checked | **violated** → `panel-t12` |
+
+Notes 3 (pull VLCD down when the interface is invalid) and 4 (LED supply off
+whenever VLCD changes) are met by `sub_245860`/`sub_245919`. Note 1 also asks
+for the full sequence on mode changes; whether the scaler keeps the panel link
+running (black video) or cycles the panel on input timing changes has not been
+checked.
 
 **Pins** (main firmware, written via `reg_write_mask(reg, value, bitmask)` `0x23DADB`, RIU byte registers; a pin uses an output register and an output-enable register, 0 = driven)
 
@@ -250,7 +262,7 @@ Boot pin setup is `sub_2411B5` (called from `sub_2414AE`).
 | Routine | Sequence | Assessment |
 |---|---|---|
 | `sub_245919` panel on (guard `pnl`=0) | `sub_23CCD5(2)`, VLCD on, 25 ms, eDP on `sub_21D167(1)`, 10 ms, `sub_211741`+`sub_2117E1` (link), 550 ms, `pnl`=1, `sub_23CCD5(0)`, backlight on; if a re-detect is pending (port `+0x1C` bit 0, and `0x453C70` bit 3 clear) → panel off instead | meets T2/T8 |
-| `sub_245860` panel off (guard `pnl`=1) | `pnl`=0, backlight off, 320 ms, `sub_2116F5`, `sub_23CCD5(1)`, 80 ms, `sub_23CCD5(0)`, eDP off `sub_21D167(0)`, 20 ms, VLCD off, arm 1200 ms timer (`0x4551B6`, `off`) | T9 ok; **T12 timer never checked by anyone** |
+| `sub_245860` panel off (guard `pnl`=1) | `pnl`=0, backlight off, 320 ms, `sub_2116F5`, `sub_23CCD5(1)`, 80 ms, `sub_23CCD5(0)`, eDP off `sub_21D167(0)`, 20 ms, VLCD off, arm 1200 ms timer (`0x4551B6`, `off`) | T9, T10 ok; **T12 timer never checked by anyone** (`panel-t12` adds the check at panel-on) |
 | `sub_24578B` pre-standby off (no guard) | as above but no `pnl` change, no eDP off, no timer | **called every main-loop pass during pre-standby** (≈420 ms blocking each); eDP TX stays on with VLCD off |
 | `sub_2457FB` panel on without link | `sub_23CCD5(2)`, VLCD on, 25+550 ms, `sub_23CCD5(0)`, backlight on | **no eDP enable or link training** → backlight on without valid video (violates T8); used when pre-standby is cancelled (`0x259026`, `sub_266B56`) |
 
