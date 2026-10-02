@@ -1,0 +1,26 @@
+{
+  "name": "panel-seq",
+  "summary": "EXPERIMENTAL: pre-standby uses the proper one-shot panel-off; cancelling pre-standby uses the full panel-on with eDP link training",
+  "status": "analysis only, hardware test required (changes behaviour)",
+  "edits": [
+    {
+      "addr": "0x26145E",
+      "old": "e7fc865a",
+      "new": "e7fc8804",
+      "asm": "b.jal sub_24578B -> b.jal sub_245860 (pre-standby panel off)"
+    },
+    {
+      "addr": "0x259026",
+      "old": "e7fd8faa",
+      "new": "e7fd91e6",
+      "asm": "b.jal sub_2457FB -> b.jal sub_245919 (key cancels pre-standby)"
+    },
+    {
+      "addr": "0x266B70",
+      "old": "e7fbd916",
+      "new": "e7fbdb52",
+      "asm": "b.jal sub_2457FB -> b.jal sub_245919 (sub_266B56 cancels pre-standby)"
+    }
+  ],
+  "notes": "Stock: while flg bit4 (pre-standby, red LED) is set, sub_26136B calls sub_24578B on EVERY main-loop pass (~420 ms of blocking delays each, ~245 s long): backlight off, output-mode toggle, VLCD off, but eDP TX left on and pnl left at 1. Cancelling pre-standby uses sub_2457FB, which re-applies VLCD and switches the backlight on after 575 ms WITHOUT enabling/training the eDP link (violates T8: valid video >= 350 ms before LED on) - likely cause of the bright flash. With this patch the proper sub_245860 runs once (pnl guard, eDP off, T12) and sub_245919 (VLCD, eDP on, link training, 550 ms, backlight) is used to come back. Risk: with pnl=0 during pre-standby, the port handler sub_23ADAF (0x23AED5) may relight the panel on DP link events, which stock firmware suppressed by leaving pnl=1. Watch for the panel turning on during the red-LED phase."
+}

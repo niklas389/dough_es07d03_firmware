@@ -1,0 +1,92 @@
+{
+  "name": "diag-pins",
+  "summary": "DIAGNOSTIC: VCP E0-E9 GET report power state plus live pin registers (backlight enable, VLCD, standby power, PM wake status). Use INSTEAD of diag-probes",
+  "status": "encodings verified by disassembly; hardware test pending",
+  "edits": [
+    {
+      "addr": "0x26C16A",
+      "old": "f0e751da",
+      "new": "f0e751ac",
+      "asm": "E0 -> pwr 0x4551AC"
+    },
+    {
+      "addr": "0x26C142",
+      "old": "c0e00761",
+      "new": "c0e008a1",
+      "asm": "E1 movhi 0x45"
+    },
+    {
+      "addr": "0x26C146",
+      "old": "f0e7494e",
+      "new": "f0e751a6",
+      "asm": "E1 -> cnt 0x4551A6"
+    },
+    {
+      "addr": "0x26C5A8",
+      "old": "c0e007a1",
+      "new": "c0f40001",
+      "asm": "E2 movhi 0xA000 (RIU)"
+    },
+    {
+      "addr": "0x26C5AC",
+      "old": "f0e7b2c0",
+      "new": "f0e7084c",
+      "asm": "E2 -> pin reg 0x426 (bit6 = backlight enable output)"
+    },
+    {
+      "addr": "0x26C585",
+      "old": "c0e007a1",
+      "new": "c0e008a1",
+      "asm": "E4 movhi 0x45"
+    },
+    {
+      "addr": "0x26C589",
+      "old": "f0e7b2bf",
+      "new": "f0e751ae",
+      "asm": "E4 -> flg 0x4551AE"
+    },
+    {
+      "addr": "0x26C562",
+      "old": "c0e007a1",
+      "new": "c0f40001",
+      "asm": "E5 movhi 0xA000 (RIU)"
+    },
+    {
+      "addr": "0x26C566",
+      "old": "f0e7b2c1",
+      "new": "f0e70868",
+      "asm": "E5 -> pin reg 0x434 (bit4 VLCD, bits6/7 indicator)"
+    },
+    {
+      "addr": "0x26C53F",
+      "old": "c0e007a1",
+      "new": "c0f40001",
+      "asm": "E7 movhi 0xA000 (RIU)"
+    },
+    {
+      "addr": "0x26C543",
+      "old": "f0e7b2c2",
+      "new": "f0e70894",
+      "asm": "E7 -> pin reg 0x44A (standby power pins 7,6,2,1)"
+    },
+    {
+      "addr": "0x26C5EE",
+      "old": "c0e008a1",
+      "new": "c0f40001",
+      "asm": "E8 movhi 0xA000 (RIU)"
+    },
+    {
+      "addr": "0x26C5F2",
+      "old": "f0e7793c",
+      "new": "f0e70754",
+      "asm": "E8 -> PM reg 0x3AA (wake status)"
+    },
+    {
+      "addr": "0x26C5CF",
+      "old": "f0e7793d",
+      "new": "f0e751cc",
+      "asm": "E9 -> rws 0x4551CC"
+    }
+  ],
+  "notes": "E0 pwr, E1 cnt, E2 RIU 0x426 (bit6 = backlight enable driven by sub_245919/sub_245860; 1 = on), E4 flg, E5 RIU 0x434 (bit4 = panel VLCD; bits 6/7 = PM51-driven indicator pins), E7 RIU 0x44A (bits 7,6,2,1 cleared by the real power-save path sub_23D6AA, set again on power-on), E8 RIU 0x3AA (PM wake/status, read once at boot by sub_2414AE), E9 rws. Register reads go through the uncached RIU window 0xA0000000 + 2*reg, as the bootloader does. Shares sites with diag-probes; apply one or the other."
+}

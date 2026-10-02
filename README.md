@@ -42,6 +42,9 @@ output before writing it.
 | `osd-lock-ignore` | analysis-verified | Heals monitors that already carry the lock bit in EEPROM |
 | `standby-gate` | **tested, does not work** | Enters power-save but is woken at once and reboots; kept for reference |
 | `diag-probes` | diagnostic | VCP E0–E9 GET report power-management state |
+| `diag-pins` | diagnostic | Like diag-probes, but E2/E5/E7/E8 read live pin registers (backlight enable, VLCD, standby power) and the PM wake status; use instead of diag-probes |
+| `panel-t12` | analysis-verified | Enforces the panel's ≥1 s VLCD-off time; the vendor armed a timer nobody checked |
+| `panel-seq` | **experimental** | One-shot proper panel-off in pre-standby; cancelling pre-standby uses the full panel-on with eDP link training (likely wake-flash cause) |
 
 Recovery from any bad flash: flash the stock package. If FW2 fails its CRC,
 the bootloader falls back to the factory image at SPI `0x0`.

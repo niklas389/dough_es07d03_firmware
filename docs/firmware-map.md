@@ -218,3 +218,53 @@ All addresses are runtime addresses. Variables are as exposed by `patches/diag-p
 - State 3 entry `sub_26A7A9` arms `cnt` = 5.
 - State 4 entry `sub_26A7C5` ("No signal") arms `cnt` = 255; if `flg` bit 0 is set, `cnt` = 1.
 - Re-entering state 4 is what restarts the countdown after a refusal.
+
+## 9. Power paths (panel, backlight, standby hand-off)
+
+Panel: LG LM270WR8-SSA1, eDP 4×4 lanes. It has **no backlight driver of its own**; the LED driver is on the monitor mainboard.
+
+Datasheet power sequence (spec 3-6):
+- T2/T3 = 10–200 ms after VLCD;
+- T8: valid video ≥ 350 ms before the LED supply comes on;
+- T9: LED off ≥ 200 ms before VLCD goes off;
+- T12: VLCD stays off ≥ 1000 ms before it may return.
+
+**Pins** (main firmware, written via `reg_write_mask(reg, value, bitmask)` `0x23DADB`, RIU byte registers; a pin uses an output register and an output-enable register, 0 = driven)
+
+| Output / enable | Bit | Role (from usage) |
+|---|---|---|
+| `0x426` / `0x428` | 6 | backlight enable (mirrored in `bl` `0x453BF3`) |
+| `0x434` / `0x436` | 4 | panel VLCD |
+| `0x434` / `0x436` | 6, 7 | driven by PM51 only (indicator LED, inferred) |
+| `0x43A` / `0x43B` | 1 | set by real power-save and by the power-on path |
+| `0x44A` / `0x44C` | 7, 6, 2, 1 | cleared on real power-save (`sub_23D6AA`), set again by `power_event` |
+| `0x422` | 3, 2 | set on power-save |
+| `0x42C` / `0x42E` | | EEPROM write protect |
+
+Boot pin setup is `sub_2411B5` (called from `sub_2414AE`).
+
+**Backlight brightness:** `sub_23A17E` → `sub_26159A` maps 0–100 linearly to a duty of 0–255, with brightness 50 at settings `+0x34`. The duty goes to scaler register `0x2E902F4B` (sub-bank `0x2E`, window `0x102F`, reg `0x4B`). Panel-off never changes the duty; it only drops the enable pin.
+
+**Sequences** (`sub_241505(ms)` is a busy-wait on a 1 ms ISR counter)
+
+| Routine | Sequence | Assessment |
+|---|---|---|
+| `sub_245919` panel on (guard `pnl`=0) | `sub_23CCD5(2)`, VLCD on, 25 ms, eDP on `sub_21D167(1)`, 10 ms, `sub_211741`+`sub_2117E1` (link), 550 ms, `pnl`=1, `sub_23CCD5(0)`, backlight on; if a re-detect is pending (port `+0x1C` bit 0, and `0x453C70` bit 3 clear) → panel off instead | meets T2/T8 |
+| `sub_245860` panel off (guard `pnl`=1) | `pnl`=0, backlight off, 320 ms, `sub_2116F5`, `sub_23CCD5(1)`, 80 ms, `sub_23CCD5(0)`, eDP off `sub_21D167(0)`, 20 ms, VLCD off, arm 1200 ms timer (`0x4551B6`, `off`) | T9 ok; **T12 timer never checked by anyone** |
+| `sub_24578B` pre-standby off (no guard) | as above but no `pnl` change, no eDP off, no timer | **called every main-loop pass during pre-standby** (≈420 ms blocking each); eDP TX stays on with VLCD off |
+| `sub_2457FB` panel on without link | `sub_23CCD5(2)`, VLCD on, 25+550 ms, `sub_23CCD5(0)`, backlight on | **no eDP enable or link training** → backlight on without valid video (violates T8); used when pre-standby is cancelled (`0x259026`, `sub_266B56`) |
+
+`sub_23CCD5(mode)` writes bits 5:4 of scaler sub-bank `0x10` reg `0x43` (window `0x102F`). Mode 2 is used during panel power-up, 0 for normal output, and 1 briefly during power-down. The exact meaning is not decoded.
+
+**Standby hand-off**
+- `sub_23D6AA` (sys 1/2): writes the PM mailbox block `0x48A740`, drives the power pins above, `sub_20C537`, `sub_23EF7E(1)`, then `0x20E56B`.
+- `0x20E56B`: clock/IRQ shutdown (`0x2B08/0x2B18/0x2B28` = `0xFFFF`), then the handshake:
+  - `sub_20E531` polls PM reg `0x10FC` up to 9 times;
+  - if it gets no answer, `sub_20E379` writes `0x10F4`=1, `0x039D` bit 6, `0x0398`=`0x829F`, `0x038A` bit 6;
+  - the CPU then parks.
+
+**PM51** (`tools`: radare2 8051; image `pkg 0x10080`, code base 0)
+- Register helpers: `0x2C75` masked write (addr R4..R7, value RAM `0x54`, mask `0x55`), `0x31A4` byte write (`0x5A`), `0x351E` 16-bit write, `0x2B6F` read.
+- It writes PM regs `0x03A6` (mode bits), `0x03AA` (wake status), `0x038A`/`0x039D`, the mailbox bank `0x1033C0..C9`/`0x1033F1..F9`, and pins `0x0434`/`0x0436` bits 6/7.
+- It never touches the backlight enable `0x426`/`0x428` or VLCD (`0x434` bit 4).
+- Its wake-source handling is the remaining open item for real standby.

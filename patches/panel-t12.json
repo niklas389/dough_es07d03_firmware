@@ -1,0 +1,14 @@
+{
+  "name": "panel-t12",
+  "summary": "Enforce the panel datasheet's T12 (VLCD off >= 1 s before it may return): blocking 1.2 s wait at the end of the full panel-off sequence",
+  "status": "analysis-verified, hardware test pending",
+  "edits": [
+    {
+      "addr": "0x2458F6",
+      "old": "fcc004b0c0e008a1ecc751b798c1c0e008a1f8c751a7",
+      "new": "c86004b0e7ff78168001800180018001800180018001",
+      "asm": "arm unused 1200-tick timer (0x4551B6/off=0x4551A7) -> b.ori r3,r0,0x4b0; b.jal sub_241505 (delay ms); 7x b.nop"
+    }
+  ],
+  "notes": "sub_245860 (panel off) armed a 1200 ms timer (0x4551B6, flag off=0x4551A7) that the 1 ms ISR (sub_240C55) counts down, but no panel-on path ever checks it, so VLCD could be re-applied < 1 s after removal (LM270WR8 spec 3-6, T12 >= 1000 ms). The patch waits synchronously instead. Cost: panel-off blocks 1.2 s longer (it already blocks ~420 ms). The 'off' flag is no longer set; nothing else reads it."
+}
