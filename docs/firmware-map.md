@@ -204,3 +204,17 @@ All addresses are runtime addresses. Variables are as exposed by `patches/diag-p
 - So power-save was entered and left within seconds, followed by a firmware restart.
 - `pwr` bit 7 stayed clear, so the restart was not reported by PM register `0x3AA` as a normal PM wake (value `0b10`). PM wake with another code, and watchdog reset, are both still possible.
 - Conclusion: the vendor gate keeps the monitor out of power-save while the DP side is still active, and forcing entry only moves the loop.
+
+**Kernel log during the same test**
+- At 13:28:49, the moment power-save was entered, the monitor's hub (`2109:2822`/`2109:8886`) disconnected.
+- In the same second amdgpu logged about 27 `DMUB HPD RX IRQ` (DP IRQ_HPD) events through the dock.
+- The hub came back at 13:28:52, i.e. the monitor had already woken.
+- Reading: entering power-save disturbs the DP link, the dock and GPU respond with link/AUX traffic, and that traffic wakes the monitor.
+- The owner reports clean standby only when the laptop is disconnected from the dock and the dock itself sleeps, so nobody answers.
+
+**State table** `0x3BAAFC`, `0x1C` bytes per state, indexed by `0x457854`
+- `+0x08`: key-map table pointer.
+- `+0x10`: entry handler.
+- State 3 entry `sub_26A7A9` arms `cnt` = 5.
+- State 4 entry `sub_26A7C5` ("No signal") arms `cnt` = 255; if `flg` bit 0 is set, `cnt` = 1.
+- Re-entering state 4 is what restarts the countdown after a refusal.
