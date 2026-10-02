@@ -13,7 +13,7 @@ from the usual public sources. Flashing is done with `specflash` from
 | Path | What |
 |---|---|
 | `docs/firmware-map.md` | Package layout, boot chain, checksums, memory map, located subsystems |
-| `tools/es07fw.py` | `info` / `unpack` / `patch` / `diff`: verifies and rebuilds packages (deflate + both CRCs) |
+| `tools/es07fw.py` | `info` / `unpack` / `patch` / `diff`: verifies and rebuilds packages (deflate + both CRCs); patches the main image or the PM51 code |
 | `patches/*.json` | Byte patches by runtime address, with original bytes checked before applying |
 | `tools/aeon/aeondis.py` | AEON R2 disassembler (vendor-table driven) |
 | `tools/aeon/funcs.py`, `xrefs.py`, `fdis.py` | Function discovery, xref database, annotated listings |
@@ -49,6 +49,7 @@ output before writing it.
 | `panel-seq` | **experimental** | One-shot proper panel-off in pre-standby; cancelling pre-standby uses the full panel-on with eDP link training (likely wake-flash cause) |
 | `standby-lhs` | **experimental** | Link-held standby: while the source keeps the DP link up without video, stay dark with the standby LED instead of looping through "No signal"; wake on valid video or key; deep standby once the link is released. Includes panel-seq (use one or the other) |
 | `no-logo` | **experimental** | Skips the 2–3 s power-on logo and the forced input re-detection plus panel off/on that follow it; power-on then takes the standby-wake path |
+| `pm51-wake-recheck` | **experimental** | PM51 standby controller: port activity wakes the monitor only if it is still present 200 ms later (the vendor check is a stub that always wakes); keys unaffected |
 
 Recovery from any bad flash: flash the stock package. If FW2 fails its CRC,
 the bootloader falls back to the factory image at SPI `0x0`.

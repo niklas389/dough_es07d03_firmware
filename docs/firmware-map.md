@@ -330,7 +330,9 @@ Disassembled with radare2 (`-a 8051`). Keil C51 style: XRAM variables at `0x5000
 
 **`0x9D54` is a stub.** It loads 0/200/0 into scratch bytes `0x24–0x26` and returns 1 unconditionally. Any activity interrupt on an enabled port therefore wakes the chip, including the DP side-channel (AUX) traffic that the GPU/dock generates in response to the IRQ_HPD burst at standby entry (kernel log: ~27 `DMUB HPD RX IRQ` at the moment the hub dropped).
 
-**Second 8051 image** (`0x20080`): shares about a third of its code with PM51. The bootloader points the PM51 code base at `0x10080`; the main firmware does not reference `0x20080`. Its role is unknown.
+**Code banking.** The PM51 uses Keil code banking. `0x10080` is bank 0 and `0x20080` is bank 1 (previously listed as the "second 8051 image"). The common area `0x0000`–`~0x34FF` is identical in both, and IRAM `0x1F` (low 3 bits) selects the bank. Inter-bank calls go through the table at `0x28A0` (`mov dptr,#target; ajmp 0x2812`) and the switch routines at `0x2D00`. The wake decision `0x745A` and the stub `0x9D54` are bank-0 code. Bank 0 is free (`0xFF`) from `0x9D9A`.
+
+**`pm51-wake-recheck`.** `0x9D54` jumps to new bank-0 code at `0xA000`. It waits 200 ms (`0x9D2D`), then re-reads the two conditions that raised event 2 in `0x5BAA` (PM `0x0386` bit 5, PM `0x038B` bits 2:0) and wakes only if one is still set. The PM51 only reads these registers and never writes them, so whether they latch is unknown; if they do, the behaviour is the same as stock.
 
 ## 11. Why the no-signal cycle restarts, and `standby-lhs`
 

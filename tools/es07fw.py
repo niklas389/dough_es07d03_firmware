@@ -8,13 +8,14 @@ ES07D03_Beta03_rev1169-E771_USB_update.bin (flashed at SPI 0x400000).
   es07fw.py unpack  PKG OUTDIR          extract runtime image and components
   es07fw.py patch   PKG OUT NAME...     apply patches from patches/*.json, repack
   es07fw.py list                        list available patches
-  es07fw.py diff    PKG OUT             show runtime-image differences
+  es07fw.py diff    PKG OUT             show runtime-image and PM51 differences
 
 The main firmware runs from DRAM. Its first 0x3800 bytes (vectors, startup)
 are stored uncompressed at package offset 0x30080. The rest is raw deflate
 starting at 0x33880 and is inflated by the bootloader to 0x203800. Together
 they form the "runtime image", linked at 0x200000. Patch addresses in
-patches/*.json are runtime addresses.
+patches/*.json are runtime addresses, or PM51 code addresses for patches with
+"space": "pm51" (PM51 code runs from flash at package offset 0x10080).
 
 Repacking keeps every package offset unchanged. The new deflate stream is
 written at 0x33880 and zero-padded up to the original stream end. The size
@@ -36,6 +37,8 @@ HEAD_OFF = 0x30080       # main image start (header +0x00)
 HEAD_LEN = 0x3800        # uncompressed head copied to the load address
 Z_OFF = HEAD_OFF + HEAD_LEN
 LOAD = 0x200000          # header +0x04
+PM51_OFF = 0x10080       # PM51 8051 code, executed from flash; code address 0 = this offset
+PM51_LEN = 0x10000
 REF_SHA256 = 'd9be1e1c7aad81813faa7490a200fe6cfb83d0f371169f4ff94b829ea64c5ce3'
 
 
@@ -144,10 +147,16 @@ def load_patches():
     return out
 
 
+def is_pm51(p):
+    return p.get('space') == 'pm51'
+
+
 def apply_patch(rt, p):
+    """Apply a runtime-image patch to rt, or a PM51 patch to the package bytes."""
     rt = bytearray(rt)
+    base = -PM51_OFF if is_pm51(p) else LOAD
     for e in p['edits']:
-        a = int(e['addr'], 16) - LOAD
+        a = int(e['addr'], 16) - base
         old, new = bytes.fromhex(e['old']), bytes.fromhex(e['new'])
         if len(old) != len(new):
             raise ValueError('%s: old/new length differ' % p['name'])
@@ -178,15 +187,21 @@ def cmd_info(pkg_path):
     print('checksums    ' + ('OK (main CRC %08x, package CRC %08x)' %
                              (p.main_crc, struct.unpack_from('>I', p.d, p.total)[0]) if not errs else
                              'FAIL: ' + '; '.join(errs)))
-    applied = [n for n, q in load_patches().items() if patch_state(rt, q) == 'applied']
+    applied = [n for n, q in load_patches().items() if patch_state(rt, q, bytes(p.d)) == 'applied']
     print('patches      ' + (', '.join(applied) if applied else 'none detected'))
     return 0 if not errs else 1
 
 
-def patch_state(rt, p):
+def patch_state(rt, p, pkg=None):
+    if is_pm51(p):
+        if pkg is None:
+            return 'unknown'
+        rt, base = pkg, -PM51_OFF
+    else:
+        base = LOAD
     st = set()
     for e in p['edits']:
-        a = int(e['addr'], 16) - LOAD
+        a = int(e['addr'], 16) - base
         cur = rt[a:a + len(bytes.fromhex(e['old']))]
         st.add('applied' if cur == bytes.fromhex(e['new']) else 'stock' if cur == bytes.fromhex(e['old']) else 'other')
     return st.pop() if len(st) == 1 else 'mixed'
@@ -219,34 +234,44 @@ def cmd_patch(pkg_path, out_path, names):
     for n in names:
         if n not in allp:
             sys.exit('unknown patch %r (see: es07fw.py list)' % n)
-        rt = apply_patch(rt, allp[n])
+        if is_pm51(allp[n]):
+            p.d[:] = apply_patch(bytes(p.d), allp[n])
+        else:
+            rt = apply_patch(rt, allp[n])
         print('applied %s' % n)
+    pm = bytes(p.d[PM51_OFF:PM51_OFF + PM51_LEN])
     zlen = p.rebuild(rt)
     # verify the written package from scratch
     q = Package(bytes(p.d))
     errs = q.check()
     rt2, _ = q.runtime()
-    if errs or rt2 != rt:
+    if errs or rt2 != rt or bytes(q.d[PM51_OFF:PM51_OFF + PM51_LEN]) != pm:
         sys.exit('verification of rebuilt package failed: ' + '; '.join(errs))
     open(out_path, 'wb').write(p.d)
     print('wrote %s (deflate %#x bytes, main CRC %08x) - verified' % (out_path, zlen, q.main_crc))
 
 
-def cmd_diff(a_path, b_path):
-    ra, _ = Package(open(a_path, 'rb').read()).runtime()
-    rb, _ = Package(open(b_path, 'rb').read()).runtime()
-    if len(ra) != len(rb):
-        sys.exit('runtime sizes differ')
+def _diff(ra, rb, base, tag=''):
     i = 0
     while i < len(ra):
         if ra[i] != rb[i]:
             j = i
             while j < len(ra) and ra[j] != rb[j]:
                 j += 1
-            print('%08x: %s -> %s' % (LOAD + i, ra[i:j].hex(), rb[i:j].hex()))
+            print('%s%08x: %s -> %s' % (tag, base + i, ra[i:j].hex(), rb[i:j].hex()))
             i = j
         else:
             i += 1
+
+
+def cmd_diff(a_path, b_path):
+    pa, pb = Package(open(a_path, 'rb').read()), Package(open(b_path, 'rb').read())
+    ra, _ = pa.runtime()
+    rb, _ = pb.runtime()
+    if len(ra) != len(rb):
+        sys.exit('runtime sizes differ')
+    _diff(ra, rb, LOAD)
+    _diff(pa.d[PM51_OFF:PM51_OFF + PM51_LEN], pb.d[PM51_OFF:PM51_OFF + PM51_LEN], 0, 'pm51 ')
 
 
 def cmd_list():

@@ -1,0 +1,21 @@
+{
+  "name": "pm51-wake-recheck",
+  "summary": "PM51: wake on port activity only if it is still present 200 ms later (replaces the always-wake stub); keys unaffected",
+  "status": "experimental, hardware test pending",
+  "space": "pm51",
+  "edits": [
+    {
+      "addr": "0x9D54",
+      "old": "752400",
+      "new": "02a000",
+      "asm": "port-wake qualifier stub (called from the wake decision 0x745A for event 2): mov 0x24,#0 -> ljmp 0xA000"
+    },
+    {
+      "addr": "0xA000",
+      "old": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "new": "7524007525c8e4f5267e007fc8129d2d7f861252dc123002ef5420700f7f8b1252dc123002ef54077002ff227f0122",
+      "asm": "bank-0 free space: same scratch writes as the stub; delay_ms(200) via 0x9D2D; re-read PM 0x0386 (bit 5) and 0x038B (bits 2:0), the conditions that raised event 2 in 0x5BAA; r7 = 1 (wake) if any is set, else 0 (stay asleep)"
+    }
+  ],
+  "notes": "Addresses are PM51 code addresses (bank 0, package offset 0x10080 + addr; executed from flash, covered only by the package CRC). The PM51 uses Keil code banking: common area 0x0000-~0x34FF is identical in bank 0 (0x10080) and bank 1 (0x20080), IRAM 0x1F selects the bank. 0x9D54 and its caller 0x745A are bank-0 code, so the new code is placed in bank-0 space at 0xA000 (0xFF, unreferenced). Whether the PM status bits latch or follow the line is not known: if they latch, this behaves exactly like stock (wake); if they follow the line or clear on read, activity that has stopped after 200 ms no longer wakes the chip. The vendor wake path already uses delay_ms (0x745A calls 0x9D2D(10)). Key events (0x0C-0x15) do not pass through this check."
+}
