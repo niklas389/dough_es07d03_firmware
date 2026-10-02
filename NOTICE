@@ -1,0 +1,6 @@
+tools/aeon/isa_r2.json is derived from isa/aeon_isa.json, isa/calibration.json
+and isa/dontcare.json of eb4x/ghidra-plugin-aeon
+(https://github.com/eb4x/ghidra-plugin-aeon, commit 5299eebd886a966e8b464203d93b68241cee012d),
+licensed under the Apache License, Version 2.0
+(http://www.apache.org/licenses/LICENSE-2.0). It was reduced to the AEON R2
+opcode table, operand letters, display mnemonics and don't-care bit masks.

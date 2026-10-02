@@ -1,0 +1,10 @@
+{
+  "name": "d6-standby-lock",
+  "summary": "VCP D6=02..04 no longer sets the persistent 'DDC standby' key-lock bit (settings +0x4C bit 4)",
+  "status": "verified-by-analysis; equivalent to specpatch 'd6-osd-lock' (other chat address 0x3692EE)",
+  "edits": [
+    {"addr": "0x26CAEE", "old": "50e710", "new": "50e700",
+     "asm": "b.ori r7,r7,0x10 -> b.ori r7,r7,0x0"}
+  ],
+  "notes": "In the Set-VCP D6 handler (inside sub_26AD19), values 2..4 set g_StandbyReq (0x4551AC bit 1) and OR 0x10 into settings byte +0x4C. Settings +0x48..+0xD1 are saved to the I2C EEPROM as one block (sub_26368B), so the bit survives power cycles. Its only reader is the key handler (0x258F7C). The only code that clears it is the monitor-settings default loader sub_262388 (first boot / version-change update), so neither VCP 04 nor a same-version reflash clears it. The standby request itself (bit 1 of 0x4551AC) is unchanged."
+}

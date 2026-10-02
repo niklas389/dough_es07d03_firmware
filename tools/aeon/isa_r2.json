@@ -1,0 +1,5635 @@
+{
+"source": "https://github.com/eb4x/ghidra-plugin-aeon @ 5299eebd886a966e8b464203d93b68241cee012d (isa/aeon_isa.json, isa/calibration.json, isa/dontcare.json), Apache-2.0",
+"letters": [
+{
+"letter": "A",
+"flags": 1,
+"len": 5,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "B",
+"flags": 1,
+"len": 5,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "C",
+"flags": 1,
+"len": 5,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "D",
+"flags": 5,
+"len": 5,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "?",
+"flags": 261,
+"len": 5,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "Z",
+"flags": 257,
+"len": 5,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "\u0086",
+"flags": 5,
+"len": 5,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "Q",
+"flags": 0,
+"len": 1,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "f",
+"flags": 0,
+"len": 1,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "\u0080",
+"flags": 0,
+"len": 1,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "\u0081",
+"flags": 0,
+"len": 1,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "c",
+"flags": 0,
+"len": 2,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "d",
+"flags": 0,
+"len": 2,
+"shift": 0,
+"add": 0
+},
+{
+"letter": ">",
+"flags": 0,
+"len": 2,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "E",
+"flags": 0,
+"len": 3,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "\u0082",
+"flags": 0,
+"len": 3,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "%",
+"flags": 2,
+"len": 3,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "F",
+"flags": 0,
+"len": 4,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "G",
+"flags": 2,
+"len": 4,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "H",
+"flags": 0,
+"len": 5,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "e",
+"flags": 0,
+"len": 5,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "I",
+"flags": 2,
+"len": 5,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "L",
+"flags": 2,
+"len": 5,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "K",
+"flags": 0,
+"len": 6,
+"shift": 2,
+"add": 0
+},
+{
+"letter": "b",
+"flags": 0,
+"len": 6,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "\u0084",
+"flags": 0,
+"len": 6,
+"shift": 0,
+"add": 0
+},
+{
+"letter": ":",
+"flags": 2050,
+"len": 6,
+"shift": 2,
+"add": 0
+},
+{
+"letter": "\u0085",
+"flags": 0,
+"len": 7,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "_",
+"flags": 2050,
+"len": 7,
+"shift": 1,
+"add": 0
+},
+{
+"letter": "N",
+"flags": 0,
+"len": 8,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "m",
+"flags": 0,
+"len": 6,
+"shift": 1,
+"add": 0
+},
+{
+"letter": "n",
+"flags": 0,
+"len": 6,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "O",
+"flags": 2,
+"len": 8,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "z",
+"flags": 2050,
+"len": 8,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "<",
+"flags": 0,
+"len": 8,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "V",
+"flags": 0,
+"len": 9,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "`",
+"flags": 10,
+"len": 8,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "=",
+"flags": 2,
+"len": 10,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "P",
+"flags": 8,
+"len": 10,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "&",
+"flags": 8,
+"len": 10,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "T",
+"flags": 10,
+"len": 10,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "R",
+"flags": 2,
+"len": 11,
+"shift": 2,
+"add": 0
+},
+{
+"letter": "|",
+"flags": 0,
+"len": 12,
+"shift": 0,
+"add": 0
+},
+{
+"letter": ";",
+"flags": 10,
+"len": 13,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "$",
+"flags": 0,
+"len": 13,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "W",
+"flags": 2050,
+"len": 14,
+"shift": 2,
+"add": 0
+},
+{
+"letter": "X",
+"flags": 2050,
+"len": 15,
+"shift": 1,
+"add": 0
+},
+{
+"letter": "Y",
+"flags": 2,
+"len": 16,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "!",
+"flags": 2050,
+"len": 16,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "U",
+"flags": 0,
+"len": 16,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "t",
+"flags": 0,
+"len": 16,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "~",
+"flags": 10,
+"len": 16,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "[",
+"flags": 10,
+"len": 16,
+"shift": 0,
+"add": -3
+},
+{
+"letter": "x",
+"flags": 2,
+"len": 14,
+"shift": 1,
+"add": 0
+},
+{
+"letter": "y",
+"flags": 2,
+"len": 14,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "s",
+"flags": 10,
+"len": 18,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "'",
+"flags": 10,
+"len": 23,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "]",
+"flags": 10,
+"len": 23,
+"shift": 0,
+"add": -3
+},
+{
+"letter": "o",
+"flags": 0,
+"len": 24,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "p",
+"flags": 2,
+"len": 24,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "/",
+"flags": 10,
+"len": 25,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "j",
+"flags": 34,
+"len": 30,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "k",
+"flags": 34,
+"len": 30,
+"shift": 1,
+"add": 0
+},
+{
+"letter": "@",
+"flags": 0,
+"len": 3,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "#",
+"flags": 0,
+"len": 5,
+"shift": 0,
+"add": 0
+},
+{
+"letter": "*",
+"flags": 0,
+"len": 12,
+"shift": 3,
+"add": 0
+},
+{
+"letter": "^",
+"flags": 0,
+"len": 12,
+"shift": 2,
+"add": 0
+}
+],
+"opcodes": [
+{
+"name": "bt.trap",
+"display": "b.trap",
+"args": "G",
+"encoding": "100 000 00000 GGGG 0",
+"unit": "it_sys",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bt.nop",
+"display": "b.nop",
+"args": "G",
+"encoding": "100 000 00000 GGGG 1",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bt.stack",
+"display": "b.stack",
+"args": "r?,F,f",
+"encoding": "100 000 ????? FFFF f",
+"unit": "it_store",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bt.rfe",
+"display": "b.rfe",
+"args": "",
+"encoding": "100 001 ----- 00000",
+"unit": "it_sys",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bt.ei",
+"display": "b.ei",
+"args": "",
+"encoding": "100 001 ----- 00001",
+"unit": "it_sys",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bt.di",
+"display": "b.di",
+"args": "",
+"encoding": "100 001 ----- 00010",
+"unit": "it_sys",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bt.sys",
+"display": "b.sys",
+"args": "",
+"encoding": "100 001 ----- 00011",
+"unit": "it_sys",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bt.wait",
+"display": "b.wait",
+"args": "",
+"encoding": "100 001 ----- 00100",
+"unit": "it_sys",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bt.synci",
+"display": "b.synci",
+"args": "",
+"encoding": "100 001 ----- 00101",
+"unit": "it_sys",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bt.syncd",
+"display": "b.syncd",
+"args": "",
+"encoding": "100 001 ----- 00110",
+"unit": "it_sys",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bt.return",
+"display": "b.return",
+"args": "",
+"encoding": "100 001 ----- 00111",
+"unit": "it_return",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bt.jalr",
+"display": "b.jalr",
+"args": "rA",
+"encoding": "100 001 AAAAA 01000",
+"unit": "it_call",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bt.jr",
+"display": "b.jr",
+"args": "rA",
+"encoding": "100 001 AAAAA 01001",
+"unit": "it_indirect_jump",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bt.pop",
+"display": "b.pop",
+"args": "rD",
+"encoding": "100 001 DDDDD 01010",
+"unit": "it_load",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bt.push",
+"display": "b.push",
+"args": "rA",
+"encoding": "100 001 AAAAA 01011",
+"unit": "it_store",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bt.syncp",
+"display": "bt.syncp",
+"args": "",
+"encoding": "100 001 ----- 01100",
+"unit": "it_sys",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bt.sfgtui_minus32769",
+"display": "bt.sfgtui_minus32769",
+"args": "rA",
+"encoding": "100 001 AAAAA 10000",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bt.sfleui_minus32769",
+"display": "bt.sfleui_minus32769",
+"args": "rA",
+"encoding": "100 001 AAAAA 10001",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bt.sfgtsi_minus32769",
+"display": "bt.sfgtsi_minus32769",
+"args": "rA",
+"encoding": "100 001 AAAAA 10010",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bt.sflesi_minus32769",
+"display": "bt.sflesi_minus32769",
+"args": "rA",
+"encoding": "100 001 AAAAA 10011",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bt.add16",
+"display": "b.add16",
+"args": "rD",
+"encoding": "100 001 DDDDD 10100",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": true
+},
+{
+"name": "bt.mov16",
+"display": "bt.mov16",
+"args": "rD",
+"encoding": "100 001 DDDDD 10101",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bt.dm",
+"display": "b.dm",
+"args": "",
+"encoding": "100 001 ----- 10110",
+"unit": "it_sys",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bt.em",
+"display": "b.em",
+"args": "",
+"encoding": "100 001 ----- 10111",
+"unit": "it_sys",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bt.mov",
+"display": "b.mov",
+"args": "rD,rA",
+"encoding": "100 010 DDDDD AAAAA",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bt.add",
+"display": "b.add",
+"args": "rD,rA",
+"encoding": "100 011 DDDDD AAAAA",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": true
+},
+{
+"name": "bt.j",
+"display": "b.j",
+"args": "T",
+"encoding": "100 100 TTTTT TTTTT",
+"unit": "it_uncond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bt.movhi",
+"display": "b.movhi",
+"args": "rD,H",
+"encoding": "100 101 DDDDD HHHHH",
+"unit": "it_movimm",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bt.movi",
+"display": "b.movi",
+"args": "rD,I",
+"encoding": "100 110 DDDDD IIIII",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bt.addi",
+"display": "b.addi",
+"args": "rD,I",
+"encoding": "100 111 DDDDD IIIII",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": true
+},
+{
+"name": "bn.nop",
+"display": "b.nop",
+"args": "t",
+"encoding": "000 000 --tttttttttttttttt",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.movhi",
+"display": "b.movhi",
+"args": "rD,$",
+"encoding": "000 001 DDDDD $$$$$$$$$$$$$",
+"unit": "it_movimm",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.lhs",
+"display": "b.lhs",
+"args": "rD,_(rA)",
+"encoding": "000 010 DDDDD AAAAA _______ 0",
+"unit": "it_load",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.lhz",
+"display": "b.lhz",
+"args": "rD,_(rA)",
+"encoding": "000 010 DDDDD AAAAA _______ 1",
+"unit": "it_load",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sh",
+"display": "b.sh",
+"args": "_(rA),rB",
+"encoding": "000 011 BBBBB AAAAA _______ 1",
+"unit": "it_store",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sw",
+"display": "b.sw",
+"args": ":(rA),rB",
+"encoding": "000 011 BBBBB AAAAA :::::: 00",
+"unit": "it_store",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.lwz",
+"display": "b.lwz",
+"args": "rD,:(rA)",
+"encoding": "000 011 DDDDD AAAAA :::::: 10",
+"unit": "it_load",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.lbz",
+"display": "b.lbz",
+"args": "r?,z(rA)",
+"encoding": "000 100 ????? AAAAA zzzzzzzz",
+"unit": "it_load",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.lbs",
+"display": "b.lbs",
+"args": "rD,z(rA)",
+"encoding": "000 101 DDDDD AAAAA zzzzzzzz",
+"unit": "it_load",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sb",
+"display": "b.sb",
+"args": "z(rA),rB",
+"encoding": "000 110 BBBBB AAAAA zzzzzzzz",
+"unit": "it_store",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.pclwz",
+"display": "b.pclwz",
+"args": "z(rA)",
+"encoding": "000 100 00000 AAAAA zzzzzzzz",
+"unit": "it_load",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.addi",
+"display": "b.addi",
+"args": "rD,rA,O",
+"encoding": "000 111 DDDDD AAAAA OOOOOOOO",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.div",
+"display": "b.div",
+"args": "rD,rA,rB",
+"encoding": "010 000 DDDDD AAAAA BBBBB 000",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.divu",
+"display": "b.divu",
+"args": "rD,rA,rB",
+"encoding": "010 000 DDDDD AAAAA BBBBB 001",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.mulu",
+"display": "b.mulu",
+"args": "rD,rA,rB",
+"encoding": "010 000 DDDDD AAAAA BBBBB 010",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.mul",
+"display": "b.mul",
+"args": "rD,rA,rB",
+"encoding": "010 000 DDDDD AAAAA BBBBB 011",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.add",
+"display": "b.add",
+"args": "rD,rA,rB",
+"encoding": "010 000 DDDDD AAAAA BBBBB 100",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sub",
+"display": "b.sub",
+"args": "rD,rA,rB",
+"encoding": "010 000 DDDDD AAAAA BBBBB 101",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.subb",
+"display": "b.subb",
+"args": "rD,rA,rB",
+"encoding": "010 000 DDDDD AAAAA BBBBB 110",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.addc",
+"display": "b.addc",
+"args": "rD,rA,rB",
+"encoding": "010 000 DDDDD AAAAA BBBBB 111",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.flb",
+"display": "b.flb",
+"args": "rD,rA,rB",
+"encoding": "010 001 DDDDD AAAAA BBBBB 000",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.andn",
+"display": "b.andn",
+"args": "rD,rA,rB",
+"encoding": "010 001 DDDDD AAAAA BBBBB 001",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sub_s",
+"display": "b.sub_s",
+"args": "rD,rA,rB",
+"encoding": "010 001 DDDDD AAAAA BBBBB 010",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.add_s",
+"display": "b.add_s",
+"args": "rD,rA,rB",
+"encoding": "010 001 DDDDD AAAAA BBBBB 011",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.and",
+"display": "b.and",
+"args": "rD,rA,rB",
+"encoding": "010 001 DDDDD AAAAA BBBBB 100",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.or",
+"display": "b.or",
+"args": "rD,rA,rB",
+"encoding": "010 001 DDDDD AAAAA BBBBB 101",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.xor",
+"display": "b.xor",
+"args": "rD,rA,rB",
+"encoding": "010 001 DDDDD AAAAA BBBBB 110",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.nand",
+"display": "b.nand",
+"args": "rD,rA,rB",
+"encoding": "010 001 DDDDD AAAAA BBBBB 111",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.cmov",
+"display": "b.cmov",
+"args": "rD,rA,rB",
+"encoding": "010 010 DDDDD AAAAA BBBBB 000",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.cmovir",
+"display": "b.cmovir",
+"args": "rD,I,rB",
+"encoding": "010 010 DDDDD IIIII BBBBB 001",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.cmovri",
+"display": "b.cmovri",
+"args": "rD,rA,I",
+"encoding": "010 010 DDDDD AAAAA IIIII 010",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.cmovii",
+"display": "b.cmovii",
+"args": "rD,I,L",
+"encoding": "010 010 DDDDD IIIII LLLLL 011",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.slli",
+"display": "b.slli",
+"args": "rD,rA,H",
+"encoding": "010 011 DDDDD AAAAA HHHHH 000",
+"unit": "it_shift",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.srli",
+"display": "b.srli",
+"args": "rD,rA,H",
+"encoding": "010 011 DDDDD AAAAA HHHHH 001",
+"unit": "it_shift",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.srai",
+"display": "b.srai",
+"args": "rD,rA,H",
+"encoding": "010 011 DDDDD AAAAA HHHHH 010",
+"unit": "it_shift",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.rori",
+"display": "b.rori",
+"args": "rD,rA,H",
+"encoding": "010 011 DDDDD AAAAA HHHHH 011",
+"unit": "it_shift",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sll",
+"display": "b.sll",
+"args": "rD,rA,rB",
+"encoding": "010 011 DDDDD AAAAA BBBBB 100",
+"unit": "it_shift",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.srl",
+"display": "b.srl",
+"args": "rD,rA,rB",
+"encoding": "010 011 DDDDD AAAAA BBBBB 101",
+"unit": "it_shift",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sra",
+"display": "b.sra",
+"args": "rD,rA,rB",
+"encoding": "010 011 DDDDD AAAAA BBBBB 110",
+"unit": "it_shift",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.ror",
+"display": "b.ror",
+"args": "rD,rA,rB",
+"encoding": "010 011 DDDDD AAAAA BBBBB 111",
+"unit": "it_shift",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.ori",
+"display": "b.ori",
+"args": "rD,rA,N",
+"encoding": "010 100 DDDDD AAAAA NNNNNNNN",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.andi",
+"display": "b.andi",
+"args": "rD,rA,N",
+"encoding": "010 101 DDDDD AAAAA NNNNNNNN",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.xori",
+"display": "b.xori",
+"args": "rD,rA,O",
+"encoding": "010 110 DDDDD AAAAA OOOOOOOO",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sfeqi",
+"display": "b.sfeqi",
+"args": "rA,O",
+"encoding": "010 111 AAAAA OOOOOOOO 0000 1",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sfnei",
+"display": "b.sfnei",
+"args": "rA,O",
+"encoding": "010 111 AAAAA OOOOOOOO 0100 1",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sflesi",
+"display": "b.sflesi",
+"args": "rA,O",
+"encoding": "010 111 AAAAA OOOOOOOO 1000 1",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sfgtsi",
+"display": "b.sfgtsi",
+"args": "rA,O",
+"encoding": "010 111 AAAAA OOOOOOOO 1100 1",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sfleui",
+"display": "b.sfleui",
+"args": "rA,O",
+"encoding": "010 111 AAAAA OOOOOOOO 1001 1",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sfgtui",
+"display": "b.sfgtui",
+"args": "rA,O",
+"encoding": "010 111 AAAAA OOOOOOOO 1101 1",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sfeq",
+"display": "b.sfeq",
+"args": "rA,rB",
+"encoding": "010 111 AAAAA BBBBB--- 0010 1",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sfne",
+"display": "b.sfne",
+"args": "rA,rB",
+"encoding": "010 111 AAAAA BBBBB--- 0110 1",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sfles",
+"display": "b.sfles",
+"args": "rA,rB",
+"encoding": "010 111 AAAAA BBBBB--- 1010 1",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sfgts",
+"display": "b.sfgts",
+"args": "rA,rB",
+"encoding": "010 111 AAAAA BBBBB--- 1110 1",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.cnreti",
+"display": "b.cnreti",
+"args": "F,V",
+"encoding": "010 111 FFFF VVVVVVVVV 0011 1",
+"unit": "it_return",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.creti",
+"display": "b.creti",
+"args": "F,V",
+"encoding": "010 111 FFFF VVVVVVVVV 0111 1",
+"unit": "it_return",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sfleu",
+"display": "b.sfleu",
+"args": "rA,rB",
+"encoding": "010 111 AAAAA BBBBB--- 1011 1",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sfgtu",
+"display": "b.sfgtu",
+"args": "rA,rB",
+"encoding": "010 111 AAAAA BBBBB--- 1111 1",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.extbz",
+"display": "b.extbz",
+"args": "rD,rA",
+"encoding": "010 111 DDDDD AAAAA--- 0000 0",
+"unit": "it_move",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.extbs",
+"display": "b.extbs",
+"args": "rD,rA",
+"encoding": "010 111 DDDDD AAAAA--- 0001 0",
+"unit": "it_move",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.exthz",
+"display": "b.exthz",
+"args": "rD,rA",
+"encoding": "010 111 DDDDD AAAAA--- 0010 0",
+"unit": "it_move",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.exths",
+"display": "b.exths",
+"args": "rD,rA",
+"encoding": "010 111 DDDDD AAAAA--- 0011 0",
+"unit": "it_move",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.ff1",
+"display": "b.ff1",
+"args": "rD,rA",
+"encoding": "010 111 DDDDD AAAAA--- 0100 0",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.exp",
+"display": "b.exp",
+"args": "rD,rA",
+"encoding": "010 111 DDDDD AAAAA--0 0101 0",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.exp16",
+"display": "b.exp16",
+"args": "rD,rA",
+"encoding": "010 111 DDDDD AAAAA--1 0101 0",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.fl1",
+"display": "b.fl1",
+"args": "rD,rA",
+"encoding": "010 111 DDDDD AAAAA--- 0110 0",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.clz",
+"display": "b.clz",
+"args": "rD,rA",
+"encoding": "010 111 DDDDD AAAAA--- 0111 0",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.swab",
+"display": "b.swab",
+"args": "rD,rA",
+"encoding": "010 111 DDDDD AAAAA--- 1000 0",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.bitrev",
+"display": "b.bitrev",
+"args": "rD,rA",
+"encoding": "010 111 DDDDD AAAAA--- 1001 0",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sgn",
+"display": "b.sgn",
+"args": "rD,rA",
+"encoding": "010 111 DDDDD AAAAA000 1010 0",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sgnz1",
+"display": "b.sgnz1",
+"args": "rD,rA",
+"encoding": "010 111 DDDDD AAAAA001 1010 0",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sgnz_1",
+"display": "b.sgnz_1",
+"args": "rD,rA",
+"encoding": "010 111 DDDDD AAAAA010 1010 0",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sgnp",
+"display": "b.sgnp",
+"args": "rD,rA",
+"encoding": "010 111 DDDDD AAAAA100 1010 0",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sgnpz1",
+"display": "b.sgnpz1",
+"args": "rD,rA",
+"encoding": "010 111 DDDDD AAAAA101 1010 0",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sgnpz_1",
+"display": "b.sgnpz_1",
+"args": "rD,rA",
+"encoding": "010 111 DDDDD AAAAA110 1010 0",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.count1",
+"display": "b.count1",
+"args": "rD,rA",
+"encoding": "010 111 DDDDD AAAAA--- 1011 0",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.entri",
+"display": "b.entri",
+"args": "F,V",
+"encoding": "010 111 FFFF VVVVVVVVV 1100 0",
+"unit": "it_store",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.reti",
+"display": "b.reti",
+"args": "F,V",
+"encoding": "010 111 FFFF VVVVVVVVV 1101 0",
+"unit": "it_return",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.rtnei",
+"display": "b.rtnei",
+"args": "F,V",
+"encoding": "010 111 FFFF VVVVVVVVV 1110 0",
+"unit": "it_load",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.beqi",
+"display": "b.beqi",
+"args": "rA,%,`",
+"encoding": "001 000 AAAAA %%% ```````` 00",
+"unit": "it_cond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.bnei",
+"display": "b.bnei",
+"args": "rA,%,`",
+"encoding": "001 000 AAAAA %%% ```````` 10",
+"unit": "it_cond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.bf",
+"display": "b.bf",
+"args": "~",
+"encoding": "001 000 ~~~~~~~~~~~~~~~~   01",
+"unit": "it_cond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.bnf",
+"display": "b.bnf",
+"args": "~",
+"encoding": "001 000 ~~~~~~~~~~~~~~~~   11",
+"unit": "it_cond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.blesi",
+"display": "b.blesi",
+"args": "rA,%,`",
+"encoding": "001 001 AAAAA %%% ```````` 00",
+"unit": "it_cond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.bgtsi",
+"display": "b.bgtsi",
+"args": "rA,%,`",
+"encoding": "001 001 AAAAA %%% ```````` 10",
+"unit": "it_cond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.bleui",
+"display": "b.bleui",
+"args": "rA,%,`",
+"encoding": "001 001 AAAAA %%% ```````` 01",
+"unit": "it_cond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.bgtui",
+"display": "b.bgtui",
+"args": "rA,%,`",
+"encoding": "001 001 AAAAA %%% ```````` 11",
+"unit": "it_cond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.jal",
+"display": "b.jal",
+"args": "s",
+"encoding": "001 010 ssssssssssssssssss",
+"unit": "it_call",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.j",
+"display": "b.j",
+"args": "s",
+"encoding": "001 011 ssssssssssssssssss",
+"unit": "it_uncond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.mlwz",
+"display": "b.mlwz",
+"args": "rD,K(rA),c",
+"encoding": "001 100 DDDDD AAAAA KKKKKK cc",
+"unit": "it_load",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.msw",
+"display": "b.msw",
+"args": "K(rA),rB,c",
+"encoding": "001 101 BBBBB AAAAA KKKKKK cc",
+"unit": "it_store",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.srlri",
+"display": "b.srlri",
+"args": "rD,rA,H",
+"encoding": "011 000 DDDDD AAAAA HHHHH 000",
+"unit": "it_shift",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.srari",
+"display": "b.srari",
+"args": "rD,rA,H",
+"encoding": "011 000 DDDDD AAAAA HHHHH 001",
+"unit": "it_shift",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.srarzi",
+"display": "b.srarzi",
+"args": "rD,rA,H",
+"encoding": "011 000 DDDDD AAAAA HHHHH 010",
+"unit": "it_shift",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.addcqq_s",
+"display": "b.addcqq_s",
+"args": "rD",
+"encoding": "011 000 DDDDD ----- ----- 100",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.subcqq_s",
+"display": "b.subcqq_s",
+"args": "rD",
+"encoding": "011 000 DDDDD ----- ----- 101",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.addcnqq_s",
+"display": "b.addcnqq_s",
+"args": "rD",
+"encoding": "011 000 DDDDD ----- ----- 110",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.subcnqq_s",
+"display": "b.subcnqq_s",
+"args": "rD",
+"encoding": "011 000 DDDDD ----- ----- 111",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.dsl",
+"display": "b.dsl",
+"args": "rD,rA,rB",
+"encoding": "011 001 DDDDD AAAAA BBBBB 000",
+"unit": "it_shift",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.bsl",
+"display": "b.bsl",
+"args": "rD,rA,rB",
+"encoding": "011 001 DDDDD AAAAA BBBBB 001",
+"unit": "it_shift",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.dsr",
+"display": "b.dsr",
+"args": "rD,rA,rB",
+"encoding": "011 001 DDDDD AAAAA BBBBB 010",
+"unit": "it_shift",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.bsa",
+"display": "b.bsa",
+"args": "rD,rA,rB",
+"encoding": "011 001 DDDDD AAAAA BBBBB 011",
+"unit": "it_shift",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.bsa_s",
+"display": "b.bsa_s",
+"args": "rD,rA,rB",
+"encoding": "011 001 DDDDD AAAAA BBBBB 111",
+"unit": "it_shift",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.crc_le",
+"display": "b.crc_le",
+"args": "rD,rA,rB",
+"encoding": "011 001 DDDDD AAAAA BBBBB 100",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.conjc",
+"display": "b.conjc",
+"args": "rD,rA",
+"encoding": "011 001 DDDDD AAAAA ----- 101",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.pack_s",
+"display": "b.pack_s",
+"args": "rD,rA,rB",
+"encoding": "011 001 DDDDD AAAAA BBBBB 110",
+"unit": "it_move",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.dsli",
+"display": "b.dsli",
+"args": "rD,rA,b",
+"encoding": "011 010 DDDDD AAAAA bbbbbb 00",
+"unit": "it_shift",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.dsri",
+"display": "b.dsri",
+"args": "rD,rA,b",
+"encoding": "011 010 DDDDD AAAAA bbbbbb 01",
+"unit": "it_shift",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.muladdh",
+"display": "b.muladdh",
+"args": "rD,rA,rB",
+"encoding": "011 011 DDDDD AAAAA BBBBB 000",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.muladdhx",
+"display": "b.muladdhx",
+"args": "rD,rA,rB",
+"encoding": "011 011 DDDDD AAAAA BBBBB 001",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.mulsubh",
+"display": "b.mulsubh",
+"args": "rD,rA,rB",
+"encoding": "011 011 DDDDD AAAAA BBBBB 010",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.mulsubhx",
+"display": "b.mulsubhx",
+"args": "rD,rA,rB",
+"encoding": "011 011 DDDDD AAAAA BBBBB 011",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.addp_s",
+"display": "b.addp_s",
+"args": "rD,rA,rB",
+"encoding": "011 011 DDDDD AAAAA BBBBB 100",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.subp_s",
+"display": "b.subp_s",
+"args": "rD,rA,rB",
+"encoding": "011 011 DDDDD AAAAA BBBBB 101",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.addcn_s",
+"display": "b.addcn_s",
+"args": "rD,rA,rB",
+"encoding": "011 011 DDDDD AAAAA BBBBB 110",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.subcn_s",
+"display": "b.subcn_s",
+"args": "rD,rA,rB",
+"encoding": "011 011 DDDDD AAAAA BBBBB 111",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sat",
+"display": "b.sat",
+"args": "rD,rA,H",
+"encoding": "011 100 DDDDD AAAAA HHHHH -00",
+"unit": "it_subword",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.satu",
+"display": "b.satu",
+"args": "rD,rA,H",
+"encoding": "011 100 DDDDD AAAAA HHHHH -01",
+"unit": "it_subword",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.satsu",
+"display": "b.satsu",
+"args": "rD,rA,H",
+"encoding": "011 100 DDDDD AAAAA HHHHH -10",
+"unit": "it_subword",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.satus",
+"display": "b.satus",
+"args": "rD,rA,H",
+"encoding": "011 100 DDDDD AAAAA HHHHH -11",
+"unit": "it_subword",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sf2df",
+"display": "bn.sf2df",
+"args": "rD,rA",
+"encoding": "011 100 DDDDD AAAAA ----- 100",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.df2sf",
+"display": "bn.df2sf",
+"args": "rD,rA",
+"encoding": "011 100 DDDDD AAAAA ----- 101",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.addsf",
+"display": "b.addsf",
+"args": "rD,rA,rB",
+"encoding": "011 101 DDDDD AAAAA BBBBB 000",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.subsf",
+"display": "b.subsf",
+"args": "rD,rA,rB",
+"encoding": "011 101 DDDDD AAAAA BBBBB 001",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.i2sf",
+"display": "lf.itof.s",
+"args": "rD,rA",
+"encoding": "011 101 DDDDD AAAAA ----0 010",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sf2i",
+"display": "lf.ftoi.s",
+"args": "rD,rA",
+"encoding": "011 101 DDDDD AAAAA ----0 011",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.mulsf",
+"display": "b.mulsf",
+"args": "rD,rA,rB",
+"encoding": "011 101 DDDDD AAAAA BBBBB 100",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.maddsf",
+"display": "b.maddsf",
+"args": "rD,rA,rB",
+"encoding": "011 101 DDDDD AAAAA BBBBB 101",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.divsf",
+"display": "b.divsf",
+"args": "rD,rA,rB",
+"encoding": "011 101 DDDDD AAAAA BBBBB 110",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.remsf",
+"display": "b.remsf",
+"args": "rD,rA,rB",
+"encoding": "011 101 DDDDD AAAAA BBBBB 111",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sfeqsf",
+"display": "b.sfeqsf",
+"args": "rA,rB",
+"encoding": "011 110 ----- AAAAA BBBBB 000",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sflesf",
+"display": "b.sflesf",
+"args": "rA,rB",
+"encoding": "011 110 ----- AAAAA BBBBB 001",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sfeqdf",
+"display": "b.sfeqdf",
+"args": "rA,rB",
+"encoding": "011 110 ----- AAAAA BBBBB 010",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sfledf",
+"display": "b.sfledf",
+"args": "rA,rB",
+"encoding": "011 110 ----- AAAAA BBBBB 011",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sfnesf",
+"display": "b.sfnesf",
+"args": "rA,rB",
+"encoding": "011 110 ----- AAAAA BBBBB 100",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sfgtsf",
+"display": "b.sfgtsf",
+"args": "rA,rB",
+"encoding": "011 110 ----- AAAAA BBBBB 101",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sfnedf",
+"display": "b.sfnedf",
+"args": "rA,rB",
+"encoding": "011 110 ----- AAAAA BBBBB 110",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.sfgtdf",
+"display": "b.sfgtdf",
+"args": "rA,rB",
+"encoding": "011 110 ----- AAAAA BBBBB 111",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.addc_s_lwq",
+"display": "b.addc_s_lwq",
+"args": "rD,rA,qd,f",
+"encoding": "011 111 DDDDD AAAAA --ddf 000",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.subc_s_lwq",
+"display": "b.subc_s_lwq",
+"args": "rD,rA,qd,f",
+"encoding": "011 111 DDDDD AAAAA --ddf 001",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.addcn_s_lwq",
+"display": "b.addcn_s_lwq",
+"args": "rD,rA,qd,f",
+"encoding": "011 111 DDDDD AAAAA --ddf 010",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.subcn_s_lwq",
+"display": "b.subcn_s_lwq",
+"args": "rD,rA,qd,f",
+"encoding": "011 111 DDDDD AAAAA --ddf 011",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.addc_s_lwqq",
+"display": "b.addc_s_lwqq",
+"args": "rD,Q,f",
+"encoding": "011 111 DDDDD ----Q ----f 100",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.subc_s_lwqq",
+"display": "b.subc_s_lwqq",
+"args": "rD,Q,f",
+"encoding": "011 111 DDDDD ----Q ----f 101",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.addcn_s_lwqq",
+"display": "b.addcn_s_lwqq",
+"args": "rD,Q,f",
+"encoding": "011 111 DDDDD ----Q ----f 110",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.subcn_s_lwqq",
+"display": "b.subcn_s_lwqq",
+"args": "rD,Q,f",
+"encoding": "011 111 DDDDD ----Q ----f 111",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.jal",
+"display": "b.jal",
+"args": "/",
+"encoding": "111 001 ///////////////////////// 0",
+"unit": "it_call",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.j",
+"display": "b.j",
+"args": "/",
+"encoding": "111 001 ///////////////////////// 1",
+"unit": "it_uncond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.lhs",
+"display": "b.lhs",
+"args": "rD,X(rA)",
+"encoding": "111 010 DDDDD AAAAA XXXXXXXXXXXXXXX 0",
+"unit": "it_load",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.lhz",
+"display": "b.lhz",
+"args": "rD,X(rA)",
+"encoding": "111 010 DDDDD AAAAA XXXXXXXXXXXXXXX 1",
+"unit": "it_load",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.sh",
+"display": "b.sh",
+"args": "X(rA),rB",
+"encoding": "111 011 BBBBB AAAAA XXXXXXXXXXXXXXX 1",
+"unit": "it_store",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.sw",
+"display": "b.sw",
+"args": "W(rA),rB",
+"encoding": "111 011 BBBBB AAAAA WWWWWWWWWWWWWW 00",
+"unit": "it_store",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.lwz",
+"display": "b.lwz",
+"args": "rD,W(rA)",
+"encoding": "111 011 DDDDD AAAAA WWWWWWWWWWWWWW 10",
+"unit": "it_load",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.lbz",
+"display": "b.lbz",
+"args": "r?,!(rA)",
+"encoding": "111 100 ????? AAAAA !!!!!!!!!!!!!!!!",
+"unit": "it_load",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.pclwz",
+"display": "b.pclwz",
+"args": "Y(rA)",
+"encoding": "111 100 00000 AAAAA YYYYYYYYYYYYYYYY",
+"unit": "it_load",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.lbs",
+"display": "b.lbs",
+"args": "r?,!(rA)",
+"encoding": "111 101 ????? AAAAA !!!!!!!!!!!!!!!!",
+"unit": "it_load",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.prefetch",
+"display": "b.prefetch",
+"args": "=(rA)",
+"encoding": "111 101 00000 AAAAA ==========-- 0001",
+"unit": "it_cache",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.flush",
+"display": "b.flush",
+"args": "=(rA)",
+"encoding": "111 101 00000 AAAAA ==========-- 0010",
+"unit": "it_cache",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.invalidate",
+"display": "b.invalidate",
+"args": "=(rA)",
+"encoding": "111 101 00000 AAAAA ==========-- 0011",
+"unit": "it_cache",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.flush_invalidate",
+"display": "b.flush_invalidate",
+"args": "=(rA)",
+"encoding": "111 101 00000 AAAAA ==========-- 0100",
+"unit": "it_cache",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.syncwritebuffer",
+"display": "b.syncwritebuffer",
+"args": "",
+"encoding": "111 101 00000 ----- ------------ 0101",
+"unit": "it_cache",
+"ignored_bits": [
+11,
+12,
+13,
+14,
+15
+],
+"dup_first": false
+},
+{
+"name": "bg.flush_line",
+"display": "b.flush_line",
+"args": "=(rA),d",
+"encoding": "111 101 00000 AAAAA ==========dd 0110",
+"unit": "it_cache",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.invalidate_line",
+"display": "b.invalidate_line",
+"args": "=(rA),d",
+"encoding": "111 101 00000 AAAAA ==========dd 0111",
+"unit": "it_cache",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.flush_invalidate_line",
+"display": "b.flush_invalidate_line",
+"args": "=(rA),d",
+"encoding": "111 101 00000 AAAAA ==========dd 1001",
+"unit": "it_cache",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.dma_op",
+"display": "b.dma_op",
+"args": "rA,rB",
+"encoding": "111 101 00000 AAAAA BBBBB=====00 1010",
+"unit": "it_load",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.sb",
+"display": "b.sb",
+"args": "Y(rA),rB",
+"encoding": "111 110 BBBBB AAAAA YYYYYYYYYYYYYYYY",
+"unit": "it_store",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.addi",
+"display": "b.addi",
+"args": "rD,rA,Y",
+"encoding": "111 111 DDDDD AAAAA YYYYYYYYYYYYYYYY",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.sfeqi",
+"display": "b.sfeqi",
+"args": "rA,Y",
+"encoding": "110 000 AAAAA YYYYYYYYYYYYYYYY-  000 0",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.sfnei",
+"display": "b.sfnei",
+"args": "rA,Y",
+"encoding": "110 000 AAAAA YYYYYYYYYYYYYYYY-  010 0",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.sflesi",
+"display": "b.sflesi",
+"args": "rA,Y",
+"encoding": "110 000 AAAAA YYYYYYYYYYYYYYYY-  100 0",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.sfgtsi",
+"display": "b.sfgtsi",
+"args": "rA,Y",
+"encoding": "110 000 AAAAA YYYYYYYYYYYYYYYY-  110 0",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.sfleui",
+"display": "b.sfleui",
+"args": "rA,Y",
+"encoding": "110 000 AAAAA YYYYYYYYYYYYYYYY-  101 0",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.sfgtui",
+"display": "b.sfgtui",
+"args": "rA,Y",
+"encoding": "110 000 AAAAA YYYYYYYYYYYYYYYY-  111 0",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.movhi",
+"display": "b.movhi",
+"args": "rD,U",
+"encoding": "110 000 DDDDD UUUUUUUUUUUUUUUU-  000 1",
+"unit": "it_movimm",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.getpcofs",
+"display": "b.getpcofs",
+"args": "rD,Y",
+"encoding": "110 000 DDDDD YYYYYYYYYYYYYYYY0  001 1",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.addpcofs",
+"display": "b.addpcofs",
+"args": "rD,Y",
+"encoding": "110 000 DDDDD YYYYYYYYYYYYYYYY1  001 1",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.mtspr1",
+"display": "b.mtspri",
+"args": "rB,U",
+"encoding": "110 000 BBBBB UUUUUUUUUUUUUUUU-  010 1",
+"unit": "it_move",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.mfspr1",
+"display": "b.mfspri",
+"args": "rD,U",
+"encoding": "110 000 DDDDD UUUUUUUUUUUUUUUU-  011 1",
+"unit": "it_move",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.mtspr",
+"display": "b.mtspr",
+"args": "rA,rB,|",
+"encoding": "110 000 BBBBB AAAAA |||||||||||| 110 1",
+"unit": "it_move",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.mfspr",
+"display": "b.mfspr",
+"args": "rD,rA,|",
+"encoding": "110 000 DDDDD AAAAA |||||||||||| 111 1",
+"unit": "it_move",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.andi",
+"display": "b.andi",
+"args": "rD,rA,t",
+"encoding": "110 001 DDDDD AAAAA tttttttttttttttt",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.ori",
+"display": "b.ori",
+"args": "rD,rA,t",
+"encoding": "110 010 DDDDD AAAAA tttttttttttttttt",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.muli",
+"display": "b.muli",
+"args": "rD,rA,Y",
+"encoding": "110 011 DDDDD AAAAA YYYYYYYYYYYYYYYY",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.blesi",
+"display": "b.blesi",
+"args": "rA,I,;",
+"encoding": "110 100 AAAAA IIIII ;;;;;;;;;;;;;  000",
+"unit": "it_cond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.bleui",
+"display": "b.bleui",
+"args": "rA,I,;",
+"encoding": "110 100 AAAAA IIIII ;;;;;;;;;;;;;  001",
+"unit": "it_cond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.beqi",
+"display": "b.beqi",
+"args": "rA,I,;",
+"encoding": "110 100 AAAAA IIIII ;;;;;;;;;;;;;  010",
+"unit": "it_cond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.chk_lu",
+"display": "b.chk_lu",
+"args": "rC,N(rA),rB",
+"encoding": "110 100 CCCCC AAAAA BBBBB NNNNNNNN 011",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.bgtsi",
+"display": "b.bgtsi",
+"args": "rA,I,;",
+"encoding": "110 100 AAAAA IIIII ;;;;;;;;;;;;;  100",
+"unit": "it_cond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.bgtui",
+"display": "b.bgtui",
+"args": "rA,I,;",
+"encoding": "110 100 AAAAA IIIII ;;;;;;;;;;;;;  101",
+"unit": "it_cond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.bnei",
+"display": "b.bnei",
+"args": "rA,I,;",
+"encoding": "110 100 AAAAA IIIII ;;;;;;;;;;;;;  110",
+"unit": "it_cond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.chk_ll",
+"display": "b.chk_ll",
+"args": "rC,N(rA),rB",
+"encoding": "110 100 CCCCC AAAAA BBBBB NNNNNNNN 111",
+"unit": "it_compare",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.bles",
+"display": "b.bles",
+"args": "rA,rB,;",
+"encoding": "110 101 AAAAA BBBBB ;;;;;;;;;;;;;  000",
+"unit": "it_cond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.bleu",
+"display": "b.bleu",
+"args": "rA,rB,;",
+"encoding": "110 101 AAAAA BBBBB ;;;;;;;;;;;;;  001",
+"unit": "it_cond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.beq",
+"display": "b.beq",
+"args": "rA,rB,;",
+"encoding": "110 101 AAAAA BBBBB ;;;;;;;;;;;;;  010",
+"unit": "it_cond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.bf",
+"display": "b.bf",
+"args": "'",
+"encoding": "110 101 '''''''''''''''''''''''    011",
+"unit": "it_cond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.bgts",
+"display": "b.bgts",
+"args": "rA,rB,;",
+"encoding": "110 101 AAAAA BBBBB ;;;;;;;;;;;;;  100",
+"unit": "it_cond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.bgtu",
+"display": "b.bgtu",
+"args": "rA,rB,;",
+"encoding": "110 101 AAAAA BBBBB ;;;;;;;;;;;;;  101",
+"unit": "it_cond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.bne",
+"display": "b.bne",
+"args": "rA,rB,;",
+"encoding": "110 101 AAAAA BBBBB ;;;;;;;;;;;;;  110",
+"unit": "it_cond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.bnf",
+"display": "b.bnf",
+"args": "'",
+"encoding": "110 101 '''''''''''''''''''''''    111",
+"unit": "it_cond_branch",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.xori",
+"display": "b.xori",
+"args": "rD,rA,Y",
+"encoding": "110 110 DDDDD AAAAA YYYYYYYYYYYYYYYY",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.addic",
+"display": "bg.addic",
+"args": "rD,rA,Y",
+"encoding": "110 111 DDDDD AAAAA YYYYYYYYYYYYYYYY",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.divl",
+"display": "b.divl",
+"args": "rD,rA,rB,b",
+"encoding": "101 000 DDDDD AAAAA BBBBB bbbbbb ---00",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.divlr",
+"display": "b.divlr",
+"args": "rD,rA,rB,b",
+"encoding": "101 000 DDDDD AAAAA BBBBB bbbbbb ---01",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.divlu",
+"display": "b.divlu",
+"args": "rD,rA,rB,b",
+"encoding": "101 000 DDDDD AAAAA BBBBB bbbbbb ---10",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.divlru",
+"display": "b.divlru",
+"args": "rD,rA,rB,b",
+"encoding": "101 000 DDDDD AAAAA BBBBB bbbbbb ---11",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.ldww",
+"display": "b.ldww",
+"args": "rD,R(rA),qd,Q",
+"encoding": "101 001 DDDDD AAAAA RRRRRRRRRRR Q dd 00",
+"unit": "it_load",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.ldwwx",
+"display": "b.ldwwx",
+"args": "rD,R(rA),qd,Q",
+"encoding": "101 001 DDDDD AAAAA RRRRRRRRRRR Q dd 01",
+"unit": "it_load",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.ldww2",
+"display": "b.ldww2",
+"args": "rD,R(rA),qd,Q",
+"encoding": "101 001 DDDDD AAAAA RRRRRRRRRRR Q dd 10",
+"unit": "it_load",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.ldww2x",
+"display": "b.ldww2x",
+"args": "rD,R(rA),qd,Q",
+"encoding": "101 001 DDDDD AAAAA RRRRRRRRRRR Q dd 11",
+"unit": "it_load",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.amacr",
+"display": "b.amacr",
+"args": "rD,ac,H,n",
+"encoding": "101 010 DDDDD ----- HHHHH 0-cc nnnnnn -",
+"unit": "it_mac",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.amacr_ex",
+"display": "b.amacr_ex",
+"args": "rD,ac,H,n,Q,d",
+"encoding": "101 010 DDDDD -Q-dd HHHHH 1-cc nnnnnn -",
+"unit": "it_mac",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.amacr_exr",
+"display": "b.amacr_exr",
+"args": "rD,ac,H,rA,Q,d",
+"encoding": "101 010 DDDDD -Q-dd HHHHH 11cc -AAAAA -",
+"unit": "it_mac",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.dummy1",
+"display": "bg.dummy1",
+"args": "rD,ac,n,rA",
+"encoding": "101 010 DDDDD AAAAA ----0 01cc nnnnnn -",
+"unit": "it_unknown",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.amacr40_32",
+"display": "b.amacr40_32",
+"args": "rD,ac,n",
+"encoding": "101 010 DDDDD ----- -0001 01cc nnnnnn -",
+"unit": "it_mac",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.amacr40_32r",
+"display": "b.amacr40_32r",
+"args": "rD,ac,n",
+"encoding": "101 010 DDDDD ----- -0011 01cc nnnnnn -",
+"unit": "it_mac",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.amacr40r_32",
+"display": "b.amacr40r_32",
+"args": "rD,ac,rA",
+"encoding": "101 010 DDDDD AAAAA -0101 01cc ------ -",
+"unit": "it_mac",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.amacr40r_32r",
+"display": "b.amacr40r_32r",
+"args": "rD,ac,rA",
+"encoding": "101 010 DDDDD AAAAA -0111 01cc ------ -",
+"unit": "it_mac",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.amacr40_16",
+"display": "b.amacr40_16",
+"args": "rD,ac,n",
+"encoding": "101 010 DDDDD ----- -1001 01cc nnnnnn -",
+"unit": "it_mac",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.amacr40_16r",
+"display": "b.amacr40_16r",
+"args": "rD,ac,n",
+"encoding": "101 010 DDDDD ----- -1011 01cc nnnnnn -",
+"unit": "it_mac",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.amacr40r_16",
+"display": "b.amacr40r_16",
+"args": "rD,ac,rA",
+"encoding": "101 010 DDDDD AAAAA -1101 01cc ------ -",
+"unit": "it_mac",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.amacr40r_16r",
+"display": "b.amacr40r_16r",
+"args": "rD,ac,rA",
+"encoding": "101 010 DDDDD AAAAA -1111 01cc ------ -",
+"unit": "it_mac",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.amacrc40_16",
+"display": "b.amacrc40_16",
+"args": "rD,ac,n",
+"encoding": "101 010 DDDDD ----- 11001 01cc nnnnnn -",
+"unit": "it_mac",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.amacrc40_16r",
+"display": "b.amacrc40_16r",
+"args": "rD,ac,n",
+"encoding": "101 010 DDDDD ----- 11011 01cc nnnnnn -",
+"unit": "it_mac",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.amacrc40r_16",
+"display": "b.amacrc40r_16",
+"args": "rD,ac,rA",
+"encoding": "101 010 DDDDD AAAAA 11101 01cc ------ -",
+"unit": "it_mac",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.amacrc40r_16r",
+"display": "b.amacrc40r_16r",
+"args": "rD,ac,rA",
+"encoding": "101 010 DDDDD AAAAA 11111 01cc ------ -",
+"unit": "it_mac",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.btb",
+"display": "b.btb",
+"args": "c,d,&,P",
+"encoding": "101 011 -ccdd PPPPPPPPPP &&&&&&&&&& 0",
+"unit": "it_hint",
+"ignored_bits": [
+6
+],
+"dup_first": false
+},
+{
+"name": "bg.loop",
+"display": "b.loop",
+"args": "&,rA",
+"encoding": "101 011 AAAAA VVVVVVVVV0 &&&&&&&&&& 1",
+"unit": "it_loop",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.loopi",
+"display": "b.loopi",
+"args": "&,V",
+"encoding": "101 011 ----- VVVVVVVVV1 &&&&&&&&&& 1",
+"unit": "it_loop",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amacrq",
+"display": "b.amacrq",
+"args": "rD,qd",
+"encoding": "101 111 DDDDD ----- ----- dd-- 000 0000",
+"unit": "it_mac",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.amacwq",
+"display": "b.amacwq",
+"args": "qd,rA",
+"encoding": "101 111 ----- AAAAA ----- dd-- 001 0000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amacwqaddr",
+"display": "b.amacwqaddr",
+"args": "qd,rA",
+"encoding": "101 111 ----- AAAAA ----- dd-- 010 0000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amacwqaddr_length",
+"display": "b.amacwqaddr_length",
+"args": "qd,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB dd-- 011 0000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amacwq2",
+"display": "b.amacwq2",
+"args": "qd,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB dd-- 101 0000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amacwq2addr",
+"display": "b.amacwq2addr",
+"args": "qd,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB dd-- 110 0000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.pamacrq",
+"display": "b.pamacrq",
+"args": "rD,qE",
+"encoding": "101 111 DDDDD ----- ----- EEE- 000 0001",
+"unit": "it_mac",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.pamacwq",
+"display": "b.pamacwq",
+"args": "qE,rA",
+"encoding": "101 111 ----- AAAAA ----- EEE- 001 0001",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.pamacwqaddr",
+"display": "b.pamacwqaddr",
+"args": "qE,rA",
+"encoding": "101 111 ----- AAAAA ----- EEE- 010 0001",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.pamacwqaddr_length",
+"display": "b.pamacwqaddr_length",
+"args": "qE,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB EEE- 011 0001",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.pamacwq2",
+"display": "b.pamacwq2",
+"args": "qE,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB EEE- 101 0001",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.pamacwq2addr",
+"display": "b.pamacwq2addr",
+"args": "qE,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB EEE- 110 0001",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.pamac",
+"display": "b.pamac",
+"args": "n,H,b,c,d",
+"encoding": "101 111 nnnnnnHH cc HHHdd bbbbbb - 0010",
+"unit": "it_mac",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.lhq",
+"display": "b.lhq",
+"args": "qd,f",
+"encoding": "101 111 ----- ----- ----f dd ---00 0011",
+"unit": "it_load",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.lwq",
+"display": "b.lwq",
+"args": "qd,f",
+"encoding": "101 111 ----- ----- ----f dd ---01 0011",
+"unit": "it_load",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.lhqq",
+"display": "b.lhqq",
+"args": "Q,f",
+"encoding": "101 111 ----- ----Q ----f -- ---10 0011",
+"unit": "it_load",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.lwqq",
+"display": "b.lwqq",
+"args": "Q,f",
+"encoding": "101 111 ----- ----Q ----f -- ---11 0011",
+"unit": "it_load",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amulq",
+"display": "b.amulq",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 000 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amacq",
+"display": "b.amacq",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 001 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsbq",
+"display": "b.amsbq",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 010 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.dummy3",
+"display": "bg.dummy3",
+"args": "ac,rA,rB,qd",
+"encoding": "101 111 ----- AAAAA BBBBB ddcc 011 1000",
+"unit": "it_unknown",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amul",
+"display": "b.amul",
+"args": "ac,rA,rB",
+"encoding": "101 111 ---00 AAAAA BBBBB --cc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amul16c",
+"display": "b.amul16c",
+"args": "ac,rA,rB",
+"encoding": "101 111 ---10 AAAAA BBBBB --cc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amul16cn",
+"display": "b.amul16cn",
+"args": "ac,rA,rB",
+"encoding": "101 111 ---11 AAAAA BBBBB --cc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amulqq",
+"display": "b.amulqq",
+"args": "ac",
+"encoding": "101 111 --1-- ----- 0000- --cc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14,
+15
+],
+"dup_first": false
+},
+{
+"name": "bg.amul16qq",
+"display": "b.amul16qq",
+"args": "ac",
+"encoding": "101 111 --1-- ----- 0001- --cc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14,
+15
+],
+"dup_first": false
+},
+{
+"name": "bg.amul16cqq",
+"display": "b.amul16cqq",
+"args": "ac",
+"encoding": "101 111 --1-- ----- 0010- --cc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14,
+15
+],
+"dup_first": false
+},
+{
+"name": "bg.amul16cnqq",
+"display": "b.amul16cnqq",
+"args": "ac",
+"encoding": "101 111 --1-- ----- 0011- --cc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14,
+15
+],
+"dup_first": false
+},
+{
+"name": "bg.amul16q",
+"display": "b.amul16q",
+"args": "ac,rA,qd",
+"encoding": "101 111 --1-- AAAAA 0101- ddcc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amul16cq",
+"display": "b.amul16cq",
+"args": "ac,rA,qd",
+"encoding": "101 111 --1-- AAAAA 0110- ddcc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amul16cnq",
+"display": "b.amul16cnq",
+"args": "ac,rA,qd",
+"encoding": "101 111 --1-- AAAAA 0111- ddcc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amuldq",
+"display": "b.amuldq",
+"args": "ac,qd",
+"encoding": "101 111 --11- ----- 0100- ddcc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amul16dq",
+"display": "b.amul16dq",
+"args": "ac,qd",
+"encoding": "101 111 --11- ----- 0101- ddcc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amul16cdq",
+"display": "b.amul16cdq",
+"args": "ac,qd",
+"encoding": "101 111 --11- ----- 0110- ddcc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amul16cndq",
+"display": "b.amul16cndq",
+"args": "ac,qd",
+"encoding": "101 111 --11- ----- 0111- ddcc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amul_lwqq",
+"display": "b.amul_lwqq",
+"args": "ac,Q,f",
+"encoding": "101 111 --1-- ----Q 1000f --cc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14
+],
+"dup_first": false
+},
+{
+"name": "bg.amul16_lhqq",
+"display": "b.amul16_lhqq",
+"args": "ac,Q,f",
+"encoding": "101 111 --1-- ----Q 1001f --cc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14
+],
+"dup_first": false
+},
+{
+"name": "bg.amul16c_lwqq",
+"display": "b.amul16c_lwqq",
+"args": "ac,Q,f",
+"encoding": "101 111 --1-- ----Q 1010f --cc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14
+],
+"dup_first": false
+},
+{
+"name": "bg.amul16cn_lwqq",
+"display": "b.amul16cn_lwqq",
+"args": "ac,Q,f",
+"encoding": "101 111 --1-- ----Q 1011f --cc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14
+],
+"dup_first": false
+},
+{
+"name": "bg.amul_lwq",
+"display": "b.amul_lwq",
+"args": "ac,rA,qd,f",
+"encoding": "101 111 --1-- AAAAA 1100f ddcc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amul16_lhq",
+"display": "b.amul16_lhq",
+"args": "ac,rA,qd,f",
+"encoding": "101 111 --1-- AAAAA 1101f ddcc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amul16c_lwq",
+"display": "b.amul16c_lwq",
+"args": "ac,rA,qd,f",
+"encoding": "101 111 --1-- AAAAA 1110f ddcc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amul16cn_lwq",
+"display": "b.amul16cn_lwq",
+"args": "ac,rA,qd,f",
+"encoding": "101 111 --1-- AAAAA 1111f ddcc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amul_lwdq",
+"display": "b.amul_lwdq",
+"args": "ac,qd,f",
+"encoding": "101 111 --11- ----- 1100f ddcc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amul16_lhdq",
+"display": "b.amul16_lhdq",
+"args": "ac,qd,f",
+"encoding": "101 111 --11- ----- 1101f ddcc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amul16c_lwdq",
+"display": "b.amul16c_lwdq",
+"args": "ac,qd,f",
+"encoding": "101 111 --11- ----- 1110f ddcc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amul16cn_lwdq",
+"display": "b.amul16cn_lwdq",
+"args": "ac,qd,f",
+"encoding": "101 111 --11- ----- 1111f ddcc 100 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amac",
+"display": "b.amac",
+"args": "ac,rA,rB",
+"encoding": "101 111 ---00 AAAAA BBBBB --cc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amac16c",
+"display": "b.amac16c",
+"args": "ac,rA,rB",
+"encoding": "101 111 ---10 AAAAA BBBBB --cc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amac16cn",
+"display": "b.amac16cn",
+"args": "ac,rA,rB",
+"encoding": "101 111 ---11 AAAAA BBBBB --cc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amacqq",
+"display": "b.amacqq",
+"args": "ac",
+"encoding": "101 111 --1-- ----- 0000- --cc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14,
+15
+],
+"dup_first": false
+},
+{
+"name": "bg.amac16qq",
+"display": "b.amac16qq",
+"args": "ac",
+"encoding": "101 111 --1-- ----- 0001- --cc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14,
+15
+],
+"dup_first": false
+},
+{
+"name": "bg.amac16cqq",
+"display": "b.amac16cqq",
+"args": "ac",
+"encoding": "101 111 --1-- ----- 0010- --cc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14,
+15
+],
+"dup_first": false
+},
+{
+"name": "bg.amac16cnqq",
+"display": "b.amac16cnqq",
+"args": "ac",
+"encoding": "101 111 --1-- ----- 0011- --cc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14,
+15
+],
+"dup_first": false
+},
+{
+"name": "bg.amac16q",
+"display": "b.amac16q",
+"args": "ac,rA,qd",
+"encoding": "101 111 --1-- AAAAA 0101- ddcc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amac16cq",
+"display": "b.amac16cq",
+"args": "ac,rA,qd",
+"encoding": "101 111 --1-- AAAAA 0110- ddcc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amac16cnq",
+"display": "b.amac16cnq",
+"args": "ac,rA,qd",
+"encoding": "101 111 --1-- AAAAA 0111- ddcc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amacdq",
+"display": "b.amacdq",
+"args": "ac,qd",
+"encoding": "101 111 --11- ----- 0100- ddcc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amac16dq",
+"display": "b.amac16dq",
+"args": "ac,qd",
+"encoding": "101 111 --11- ----- 0101- ddcc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amac16cdq",
+"display": "b.amac16cdq",
+"args": "ac,qd",
+"encoding": "101 111 --11- ----- 0110- ddcc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amac16cndq",
+"display": "b.amac16cndq",
+"args": "ac,qd",
+"encoding": "101 111 --11- ----- 0111- ddcc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amac_lwqq",
+"display": "b.amac_lwqq",
+"args": "ac,Q,f",
+"encoding": "101 111 --1-- ----Q 1000f --cc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14
+],
+"dup_first": false
+},
+{
+"name": "bg.amac16_lhqq",
+"display": "b.amac16_lhqq",
+"args": "ac,Q,f",
+"encoding": "101 111 --1-- ----Q 1001f --cc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14
+],
+"dup_first": false
+},
+{
+"name": "bg.amac16c_lwqq",
+"display": "b.amac16c_lwqq",
+"args": "ac,Q,f",
+"encoding": "101 111 --1-- ----Q 1010f --cc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14
+],
+"dup_first": false
+},
+{
+"name": "bg.amac16cn_lwqq",
+"display": "b.amac16cn_lwqq",
+"args": "ac,Q,f",
+"encoding": "101 111 --1-- ----Q 1011f --cc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14
+],
+"dup_first": false
+},
+{
+"name": "bg.amac_lwq",
+"display": "b.amac_lwq",
+"args": "ac,rA,qd,f",
+"encoding": "101 111 --1-- AAAAA 1100f ddcc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amac16_lhq",
+"display": "b.amac16_lhq",
+"args": "ac,rA,qd,f",
+"encoding": "101 111 --1-- AAAAA 1101f ddcc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amac16c_lwq",
+"display": "b.amac16c_lwq",
+"args": "ac,rA,qd,f",
+"encoding": "101 111 --1-- AAAAA 1110f ddcc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amac16cn_lwq",
+"display": "b.amac16cn_lwq",
+"args": "ac,rA,qd,f",
+"encoding": "101 111 --1-- AAAAA 1111f ddcc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amac_lwdq",
+"display": "b.amac_lwdq",
+"args": "ac,qd,f",
+"encoding": "101 111 --11- ----- 1100f ddcc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amac16_lhdq",
+"display": "b.amac16_lhdq",
+"args": "ac,qd,f",
+"encoding": "101 111 --11- ----- 1101f ddcc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amac16c_lwdq",
+"display": "b.amac16c_lwdq",
+"args": "ac,qd,f",
+"encoding": "101 111 --11- ----- 1110f ddcc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amac16cn_lwdq",
+"display": "b.amac16cn_lwdq",
+"args": "ac,qd,f",
+"encoding": "101 111 --11- ----- 1111f ddcc 101 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb",
+"display": "b.amsb",
+"args": "ac,rA,rB",
+"encoding": "101 111 ---00 AAAAA BBBBB --cc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb16c",
+"display": "b.amsb16c",
+"args": "ac,rA,rB",
+"encoding": "101 111 ---10 AAAAA BBBBB --cc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb16cn",
+"display": "b.amsb16cn",
+"args": "ac,rA,rB",
+"encoding": "101 111 ---11 AAAAA BBBBB --cc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsbqq",
+"display": "b.amsbqq",
+"args": "ac",
+"encoding": "101 111 --1-- ----- 0000- --cc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14,
+15
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb16qq",
+"display": "b.amsb16qq",
+"args": "ac",
+"encoding": "101 111 --1-- ----- 0001- --cc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14,
+15
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb16cqq",
+"display": "b.amsb16cqq",
+"args": "ac",
+"encoding": "101 111 --1-- ----- 0010- --cc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14,
+15
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb16cnqq",
+"display": "b.amsb16cnqq",
+"args": "ac",
+"encoding": "101 111 --1-- ----- 0011- --cc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14,
+15
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb16q",
+"display": "b.amsb16q",
+"args": "ac,rA,qd",
+"encoding": "101 111 --1-- AAAAA 0101- ddcc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb16cq",
+"display": "b.amsb16cq",
+"args": "ac,rA,qd",
+"encoding": "101 111 --1-- AAAAA 0110- ddcc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb16cnq",
+"display": "b.amsb16cnq",
+"args": "ac,rA,qd",
+"encoding": "101 111 --1-- AAAAA 0111- ddcc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsbdq",
+"display": "b.amsbdq",
+"args": "ac,qd",
+"encoding": "101 111 --11- ----- 0100- ddcc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb16dq",
+"display": "b.amsb16dq",
+"args": "ac,qd",
+"encoding": "101 111 --11- ----- 0101- ddcc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb16cdq",
+"display": "b.amsb16cdq",
+"args": "ac,qd",
+"encoding": "101 111 --11- ----- 0110- ddcc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb16cndq",
+"display": "b.amsb16cndq",
+"args": "ac,qd",
+"encoding": "101 111 --11- ----- 0111- ddcc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb_lwqq",
+"display": "b.amsb_lwqq",
+"args": "ac,Q,f",
+"encoding": "101 111 --1-- ----Q 1000f --cc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb16_lhqq",
+"display": "b.amsb16_lhqq",
+"args": "ac,Q,f",
+"encoding": "101 111 --1-- ----Q 1001f --cc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb16c_lwqq",
+"display": "b.amsb16c_lwqq",
+"args": "ac,Q,f",
+"encoding": "101 111 --1-- ----Q 1010f --cc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb16cn_lwqq",
+"display": "b.amsb16cn_lwqq",
+"args": "ac,Q,f",
+"encoding": "101 111 --1-- ----Q 1011f --cc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7,
+11,
+12,
+13,
+14
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb_lwq",
+"display": "b.amsb_lwq",
+"args": "ac,rA,qd,f",
+"encoding": "101 111 --1-- AAAAA 1100f ddcc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb16_lhq",
+"display": "b.amsb16_lhq",
+"args": "ac,rA,qd,f",
+"encoding": "101 111 --1-- AAAAA 1101f ddcc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb16c_lwq",
+"display": "b.amsb16c_lwq",
+"args": "ac,rA,qd,f",
+"encoding": "101 111 --1-- AAAAA 1110f ddcc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb16cn_lwq",
+"display": "b.amsb16cn_lwq",
+"args": "ac,rA,qd,f",
+"encoding": "101 111 --1-- AAAAA 1111f ddcc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb_lwdq",
+"display": "b.amsb_lwdq",
+"args": "ac,qd,f",
+"encoding": "101 111 --11- ----- 1100f ddcc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb16_lhdq",
+"display": "b.amsb16_lhdq",
+"args": "ac,qd,f",
+"encoding": "101 111 --11- ----- 1101f ddcc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb16c_lwdq",
+"display": "b.amsb16c_lwdq",
+"args": "ac,qd,f",
+"encoding": "101 111 --11- ----- 1110f ddcc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb16cn_lwdq",
+"display": "b.amsb16cn_lwdq",
+"args": "ac,qd,f",
+"encoding": "101 111 --11- ----- 1111f ddcc 110 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amacw",
+"display": "b.amacw",
+"args": "ac,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB --cc 111 1000",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amulqu",
+"display": "b.amulqu",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 000 1001",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amacqu",
+"display": "b.amacqu",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 001 1001",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsbqu",
+"display": "b.amsbqu",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 010 1001",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amulu",
+"display": "b.amulu",
+"args": "ac,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB --cc 100 1001",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amacu",
+"display": "b.amacu",
+"args": "ac,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB --cc 101 1001",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsbu",
+"display": "b.amsbu",
+"args": "ac,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB --cc 110 1001",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amadd",
+"display": "b.amadd",
+"args": "ac,ad,a>",
+"encoding": "101 111 ----- ---dd --->> --cc 111 1001",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amulq_wl",
+"display": "b.amulq_wl",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 000 1100",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amacq_wl",
+"display": "b.amacq_wl",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 001 1100",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsbq_wl",
+"display": "b.amsbq_wl",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 010 1100",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amul_wl",
+"display": "b.amul_wl",
+"args": "ac,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB --cc 100 1100",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amac_wl",
+"display": "b.amac_wl",
+"args": "ac,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB --cc 101 1100",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb_wl",
+"display": "b.amsb_wl",
+"args": "ac,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB --cc 110 1100",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsub",
+"display": "b.amsub",
+"args": "ac,ad,a>",
+"encoding": "101 111 ----- ---dd --->> --cc 111 1100",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amulq_ll",
+"display": "b.amulq_ll",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 000 1010",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amacq_ll",
+"display": "b.amacq_ll",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 001 1010",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsbq_ll",
+"display": "b.amsbq_ll",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 010 1010",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amul_ll",
+"display": "b.amul_ll",
+"args": "ac,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB --cc 100 1010",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amac_ll",
+"display": "b.amac_ll",
+"args": "ac,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB --cc 101 1010",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb_ll",
+"display": "b.amsb_ll",
+"args": "ac,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB --cc 110 1010",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amulq_hl",
+"display": "b.amulq_hl",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 000 1011",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amacq_hl",
+"display": "b.amacq_hl",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 001 1011",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsbq_hl",
+"display": "b.amsbq_hl",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 010 1011",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amul_hl",
+"display": "b.amul_hl",
+"args": "ac,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB --cc 100 1011",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amac_hl",
+"display": "b.amac_hl",
+"args": "ac,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB --cc 101 1011",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb_hl",
+"display": "b.amsb_hl",
+"args": "ac,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB --cc 110 1011",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amulq_wh",
+"display": "b.amulq_wh",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 000 1101",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amacq_wh",
+"display": "b.amacq_wh",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 001 1101",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsbq_wh",
+"display": "b.amsbq_wh",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 010 1101",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amul_wh",
+"display": "b.amul_wh",
+"args": "ac,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB --cc 100 1101",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amac_wh",
+"display": "b.amac_wh",
+"args": "ac,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB --cc 101 1101",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb_wh",
+"display": "b.amsb_wh",
+"args": "ac,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB --cc 110 1101",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amulq_lh",
+"display": "b.amulq_lh",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 000 1111",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amacq_lh",
+"display": "b.amacq_lh",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 001 1111",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsbq_lh",
+"display": "b.amsbq_lh",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 010 1111",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amul_lh",
+"display": "b.amul_lh",
+"args": "ac,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB --cc 100 1111",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amac_lh",
+"display": "b.amac_lh",
+"args": "ac,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB --cc 101 1111",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb_lh",
+"display": "b.amsb_lh",
+"args": "ac,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB --cc 110 1111",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amulq_hh",
+"display": "b.amulq_hh",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 000 1110",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amacq_hh",
+"display": "b.amacq_hh",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 001 1110",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsbq_hh",
+"display": "b.amsbq_hh",
+"args": "ac,rA,qd",
+"encoding": "101 111 ----- AAAAA ----- ddcc 010 1110",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amul_hh",
+"display": "b.amul_hh",
+"args": "ac,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB --cc 100 1110",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amac_hh",
+"display": "b.amac_hh",
+"args": "ac,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB --cc 101 1110",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.amsb_hh",
+"display": "b.amsb_hh",
+"args": "ac,rA,rB",
+"encoding": "101 111 ----- AAAAA BBBBB --cc 110 1110",
+"unit": "it_mac",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.ext",
+"display": "b.ext",
+"args": "rD,rA,H,rB",
+"encoding": "101 110 DDDDD AAAAA BBBBB HHHHH 00 0000",
+"unit": "it_subword",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.extu",
+"display": "b.extu",
+"args": "rD,rA,H,rB",
+"encoding": "101 110 DDDDD AAAAA BBBBB HHHHH 01 0000",
+"unit": "it_subword",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.exti",
+"display": "b.exti",
+"args": "rD,rA,H,e",
+"encoding": "101 110 DDDDD AAAAA eeeee HHHHH 10 0000",
+"unit": "it_subword",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.extui",
+"display": "b.extui",
+"args": "rD,rA,H,e",
+"encoding": "101 110 DDDDD AAAAA eeeee HHHHH 11 0000",
+"unit": "it_subword",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.extr",
+"display": "b.extr",
+"args": "rD,rA,rC,rB",
+"encoding": "101 110 DDDDD AAAAA BBBBB CCCCC 00 0001",
+"unit": "it_subword",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.extru",
+"display": "b.extru",
+"args": "rD,rA,rC,rB",
+"encoding": "101 110 DDDDD AAAAA BBBBB CCCCC 01 0001",
+"unit": "it_subword",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.extri",
+"display": "b.extri",
+"args": "rD,rA,rC,e",
+"encoding": "101 110 DDDDD AAAAA eeeee CCCCC 10 0001",
+"unit": "it_subword",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.extrui",
+"display": "b.extrui",
+"args": "rD,rA,rC,e",
+"encoding": "101 110 DDDDD AAAAA eeeee CCCCC 11 0001",
+"unit": "it_subword",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.dep",
+"display": "b.dep",
+"args": "rD,rA,H,rB",
+"encoding": "101 110 DDDDD AAAAA BBBBB HHHHH 00 0010",
+"unit": "it_subword",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.depi",
+"display": "b.depi",
+"args": "rD,rA,H,e",
+"encoding": "101 110 DDDDD AAAAA eeeee HHHHH 01 0010",
+"unit": "it_subword",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.depr",
+"display": "bg.depr",
+"args": "rD,rA,rC,rB",
+"encoding": "101 110 DDDDD AAAAA BBBBB CCCCC 10 0010",
+"unit": "it_subword",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.depri",
+"display": "bg.depri",
+"args": "rD,rA,rC,e",
+"encoding": "101 110 DDDDD AAAAA eeeee CCCCC 11 0010",
+"unit": "it_subword",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.satdep",
+"display": "l.satdep",
+"args": "rD,rA,H,rB",
+"encoding": "101 110 DDDDD AAAAA BBBBB HHHHH 00 0011",
+"unit": "it_subword",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.satdepu",
+"display": "l.satdepu",
+"args": "rD,rA,H,rB",
+"encoding": "101 110 DDDDD AAAAA BBBBB HHHHH 01 0011",
+"unit": "it_subword",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.satdepi",
+"display": "l.satdepi",
+"args": "rD,rA,H,e",
+"encoding": "101 110 DDDDD AAAAA eeeee HHHHH 10 0011",
+"unit": "it_subword",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.satdepui",
+"display": "l.satdepui",
+"args": "rD,rA,H,e",
+"encoding": "101 110 DDDDD AAAAA eeeee HHHHH 11 0011",
+"unit": "it_subword",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.abs",
+"display": "b.abs",
+"args": "rD,rA",
+"encoding": "101 110 DDDDD AAAAA ----- ----- 01 0100",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.absc",
+"display": "b.absc",
+"args": "rD,rA",
+"encoding": "101 110 DDDDD AAAAA ----- ----- 11 0100",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.minui",
+"display": "b.minui",
+"args": "rD,rA,<",
+"encoding": "101 110 DDDDD AAAAA <<<<<<<< 00 10 0100",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.maxi",
+"display": "b.maxi",
+"args": "rD,rA,O",
+"encoding": "101 110 DDDDD AAAAA OOOOOOOO 01 10 0100",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.mini",
+"display": "b.mini",
+"args": "rD,rA,O",
+"encoding": "101 110 DDDDD AAAAA OOOOOOOO 10 10 0100",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.maxui",
+"display": "b.maxui",
+"args": "rD,rA,<",
+"encoding": "101 110 DDDDD AAAAA <<<<<<<< 11 10 0100",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.minu",
+"display": "b.minu",
+"args": "rD,rA,rB",
+"encoding": "101 110 DDDDD AAAAA BBBBB ---00 00 0100",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.max",
+"display": "b.max",
+"args": "rD,rA,rB",
+"encoding": "101 110 DDDDD AAAAA BBBBB ---01 00 0100",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.min",
+"display": "b.min",
+"args": "rD,rA,rB",
+"encoding": "101 110 DDDDD AAAAA BBBBB ---10 00 0100",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.maxu",
+"display": "b.maxu",
+"args": "rD,rA,rB",
+"encoding": "101 110 DDDDD AAAAA BBBBB ---11 00 0100",
+"unit": "it_arith",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.adddf",
+"display": "b.adddf",
+"args": "rD,rA,rB",
+"encoding": "101 110 DDDDD AAAAA BBBBB ---- 000 0101",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.subdf",
+"display": "b.subdf",
+"args": "rD,rA,rB",
+"encoding": "101 110 DDDDD AAAAA BBBBB ---- 001 0101",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.i2df",
+"display": "bn.i2df",
+"args": "rD,rA",
+"encoding": "101 110 DDDDD AAAAA ----- ---- 010 0101",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.df2i",
+"display": "bn.df2i",
+"args": "rD,rA",
+"encoding": "101 110 DDDDD AAAAA ----- ---- 011 0101",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.muldf",
+"display": "b.muldf",
+"args": "rD,rA,rB",
+"encoding": "101 110 DDDDD AAAAA BBBBB ---- 100 0101",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.madddf",
+"display": "b.madddf",
+"args": "rD,rA,rB",
+"encoding": "101 110 DDDDD AAAAA BBBBB ---- 101 0101",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.divdf",
+"display": "b.divdf",
+"args": "rD,rA,rB",
+"encoding": "101 110 DDDDD AAAAA BBBBB ---- 110 0101",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bn.remdf",
+"display": "b.remdf",
+"args": "rD,rA,rB",
+"encoding": "101 110 DDDDD AAAAA BBBBB ---- 111 0101",
+"unit": "it_float",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "bg.fft",
+"display": "b.fft",
+"args": "F,rA,rB,E",
+"encoding": "101 110 ----- AAAAA BBBBB EEE FFFF 1000",
+"unit": "it_asic",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.fftr",
+"display": "b.fftr",
+"args": "F,rA,rB,E",
+"encoding": "101 110 ----- AAAAA BBBBB EEE FFFF 1001",
+"unit": "it_asic",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.ifft",
+"display": "b.ifft",
+"args": "F,rA,rB,E",
+"encoding": "101 110 ----- AAAAA BBBBB EEE FFFF 1010",
+"unit": "it_asic",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "bg.ifftr",
+"display": "b.ifftr",
+"args": "F,rA,rB,E",
+"encoding": "101 110 ----- AAAAA BBBBB EEE FFFF 1011",
+"unit": "it_asic",
+"ignored_bits": [
+6,
+7
+],
+"dup_first": false
+},
+{
+"name": "mv.add",
+"display": "mv.add",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00010 001010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.addu",
+"display": "mv.addu",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00000 001010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.add.b",
+"display": "mv.add.b",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00110 001010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.addu.b",
+"display": "mv.addu.b",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00100 001010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.sad.b",
+"display": "mv.sad.b",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 10000 001010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.sub",
+"display": "mv.sub",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00010 011010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.subu",
+"display": "mv.subu",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00000 011010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.sub.b",
+"display": "mv.sub.b",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00110 011010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.subu.b",
+"display": "mv.subu.b",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00100 011010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.avg",
+"display": "mv.avg",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00010 101010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.avgu",
+"display": "mv.avgu",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00000 101010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.avg.b",
+"display": "mv.avg.b",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00110 101010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.avgu.b",
+"display": "mv.avgu.b",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00100 101010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.avg0",
+"display": "mv.avg0",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 10010 101010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.avg0u",
+"display": "mv.avg0u",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 10000 101010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.avg0.b",
+"display": "mv.avg0.b",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 10110 101010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.avg0u.b",
+"display": "mv.avg0u.b",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 10100 101010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.abs",
+"display": "mv.abs",
+"args": "vD,vA",
+"encoding": "101 100 DDDDD AAAAA 00000 00000 001000",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.saddl",
+"display": "mv.saddl",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00010 011110",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.saddh",
+"display": "mv.saddh",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00110 011110",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.mulu.b",
+"display": "mv.mulu.b",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00010 101110",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.sra",
+"display": "mv.sra",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00010 010010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.srl",
+"display": "mv.srl",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00000 100010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.sll",
+"display": "mv.sll",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00000 110010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.and",
+"display": "mv.and",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00000 000010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.or",
+"display": "mv.or",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00000 000110",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.xor",
+"display": "mv.xor",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00000 001110",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.seq",
+"display": "mv.seq",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00000 111010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.seq.b",
+"display": "mv.seq.b",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00100 111010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.slt",
+"display": "mv.slt",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00011 001010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.sltu",
+"display": "mv.sltu",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00001 001010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.slt.b",
+"display": "mv.slt.b",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00111 001010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.sltu.b",
+"display": "mv.sltu.b",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00101 001010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.textnz",
+"display": "mv.textnz",
+"args": "vD,vA",
+"encoding": "101 100 DDDDD AAAAA 00000 00000 010000",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.lzc",
+"display": "mv.lzc",
+"args": "vD,vA",
+"encoding": "101 100 DDDDD AAAAA 00000 00000 001100",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.rand",
+"display": "mv.rand",
+"args": "vD,vA",
+"encoding": "101 100 DDDDD AAAAA 00000 00000 000000",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.ror",
+"display": "mv.ror",
+"args": "vD,vA",
+"encoding": "101 100 DDDDD AAAAA 00000 00000 000100",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.min",
+"display": "mv.min",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00011 011010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.minu",
+"display": "mv.minu",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00001 011010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.max",
+"display": "mv.max",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00011 101010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.maxu",
+"display": "mv.maxu",
+"args": "vD,vA,vB",
+"encoding": "101 100 DDDDD AAAAA BBBBB 00001 101010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.clip3u",
+"display": "mv.clip3u",
+"args": "vD,vA,vB,vC",
+"encoding": "101 100 DDDDD AAAAA BBBBB CCCCC 111000",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.clip3",
+"display": "mv.clip3",
+"args": "vD,vA,vB,vC",
+"encoding": "101 100 DDDDD AAAAA BBBBB CCCCC 101000",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.dup",
+"display": "mv.dup",
+"args": "vD,vA,d",
+"encoding": "101 100 DDDDD AAAAA 00000 0dd01 000010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.upckl",
+"display": "mv.upckl",
+"args": "vD,vA",
+"encoding": "101 100 DDDDD AAAAA 00000 00000 010100",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.upckh",
+"display": "mv.upckh",
+"args": "vD,vA",
+"encoding": "101 100 DDDDD AAAAA 00000 00000 011100",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.cat",
+"display": "mv.cat",
+"args": "vD,vA,vB,E",
+"encoding": "101 100 DDDDD AAAAA BBBBB EEE00 010110",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.mfv",
+"display": "mv.mfv",
+"args": "rD,vA,H",
+"encoding": "101 101 DDDDD AAAAA HHHHH 00010 000000",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.mfvu",
+"display": "mv.mfvu",
+"args": "rD,vA,H",
+"encoding": "101 101 DDDDD AAAAA HHHHH 00000 000000",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.mfv.b",
+"display": "mv.mfv.b",
+"args": "rD,vA,H",
+"encoding": "101 101 DDDDD AAAAA HHHHH 00110 000000",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.mfvu.b",
+"display": "mv.mfvu.b",
+"args": "rD,vA,H",
+"encoding": "101 101 DDDDD AAAAA HHHHH 00100 000000",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.mfvw",
+"display": "mv.mfvw",
+"args": "rD,vA",
+"encoding": "101 101 DDDDD AAAAA 01000 01000 000000",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.mtv",
+"display": "mv.mtv",
+"args": "vD,rA,H",
+"encoding": "101 101 DDDDD AAAAA HHHHH 00000 000010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.mtvw",
+"display": "mv.mtvw",
+"args": "vD,rA,H",
+"encoding": "101 101 DDDDD AAAAA HHHHH 01000 000010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.mmk",
+"display": "mv.mmk",
+"args": "rD,vA",
+"encoding": "101 101 DDDDD AAAAA 00000 00000 001000",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.pckx",
+"display": "mv.pckx",
+"args": "vD,vA,vB,vC",
+"encoding": "101 100 DDDDD AAAAA BBBBB CCCCC 110000",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.sacc",
+"display": "mv.sacc",
+"args": "vD,vA,vB,vC",
+"encoding": "101 100 DDDDD AAAAA BBBBB CCCCC 110100",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.rnd",
+"display": "mv.rnd",
+"args": "vD,vA,H",
+"encoding": "101 100 DDDDD AAAAA HHHHH 00011 111010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.rndu",
+"display": "mv.rndu",
+"args": "vD,vA,H",
+"encoding": "101 100 DDDDD AAAAA HHHHH 00001 111010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.rnd.b",
+"display": "mv.rnd.b",
+"args": "vD,vA,H",
+"encoding": "101 100 DDDDD AAAAA HHHHH 00111 111010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.rndu.b",
+"display": "mv.rndu.b",
+"args": "vD,vA,H",
+"encoding": "101 100 DDDDD AAAAA HHHHH 00101 111010",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.opt",
+"display": "mv.opt",
+"args": "vD,vA,vB,vC,@,d",
+"encoding": "101 100 DDDDD AAAAA BBBBB CCCCC @@@dd1",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.opc",
+"display": "mv.opc",
+"args": "vD,vA,vB,vC,f,Q",
+"encoding": "101 100 DDDDD AAAAA BBBBB CCCCC 111fQ1",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.opv",
+"display": "mv.opv",
+"args": "vD,vA,vB,vC,#",
+"encoding": "101 101 DDDDD AAAAA BBBBB CCCCC #####1",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.opm",
+"display": "mv.opm",
+"args": "vD,vA,vB,vC",
+"encoding": "101 101 DDDDD AAAAA BBBBB CCCCC 011111",
+"unit": "it_simd",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.ldv",
+"display": "mv.ldv",
+"args": "vD,*(rA)",
+"encoding": "101 101 DDDDD AAAAA 0**** ***** ***100",
+"unit": "it_load",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.sdv",
+"display": "mv.sdv",
+"args": "*(rA),vB",
+"encoding": "101 101 BBBBB AAAAA 0**** ***** ***110",
+"unit": "it_store",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.ldw",
+"display": "mv.ldw",
+"args": "vD,^(rA)",
+"encoding": "101 101 DDDDD AAAAA 1^^^^ ^^^^^ ^^^100",
+"unit": "it_load",
+"ignored_bits": [],
+"dup_first": false
+},
+{
+"name": "mv.sdw",
+"display": "mv.sdw",
+"args": "^(rA),vB",
+"encoding": "101 101 BBBBB AAAAA 1^^^^ ^^^^^ ^^^110",
+"unit": "it_store",
+"ignored_bits": [],
+"dup_first": false
+}
+]
+}

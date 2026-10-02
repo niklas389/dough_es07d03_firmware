@@ -1,0 +1,10 @@
+{
+  "name": "standby-gate",
+  "summary": "EXPERIMENTAL: power-save gate always reports 'sleep allowed' (fixes the no-signal standby loop / LED cycling)",
+  "status": "verified decode, hardware result pending; equivalent to specpatch 'standby-gate' (other chat address 0x35DB21)",
+  "edits": [
+    {"addr": "0x261321", "old": "54e620", "new": "54e600",
+     "asm": "b.andi r7,r6,0x20 -> b.andi r7,r6,0x0"}
+  ],
+  "notes": "sub_2612F9 returns 1 ('refuse power-save') only when the active port's flags (port table 0x3B4950 + n*0xB0, u32 +0x04) have both 0x20000 and 0x20 set AND a mailbox query (sub_238FA5 cmd 0x60/0xFF/0x0B, port id from 0x3B427B) answers 0. Otherwise it returns 0. Masking the 0x20 test makes it always return 0, the same path the vendor code takes when the query answers non-zero. Callers: sub_261496 (0x2613A0) and sub_261C04 (0x261DFD). What the query represents is not decoded; the hypothesis is 'DP source has put the link to sleep'."
+}

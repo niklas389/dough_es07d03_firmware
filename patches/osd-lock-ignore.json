@@ -1,0 +1,10 @@
+{
+  "name": "osd-lock-ignore",
+  "summary": "Key handler ignores an already-persisted D6 key-lock bit (heals units that are already locked)",
+  "status": "verified-by-analysis; equivalent to specpatch 'osd-lock-ignore' (other chat address 0x35577C)",
+  "edits": [
+    {"addr": "0x258F7F", "old": "54e710", "new": "54e700",
+     "asm": "b.andi r7,r7,0x10 -> b.andi r7,r7,0x0"}
+  ],
+  "notes": "sub_258E5D at 0x258F78: if settings +0x4C bit 4 is set and the key code is < 5, it only sets the active port's re-detect flag (port table 0x3B4950 + n*0xB0, byte +0x1C bit 0) and returns, so the OSD never opens. With the test masked to 0 the branch is never taken. The bit stays in the EEPROM but has no effect; the next 'Processing update' stage clears it."
+}

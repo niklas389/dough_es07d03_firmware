@@ -1,0 +1,34 @@
+# Symbol names for the Beta03 (1169-E771) main firmware runtime image (base 0x200000).
+# Format: ADDR NAME  # confidence / notes
+# "conf" = behaviour confirmed by reading the code; "guess" = inferred from context.
+200100 reset_vector                  # conf: head startup, clears BSS 0x453E80..0x48E280
+26f528 c_entry                       # conf: jump target of the startup code
+2a7af4 exception_handler             # conf: common target of all exception vectors
+20cf68 ddc_poll                      # conf: sets +0x4C bit5 around ddc_process_command
+26ad19 ddc_process_command           # conf: DDC/CI opcode/VCP dispatcher, rx buf 0x47EB40+port*0x80
+26a632 power_soft_off                # conf: clears +0x48 bit0 and saves it (VCP D6=05, power key)
+257493 key_process                   # conf: key-code switch (table 0x326BD4, 0x2B entries), 0x2A = power
+258e5d power_key_state_task          # conf: state byte 0x457854; holds the D6 key-lock reader at 0x258F78
+2612f5 power_event                   # guess: event codes 6/7/0xC/0xE/0xF/0x11/0x14 -> power on/off/AC paths
+2612f9 standby_gate_query            # conf: returns 1 = refuse power-save (see patches/standby-gate.json)
+261496 nosignal_task_a               # guess: caller of standby_gate_query
+261c04 nosignal_task_b               # guess: caller of standby_gate_query
+238fa5 mailbox_query                 # guess: co-processor mailbox request (bank 0x1033)
+2636b0 nvram_init                    # conf: blank check, version byte 0xB8 @0, magic 0x55AA @0x46
+262388 settings_monitor_defaults     # conf: only code that clears settings +0x4C (lock bit)
+263657 nvram_load_system             # conf: EEPROM [0x00,0x48)
+26364d nvram_load_monitor            # conf: EEPROM [0x48,0xD2)
+263642 nvram_load_color              # guess name; conf range: EEPROM [0xD2,0x5F2)
+263622 nvram_load_tail               # conf: EEPROM [0x632,0x6B9) and [0x6B9,0x7A9)
+2636a7 nvram_save_system             # conf: [0x00,0x48)
+26368b nvram_save_monitor            # conf: [0x48,0xD2) - persists +0x4C
+263680 nvram_save_color              # conf range: [0xD2,0x5F2)
+263660 nvram_save_tail               # conf: [0x632,0x6B9) and [0x6B9,0x7A9)
+245b6c nvram_save_range              # conf: (offset, len) RAM 0x4824D0 vs shadow 0x486500 -> EEPROM
+245a35 nvram_load_range              # conf: (offset, len) EEPROM -> shadow -> RAM
+2456d1 nvram_write_u16               # guess
+24566d eeprom_write                  # conf: toggles WP (0x42C/0x42E), I2C dev 0xA0
+2406b7 i2c_eeprom_write              # conf: bit-banged I2C write, device 0xA0
+24563e eeprom_read_block             # guess
+24565e eeprom_read_byte              # guess
+23dadb reg_write_mask                # guess: (reg, value, mask) - GPIO/pad control

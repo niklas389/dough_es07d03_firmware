@@ -1,0 +1,5 @@
+# Vendor firmware and derived images are not distributed here
+*.bin
+*.pkl
+__pycache__/
+work/
