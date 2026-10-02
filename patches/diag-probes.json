@@ -1,0 +1,86 @@
+{
+  "name": "diag-probes",
+  "summary": "DIAGNOSTIC: VCP E0-E9 GET report power-management state (not for daily use)",
+  "status": "ported from specpatch.py (other session); addresses translated by -0xFC800 and original bytes verified",
+  "edits": [
+    {
+      "addr": "0x26C16A",
+      "old": "f0e751da",
+      "new": "f0e751ac",
+      "asm": "b.lbz r7,0x51da(r7) -> b.lbz r7,0x51ac(r7) (E0 -> pwr 0x4551AC)"
+    },
+    {
+      "addr": "0x26C142",
+      "old": "c0e00761",
+      "new": "c0e008a1",
+      "asm": "b.movhi r7,0x3b -> b.movhi r7,0x45 (E1 movhi 0x45)"
+    },
+    {
+      "addr": "0x26C146",
+      "old": "f0e7494e",
+      "new": "f0e751a6",
+      "asm": "b.lbz r7,0x494e(r7) -> b.lbz r7,0x51a6(r7) (E1 -> cnt 0x4551A6)"
+    },
+    {
+      "addr": "0x26C5A8",
+      "old": "c0e007a1",
+      "new": "c0e008a1",
+      "asm": "b.movhi r7,0x3d -> b.movhi r7,0x45 (E2 movhi 0x45)"
+    },
+    {
+      "addr": "0x26C5AC",
+      "old": "f0e7b2c0",
+      "new": "f0e751a8",
+      "asm": "b.lbz r7,-0x4d40(r7) -> b.lbz r7,0x51a8(r7) (E2 -> pnl 0x4551A8)"
+    },
+    {
+      "addr": "0x26C585",
+      "old": "c0e007a1",
+      "new": "c0e008a1",
+      "asm": "b.movhi r7,0x3d -> b.movhi r7,0x45 (E4 movhi 0x45)"
+    },
+    {
+      "addr": "0x26C589",
+      "old": "f0e7b2bf",
+      "new": "f0e751ae",
+      "asm": "b.lbz r7,-0x4d41(r7) -> b.lbz r7,0x51ae(r7) (E4 -> flg 0x4551AE)"
+    },
+    {
+      "addr": "0x26C562",
+      "old": "c0e007a1",
+      "new": "c0e008a1",
+      "asm": "b.movhi r7,0x3d -> b.movhi r7,0x45 (E5 movhi 0x45)"
+    },
+    {
+      "addr": "0x26C566",
+      "old": "f0e7b2c1",
+      "new": "f0e73bf3",
+      "asm": "b.lbz r7,-0x4d3f(r7) -> b.lbz r7,0x3bf3(r7) (E5 -> bl 0x453BF3)"
+    },
+    {
+      "addr": "0x26C53F",
+      "old": "c0e007a1",
+      "new": "c0e008a1",
+      "asm": "b.movhi r7,0x3d -> b.movhi r7,0x45 (E7 movhi 0x45)"
+    },
+    {
+      "addr": "0x26C543",
+      "old": "f0e7b2c2",
+      "new": "f0e751a7",
+      "asm": "b.lbz r7,-0x4d3e(r7) -> b.lbz r7,0x51a7(r7) (E7 -> off 0x4551A7)"
+    },
+    {
+      "addr": "0x26C5F2",
+      "old": "f0e7793c",
+      "new": "f0e75164",
+      "asm": "b.lbz r7,0x793c(r7) -> b.lbz r7,0x5164(r7) (E8 -> sys 0x455164)"
+    },
+    {
+      "addr": "0x26C5CF",
+      "old": "f0e7793d",
+      "new": "f0e751cc",
+      "asm": "b.lbz r7,0x793d(r7) -> b.lbz r7,0x51cc(r7) (E9 -> rws 0x4551CC)"
+    }
+  ],
+  "notes": "GET-only probes in the Get-VCP handler (sub_26AD19): E0 pwr 0x4551AC (bit0 in power-save, bit1 power-save requested, bit2 set at boot, bit4 NVRAM ready, bit7 woke from PM), E1 cnt 0x4551A6 (no-signal countdown), E2 pnl 0x4551A8, E4 flg 0x4551AE (bit4 pre-standby), E5 bl 0x453BF3, E7 off 0x4551A7, E8 sys 0x455164 (1 = entering power-save, 2 = entering soft-off), E9 rws 0x4551CC (1 = power-save refused by the gate). Bridge reads sometimes show one-byte framing glitches (0xFF00, 65280)."
+}

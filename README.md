@@ -25,7 +25,7 @@ from the usual public sources. Flashing is done with `specflash` from
 python3 tools/es07fw.py info ES07D03_Beta03_rev1169-E771_USB_update.bin
 python3 tools/es07fw.py list
 python3 tools/es07fw.py patch ES07D03_Beta03_rev1169-E771_USB_update.bin fix.bin \
-        d6-standby-lock osd-lock-ignore standby-gate
+        d6-standby-lock osd-lock-ignore
 python3 tools/es07fw.py diff ES07D03_Beta03_rev1169-E771_USB_update.bin fix.bin
 specflash dryrun fix.bin && specflash write fix.bin --yes
 ```
@@ -40,7 +40,8 @@ output before writing it.
 |---|---|---|
 | `d6-standby-lock` | analysis-verified | VCP D6=02..04 permanently disabling the OSD (persisted key-lock bit) |
 | `osd-lock-ignore` | analysis-verified | Heals monitors that already carry the lock bit in EEPROM |
-| `standby-gate` | **experimental**, hardware test pending | No-signal standby loop: never reaches power-save, LED cycles white/red |
+| `standby-gate` | **tested, does not work** | Enters power-save but is woken at once and reboots; kept for reference |
+| `diag-probes` | diagnostic | VCP E0–E9 GET report power-management state |
 
 Recovery from any bad flash: flash the stock package. If FW2 fails its CRC,
 the bootloader falls back to the factory image at SPI `0x0`.

@@ -160,3 +160,47 @@ update stage (or a blank EEPROM) does.
 - PM51 (`0x10080`) and the second 8051 image (`0x20080`): needed for the
   standby backlight glow if real power-save does not remove it.
 - The 38 unresolved indirect jumps and the co-processor query semantics.
+
+## 8. Standby loop (no-signal → power-save)
+
+All addresses are runtime addresses. Variables are as exposed by `patches/diag-probes.json`.
+
+**Countdown** (`sub_261C04`, tick at `0x261CCB`, runs while `0x4551A2` ≠ 0)
+- `cnt` (`0x4551A6`) counts down unless `0x453C70` bit 15 is set.
+- At 250 it sets `flg` (`0x4551AE`) bit 4, the pre-standby state with the red LED (`sub_26693C`).
+- At 0 it sets `pwr` (`0x4551AC`) bit 1, "power-save requested", and clears `flg` bit 4.
+
+**Entry** (`sub_26136B`, reached through the thunk at `0x261496`, called every main-loop pass)
+- Nothing happens unless `pwr` bit 1 is set.
+- It then calls `standby_gate_query` (`0x2612F9`).
+- **Refused** (returns 1):
+  - clears bit 1, sets `rws` (`0x4551CC`) = 1 and the 5-tick re-query timer `0x4551CD`;
+  - panel off (`sub_245860`); the CPU keeps running.
+- **Allowed:**
+  - clears bit 1; if the power flag (settings `+0x48` bit 0) is set, sets `pwr` bit 0;
+  - `sub_245787`, LED (`sub_261910(0)`), panel off (`sub_245860`);
+  - fills the PM wake block at `0x48A740`: port mask, LED colours from settings `+0xBB..+0xC2`;
+  - `sys` (`0x455164`) = 1.
+- The main loop then runs `sub_23D6AA`:
+  - copies `sys` into the block;
+  - drives the power pads `0x43A/0x43B`, `0x44A–0x44D`, `0x422`;
+  - `sub_20C537`, `sub_23EF7E(1)`;
+  - **parks the AEON CPU** in an endless loop at `0x20E5B5`.
+- Leaving real power-save therefore restarts the main firmware. At boot, `sub_2414AE` reads PM register `0x3AA`; bits 3:2 = `0b10` set `pwr` bit 7.
+
+**Gate** (`standby_gate_query`)
+- It only applies when the active port's flags (`0x3B4950 + n*0xB0`, u32 `+4`) have `0x20000` and `0x20` set.
+- It then sends two mailbox requests to the DP-receiver co-processor (registers `0x1033C0`–`0x1033C9`):
+  1. `(0x30, 0xFF, 7)` maps the port to a receiver ID;
+  2. `(0x60, 0xFF, 0x0B)` returns a state byte.
+- A state byte of 0 refuses power-save. What that byte represents is not known.
+
+**After a refusal** (stock): `sub_23ADAF` (`0x23AEB8`) turns the panel back on (`sub_245919`) and clears `rws` when the DP port reports a link event (port byte `+0x1C` bit 1). The no-signal cycle restarts, giving the white/red LED loop roughly every 4.3 minutes.
+
+**Hardware result with `standby-gate`** (2026-10-02 log)
+- At `cnt` 1 → 0 the probes stop answering for about one sample.
+- The next sample shows exactly the boot values written by `sub_23FF28`: `cnt`=0, `pnl`=0, `off`=0, `sys`=0, `pwr`=0x14.
+- Then the no-signal cycle starts again.
+- So power-save was entered and left within seconds, followed by a firmware restart.
+- `pwr` bit 7 stayed clear, so the restart was not reported by PM register `0x3AA` as a normal PM wake (value `0b10`). PM wake with another code, and watchdog reset, are both still possible.
+- Conclusion: the vendor gate keeps the monitor out of power-save while the DP side is still active, and forcing entry only moves the loop.
