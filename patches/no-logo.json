@@ -1,0 +1,20 @@
+{
+  "name": "no-logo",
+  "summary": "Skip the power-on logo: power key / AC power-on take the same start-up path as a wake from standby",
+  "status": "experimental, hardware test pending",
+  "edits": [
+    {
+      "addr": "0x260F60",
+      "old": "50e708",
+      "new": "50e700",
+      "asm": "power_event, AC power-on with power flag set: b.ori r7,r7,0x8 -> b.ori r7,r7,0x0 (do not set 0x453C70 bit 3 'logo')"
+    },
+    {
+      "addr": "0x261007",
+      "old": "50e708",
+      "new": "50e700",
+      "asm": "power_event, power-on events 6/0xE: b.ori r7,r7,0x8 -> b.ori r7,r7,0x0 (do not set 0x453C70 bit 3 'logo')"
+    }
+  ],
+  "notes": "0x453C70 bit 3 is the logo flag; these are its only two setters. With it set, boot (sub_261FDE) enters state 7 (logo: palette/tile load sub_2538EE, full panel-on), arms the OSD timer 0x4551A4 = 3 one-second ticks (state flags +0x18 bit 6, sub_256B63), and on expiry the timeout handler sub_258AB1 clears the flag, marks the active port 'no signal' (+0x20 |= 0x0C), requests a re-detect (+0x1C |= 1) and goes to state 6, so the panel is powered off and input detection starts again. A wake from standby (event 7) already clears the flag and skips all of this; the patch makes power-on do the same."
+}

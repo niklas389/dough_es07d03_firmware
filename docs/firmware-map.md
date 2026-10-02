@@ -338,7 +338,8 @@ Disassembled with radare2 (`-a 8051`). Keil C51 style: XRAM variables at `0x5000
   - 0 power off (`power_soft_off`);
   - 3 "cable not connected" (`cnt`=5);
   - 4 "No signal" (`cnt`=255);
-  - 7 normal display (entry `sub_26A61C` = panel on);
+  - 6 normal (no message);
+  - 7 power-on logo (entry `sub_26A61C` = full panel-on, draw `sub_2599FC` loads palette/tiles; see §12);
   - 0x0E–0x18 OSD menus.
 - **Signal events:** `sub_263995`. In state 4 or 6, a DP link event (port `+0x1C` bit 1) with port status `+0x20 & 0x28` clear sets `0x453C70` bit 14 and arms `0x4551B5`=2 (another path arms 10 with bit 15).
 - When that timer expires, the countdown tick sets `0x453C70` bit 0. `power_key_state_task` then calls `sub_258AB1`, which re-enters state 4: "No signal", `cnt`=255, white LED.
@@ -347,3 +348,27 @@ Disassembled with radare2 (`-a 8051`). Keil C51 style: XRAM variables at `0x5000
 - **Input state machine** `sub_22F2C7`: per input path, state records at `0x47FA64 + n*0x7C`; state 2 → `sub_226F7A` (detect), states 4–5 → `sub_23ADAF`.
 
 **`standby-lhs`** (source `tools/patches_src_standby_lhs.py`) turns the refusal into a stable link-held standby. This is the DP-conformant behaviour for a source that keeps the sink in D0 without video. Deep power-save follows as soon as the vendor's 5-tick gate re-query sees the link released. See `patches/standby-lhs.json` for the exact hooks.
+
+## 12. Power-on logo and start-up
+
+- **Tick:** the 1 ms ISR reloads `0x3B4948` with 1000 and sets `0x4551A2`
+  each time it runs out, so the countdown task `sub_261C04` ticks once per
+  second (`cnt`, the OSD timer `0x4551A4`, the re-evaluation timer `0x4551B5`).
+- **Logo flag:** `0x453C70` bit 3. Only `power_event` sets it: AC power-on
+  with the power flag set (`0x260F60`) and power-on events 6/0xE
+  (`0x261007`). Wake from standby (event 7) clears it.
+- **Boot:** `sub_261FDE` checks bit 3 and calls `sub_26A809`, which enters
+  state 7: full panel-on with the logo. The state flags (+0x18 bit 6) make
+  `sub_256B63` arm the OSD timer with 3 ticks, so the logo stays 2–3 s.
+- **Logo end:** the timer expiry sets `0x453C70` bit 0, and
+  `sub_258AB1` (`0x258AD2`) clears bits 0 and 3, sets bit 5, enters state 6,
+  sets the active port's re-detect request (+0x1C bit 0) and marks it "no
+  signal" (+0x20 |= 0x0C). Input detection therefore starts again after the
+  logo, and `sub_245919` turns the panel off (re-detect pending, bit 3 clear)
+  until the new mode is set. Power-on = logo time + panel off (+ T12) +
+  detection + panel-on.
+- **Brightness:** backlight brightness is per input, settings `+0x91 + port`
+  (port index `0x47FAF5`), applied with the picture setup after detection.
+  Why the logo appears dimmer was not traced; `no-logo` removes the phase.
+- `patches/no-logo.json` stops both setters, so power-on takes the same path
+  as a wake from standby.
