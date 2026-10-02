@@ -268,3 +268,54 @@ Boot pin setup is `sub_2411B5` (called from `sub_2414AE`).
 - It writes PM regs `0x03A6` (mode bits), `0x03AA` (wake status), `0x038A`/`0x039D`, the mailbox bank `0x1033C0..C9`/`0x1033F1..F9`, and pins `0x0434`/`0x0436` bits 6/7.
 - It never touches the backlight enable `0x426`/`0x428` or VLCD (`0x434` bit 4).
 - Its wake-source handling is the remaining open item for real standby.
+
+## 10. PM51 standby controller (package `0x10080`, 8051, code base 0)
+
+Disassembled with radare2 (`-a 8051`). Keil C51 style: XRAM variables at `0x5000–0x63xx`, and Keil runtime helpers such as `0x1E65` (load 32-bit constant from code).
+
+**Main loop**
+- `main` is `0x9562`: init (`0x90F5`, `0x9D88`, `0x9CCE`), set state awake (`0x9ACF`).
+- It then loops at `0x9574`: `0x3EB4` (power state machine), `0x8AEB`, `0x9D3B` (event poll) → `0x880F`, `0x9CE1`, `0x9D02`, `0x9665`, `0x0019`.
+
+**State**
+- `0x5E6A`: 0 = awake, 1 = standby, 2 = power off.
+  - Set by `0x9B30` (→1), `0x9C91` (→2) and `0x9ACF` (→0).
+  - `0x96FB` copies it into PM reg `0x03AA` bits 4:2 (1 → code 1, 2 → code 3).
+- `0x5E6B` is the sub-state for `0x3EB4`:
+  - 0 (`0x3ED9`): enter standby;
+  - 2 (`0x3FEC`): sleeping; calls `0x745A` and goes to sub-state 1 on a wake decision;
+  - 1 (`0x4002`): wake. Re-drives pins `0x0434/0x0436` bits 6/7, `0x042E`, `0x044B`, `0x043A`, waits for PM reg `0x039C` (≤1000 ticks), writes the wake code and sets state 0;
+  - 3 (`0x418E`): awake.
+
+**Events** (`0x5BAA`, writes the event code to `0x5E89` and its parameter to `0x5E8A`)
+- Snapshot: PM interrupt status `0x0385`, `0x0386`, `0x038B`, `0x03A2`, `0x03A3`, `0x0364` → XRAM `0x5001–0x5007`.
+
+| Source | Event |
+|---|---|
+| `0x0365` low nibble | 4 (no wake) |
+| keys (`0x6881`, debounced, `0x7847` reads key pins) | `0x0C` and up |
+| `0x0386` bit 7: main-firmware mailbox (`0x3EC2..0x3EF3`) | 5/6/7 (command 4 → 5, 5 → 6 power off, else 7) |
+| message channel `0x6E0A` (only if `0x5E6D` bit 0) | `0x0A` |
+| port activity `0x7D10` | 2, port index in `0x5E8A` |
+| software queue `0x61E9` (mailbox dispatcher `0x5F35`; commands → events 5/6/7) | that value |
+| `0x5E87` | 4 |
+
+- Port activity is configured by the constant table at code `0x2928`, `0x23` bytes per port, 6 ports.
+  - Byte +0 is the port type.
+  - Bytes +1..+4 are a 32-bit config. Port wake is enabled when bit 3 of the last byte is set (ports 2–5).
+  - Type 1 triggers on PM status `0x0386` bit 5; types 2 and 3 on `0x038B` bits 0 and 1 (mask table at code `0x291E`).
+  - XRAM `0x5E81+port` ≠ 0 suppresses a port.
+
+**Wake decision** `0x745A` (after re-arming PM regs `0x03A6`/`0x03BC`)
+
+| Event | Result |
+|---|---|
+| 1, 3, 9, `0x0A`, `0x0E` | wake |
+| 2 | wake if `0x9D54` returns ≠0 |
+| 4 | stay asleep |
+| 5–7 | `0x90B6` (6 while in standby → power off) |
+| `0x0C`, `0x0D`, `0x0F–0x15` | wake if state is 1 or 2 (`0x9CBA`) |
+
+**`0x9D54` is a stub.** It loads 0/200/0 into scratch bytes `0x24–0x26` and returns 1 unconditionally. Any activity interrupt on an enabled port therefore wakes the chip, including the DP side-channel (AUX) traffic that the GPU/dock generates in response to the IRQ_HPD burst at standby entry (kernel log: ~27 `DMUB HPD RX IRQ` at the moment the hub dropped).
+
+**Second 8051 image** (`0x20080`): shares about a third of its code with PM51. The bootloader points the PM51 code base at `0x10080`; the main firmware does not reference `0x20080`. Its role is unknown.
