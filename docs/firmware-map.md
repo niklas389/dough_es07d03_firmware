@@ -393,11 +393,17 @@ Disassembled with radare2 (`-a 8051`). Keil C51 style: XRAM variables at `0x5000
 
 ## 14. Board components (identified)
 
-| Part | Marking / source | Notes |
+From the owner's board photos (`R01712273073` mainboard, PCB "Spectrum_D03 2021-05-08").
+
+| Part | Marking | Role / notes |
 |---|---|---|
-| Scaler | MStar MST9U4 (package signature) | AEON R2 main CPU, PM51 8051 standby controller |
-| SPI flash | Winbond W25Q128JV (owner, from board photos) | 128 Mbit = 16 MB; only the lower 8 MB are used (see flash-reference.md §1) |
-| Settings EEPROM | not identified | I²C `0xA0`; firmware addresses up to `0x1C2F`, so at least 8 KB (24C64 class or larger) |
-| USB hub | VIA VL822 (`2109:2822`/`2109:8886`) | also carries the DDC/ISP bridge used for flashing |
-| I²C device `0x34` | not identified | configured at start-up (`sub_20C5EB`) and at standby entry |
-| Backlight LED driver | not identified | on the mainboard (panel has none) |
+| Scaler | MStar MST9U14RV4 (`MST9U4` in the package) | AEON R2 main CPU, PM51 8051 standby controller, SECU_R2 HDCP processor (package section `0109`) |
+| Input front-end | MStar **MSB3300** | Between the HDMI/DP ports and the scaler. Very likely handles DP/HDMI reception (link training, hot-plug) itself, which would explain why no DP hot-plug control was found in the scaler code. V108's extra section `010F` ("HDMI/TMDS/DSC code") is probably its firmware (inference). |
+| DRAM | 6× Winbond W632GU6NB | DDR3 |
+| SPI flash | Winbond W25Q128JV (16 MB) | only the lower 8 MB used |
+| Settings EEPROM | Fudan **FM24C128D** (16 KB) | I²C `0xA0`; user settings `0x000`–`0x7A9`, factory data `0x1794`–`0x1C2F`. Rated 1 MHz at 2.5–5.5 V, 400 kHz at 1.6 V; the firmware runs it at about 100 kHz. |
+| USB hub | VIA VL822-Q7 + Winbond 25X20 (hub firmware flash, reading uncertain) | also the DDC/ISP bridge used for flashing |
+| USB-PD | VIA VL103R-Q4 (PD controller), onsemi NCP81599 (buck-boost, I²C 0x74–0x77) | |
+| USB-C / DP-alt | Diodes PI3DPX1207C (redriver), PI3USB31531 (crossbar, I²C 0x54–0x57 family), PI3USB32212 (USB switch) | |
+| I²C device `0x34` (7-bit `0x1A`) | not identified | configured at start-up (`sub_20C5EB`, 250 + 100 ms waits) and at standby entry. 8-bit register / 16-bit value format and the delays suggest an audio codec for the 3.5 mm output (inference). Not NCP81599 or PI3USB3153x by address. |
+| Backlight LED driver | not identified | boost stages with `B*` designators near connectors BJ1/BJ2 |
