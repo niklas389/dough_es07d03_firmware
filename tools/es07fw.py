@@ -234,6 +234,9 @@ def cmd_patch(pkg_path, out_path, names):
     for n in names:
         if n not in allp:
             sys.exit('unknown patch %r (see: es07fw.py list)' % n)
+        missing = [r for r in allp[n].get('requires', []) if r not in names]
+        if missing:
+            sys.exit('patch %r requires %s in the same build' % (n, ', '.join(missing)))
         if is_pm51(allp[n]):
             p.d[:] = apply_patch(bytes(p.d), allp[n])
         else:

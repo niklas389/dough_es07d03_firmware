@@ -20,7 +20,7 @@ from the usual public sources. Flashing is done with `specflash` from
 | `tools/aeon/funcs.py`, `xrefs.py`, `fdis.py` | Function discovery, xref database, annotated listings |
 | `tools/aeon/names.txt` | Identified functions |
 | `tools/aeon/aeonasm.py` | Minimal assembler used for code-cave patches |
-| `tools/patches_src_*.py` | Sources that generate the code-cave patches (`standby-lhs`, `panel-t12`) |
+| `tools/patches_src_*.py` | Sources that generate the code-cave patches (`standby-lhs`, `panel-t12`, `panel-prepower`) |
 
 ## Quick start
 
@@ -51,6 +51,7 @@ output before writing it.
 | `standby-lhs` | **experimental** | Link-held standby: while the source keeps the DP link up without video, stay dark with the standby LED instead of looping through "No signal"; wake on valid video or key; deep standby once the link is released. Includes panel-seq (use one or the other) |
 | `no-logo` | **experimental** | Skips the 2–3 s power-on logo and the forced input re-detection plus panel off/on that follow it; power-on then takes the standby-wake path |
 | `pm51-wake-recheck` | **experimental** | PM51 standby controller: port activity wakes the monitor only if it is still present 200 ms later (the vendor check is a stub that always wakes); keys unaffected |
+| `panel-prepower` | **experimental** | Powers the panel up (backlight off) during start-up, so only the backlight step is left when the input is ready; requires `standby-lhs` |
 
 Recovery from any bad flash: flash the stock package. If FW2 fails its CRC,
 the bootloader falls back to the factory image at SPI `0x0`.

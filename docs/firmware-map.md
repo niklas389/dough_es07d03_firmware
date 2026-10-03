@@ -134,6 +134,7 @@ pad registers `0x42C`/`0x42E`. Range-based API: `nvram_save_range(off,len)`
 | `0x048`–`0x0D1` | monitor settings (`+0x48` power flags, `+0x4C` runtime/lock flags, `+0xC4` defaults-valid magic `0xC1`; `+0x5A` is likely the active input, inferred) |
 | `0x0D2`–`0x5F1` | colour/user settings |
 | `0x632`–`0x7A8` | tail blocks |
+| `0x1794`–`0x1C2F` | **factory data** (EEPROM base `0x1000` from `0x340000`): records of `0x16` B at `0x1794`, `0x3CA` B at `0x17C0` (XOR checksum in the last 2 bytes), `0x2C` B at `0x1B8A`, 8 B at `0x1BB6`, `0x50` B at `0x1BDF`. Loaded by `0x204352`–`0x205B5A`; a checksum failure loads defaults into RAM only (`sub_2040D6`). Written only by the vendor factory DDC/CI commands (`sub_26DE36` → `sub_205BDC`/`sub_204851`). The settings defaults loader never touches it. |
 
 `nvram_init` `0x2636B0`: if the first 16 bytes are `0xFF`, write magic and
 defaults. If byte 0 ≠ `0xB8`, load defaults for all blocks. If `+0xC4` ≠
@@ -374,3 +375,18 @@ Disassembled with radare2 (`-a 8051`). Keil C51 style: XRAM variables at `0x5000
   Why the logo appears dimmer was not traced; `no-logo` removes the phase.
 - `patches/no-logo.json` stops both setters, so power-on takes the same path
   as a wake from standby.
+
+## 13. Start-up order and timing notes
+
+- `sub_261FDE`: pads, `nvram_init` (EEPROM, bit-banged I²C with ~4 µs
+  half-periods, about 100 kHz; the 0x7A9-byte settings read takes roughly
+  0.2 s), then `sub_23D3EB`.
+- `sub_23D3EB`: `sub_2226F1` (scaler/receiver init, `power_event`), …, then
+  `sub_20C6F3` → `sub_20C5EB`, which configures an external I²C device at
+  `0x34` (8-bit address) with a fixed register table at `0x34220B`
+  (`reg, hi, lo` triples) and blocks for 1 + 1 + 250 + 100 ms. The same device
+  is written again at standby entry (`sub_20C537`). Its identity is unknown.
+- The DP receiver's hot-plug control has not been located yet.
+- `patches/panel-prepower.json` runs the vendor panel-on at `0x2620CC`
+  (where the stock logo powered the panel) with the backlight held off and
+  finishes it at the next panel-on call.
