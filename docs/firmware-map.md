@@ -383,9 +383,9 @@ Disassembled with radare2 (`-a 8051`). Keil C51 style: XRAM variables at `0x5000
   0.2 s), then `sub_23D3EB`.
 - `sub_23D3EB`: `sub_2226F1` (scaler/receiver init, `power_event`), …, then
   `sub_20C6F3` → `sub_20C5EB`, which configures an external I²C device at
-  `0x34` (8-bit address) with a fixed register table at `0x34220B`
-  (`reg, hi, lo` triples) and blocks for 1 + 1 + 250 + 100 ms. The same device
-  is written again at standby entry (`sub_20C537`). Its identity is unknown.
+  `0x34` (the NAU8401 headphone DAC) with a fixed register table at
+  `0x34220B` and blocks for 1 + 1 + 250 + 100 ms (datasheet anti-pop
+  sequence). The same device is written again at standby entry (`sub_20C537`).
 - The DP receiver's hot-plug control has not been located yet.
 - `patches/panel-prepower.json` runs the vendor panel-on at `0x2620CC`
   (where the stock logo powered the panel) with the backlight held off and
@@ -405,5 +405,6 @@ From the owner's board photos (`R01712273073` mainboard, PCB "Spectrum_D03 2021-
 | USB hub | VIA VL822-Q7 + Winbond 25X20 (hub firmware flash, reading uncertain) | also the DDC/ISP bridge used for flashing |
 | USB-PD | VIA VL103R-Q4 (PD controller), onsemi NCP81599 (buck-boost, I²C 0x74–0x77) | |
 | USB-C / DP-alt | Diodes PI3DPX1207C (redriver), PI3USB31531 (crossbar, I²C 0x54–0x57 family), PI3USB32212 (USB switch) | |
-| I²C device `0x34` (7-bit `0x1A`) | not identified | configured at start-up (`sub_20C5EB`, 250 + 100 ms waits) and at standby entry. 8-bit register / 16-bit value format and the delays suggest an audio codec for the 3.5 mm output (inference). Not NCP81599 or PI3USB3153x by address. |
-| Backlight LED driver | not identified | boost stages with `B*` designators near connectors BJ1/BJ2 |
+| Headphone DAC | Nuvoton **NAU8401YG**, I²C `0x34` (fixed address `0011010`) | 7-bit register + 9-bit data. `sub_20C579` runs the datasheet's anti-pop power-up (R1 = `0x10F`, ~250 ms, table at `0x34220B`, 100 ms) at every start and wake; `sub_20C537` writes it at standby entry. Nothing else accesses it. `patches/audio-off.json` skips the power-up. |
+| HDMI EDID EEPROMs | 2× AT24C02A (U14/U15, below the MSB3300) | 256 B each (inference: one per HDMI port) |
+| Backlight LED driver | 2× 10-pin "AGQCZA" (+ "rNCVA" part next to each), not identified | boost stages with `B*` designators near connectors BJ1/BJ2 |
