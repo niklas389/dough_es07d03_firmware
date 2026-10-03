@@ -55,6 +55,12 @@ output before writing it.
 | `audio-off` | **experimental** | Skips the headphone DAC power-up (~350 ms of anti-pop waits at every start and wake); the 3.5 mm output stays silent |
 | `eeprom-fast-read` | **experimental** | Reads the settings EEPROM at ~200 kHz instead of ~100 kHz (chip rated 1 MHz); writes unchanged; worst case a settings reset |
 
+**Hardware status (2026-10-03, one monitor):** the build
+`d6-standby-lock osd-lock-ignore panel-t12 standby-lhs no-logo panel-prepower
+audio-off eeprom-fast-read pm51-wake-recheck diag-pins` boots, keeps its
+settings and works in normal use. The specific behaviour of the
+standby/wake patches is still being observed.
+
 Recovery from any bad flash: flash the stock package. If FW2 fails its CRC,
 the bootloader falls back to the factory image at SPI `0x0`.
 
