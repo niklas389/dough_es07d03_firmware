@@ -390,3 +390,14 @@ Disassembled with radare2 (`-a 8051`). Keil C51 style: XRAM variables at `0x5000
 - `patches/panel-prepower.json` runs the vendor panel-on at `0x2620CC`
   (where the stock logo powered the panel) with the backlight held off and
   finishes it at the next panel-on call.
+
+## 14. Board components (identified)
+
+| Part | Marking / source | Notes |
+|---|---|---|
+| Scaler | MStar MST9U4 (package signature) | AEON R2 main CPU, PM51 8051 standby controller |
+| SPI flash | Winbond W25Q128JV (owner, from board photos) | 128 Mbit = 16 MB; only the lower 8 MB are used (see flash-reference.md §1) |
+| Settings EEPROM | not identified | I²C `0xA0`; firmware addresses up to `0x1C2F`, so at least 8 KB (24C64 class or larger) |
+| USB hub | VIA VL822 (`2109:2822`/`2109:8886`) | also carries the DDC/ISP bridge used for flashing |
+| I²C device `0x34` | not identified | configured at start-up (`sub_20C5EB`) and at standby entry |
+| Backlight LED driver | not identified | on the mainboard (panel has none) |
