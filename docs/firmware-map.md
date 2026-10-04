@@ -411,3 +411,30 @@ From the owner's board photos (`R01712273073` mainboard, PCB "Spectrum_D03 2021-
 | Headphone DAC | Nuvoton **NAU8401YG**, I²C `0x34` (fixed address `0011010`) | 7-bit register + 9-bit data. `sub_20C579` runs the datasheet's anti-pop power-up (R1 = `0x10F`, ~250 ms, table at `0x34220B`, 100 ms) at every start and wake; `sub_20C537` writes it at standby entry. Nothing else accesses it. `patches/audio-off.json` skips the power-up. |
 | HDMI EDID EEPROMs | 2× AT24C02A (U14/U15, below the MSB3300) | 256 B each (inference: one per HDMI port) |
 | Backlight LED driver | 2× 10-pin "AGQCZA" (+ "rNCVA" part next to each), not identified | boost stages with `B*` designators near connectors BJ1/BJ2 |
+
+## 15. OSD popups (tile OSD)
+
+- OSD states: table `0x3BAAFC` (`0x1C` per state). `+0x00`/`+0x01` window
+  columns/rows in 12×18 px tiles (or a size function if `+0x18` bit 0),
+  `+0x08` item page, `+0x0C` item count, `+0x10` entry handler, `+0x14`
+  periodic handler. Popups: 2 power-on, 3 cable not connected, 4 No signal
+  (25×3), 5 (25×3, two items), 8/9 input name (20×4), 0x0C (20×4), 0x19 (30×6).
+- Item (`0x2C` bytes): `+0` column, `+1` row, `+4`/`+5` attribute
+  (normal/selected), `+7` flags (bit 3: centred text), `+8` text function
+  (returns a per-language descriptor: font slot, tile count, pixel width).
+- Cell attribute byte: high nibble foreground, low nibble background
+  (palette index). Messages are proportional text rendered into font RAM
+  from slot `0x20` (`0x27C046`); characters are coded `A`=`0x20`, `a`=`0x3A`,
+  space `0x0F`.
+- Tile RAM access: `0x101C66` data port, `0x101C68` mode (1 code, 2
+  attribute); window base/pitch at `0x101D10`/`0x101D12` + window × `0x20`.
+  `sub_25C254` fills a rectangle, `sub_25C8F5`(col, row, code, count) a row.
+- Custom glyphs (1 bpp, RLE words `count<<12 | 12-bit row`, `sub_27BC9C`):
+  set `0x32591C` at code 0: 0 blank, 1 thin line, 2 lower half solid,
+  3 arrow, 4 double line, 5 two lines, 6 block, 7 checker, 8 right edge;
+  set `0x325C80` at `0xFE`: two half-circles. No corner glyphs.
+- Frame (`sub_256C92` `0x256F88`): whole window attribute `0xFF` code 0
+  (gray), then for popup states row 0 attribute `0x11` (dark band) and row 1
+  glyph 2 in `0xF1` (dark→gray transition). Only state 0x19 places text in
+  row 0; for all others the band stays empty. `patches/popup-flat.json`
+  removes it and centres the one-line messages.
