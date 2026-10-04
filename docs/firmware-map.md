@@ -423,7 +423,9 @@ From the owner's board photos (`R01712273073` mainboard, PCB "Spectrum_D03 2021-
   (normal/selected), `+7` flags (bit 3: centred text), `+8` text function
   (returns a per-language descriptor: font slot, tile count, pixel width).
 - Cell attribute byte: high nibble foreground, low nibble background
-  (palette index). Messages are proportional text rendered into font RAM
+  (palette index); confirmed on hardware: colour 1 = see-through dark gray
+  (header band), 15 = near-black (message area), 2 = white (text). Colour 0
+  is used for unused menu areas and is assumed to be transparent. Messages are proportional text rendered into font RAM
   from slot `0x20` (`0x27C046`); characters are coded `A`=`0x20`, `a`=`0x3A`,
   space `0x0F`.
 - Tile RAM access: `0x101C66` data port, `0x101C68` mode (1 code, 2
@@ -437,4 +439,11 @@ From the owner's board photos (`R01712273073` mainboard, PCB "Spectrum_D03 2021-
   (gray), then for popup states row 0 attribute `0x11` (dark band) and row 1
   glyph 2 in `0xF1` (dark→gray transition). Only state 0x19 places text in
   row 0; for all others the band stays empty. `patches/popup-flat.json`
-  removes it and centres the one-line messages.
+  draws the one-line popups (2/4, 8/9/0x0C) entirely in colour 1 with white
+  text (`0x21`) in the middle row; `patches/popup-round.json` loads four
+  corner glyphs to codes `0x1C`–`0x1F` with the base set (`sub_253991`) and
+  draws them with attribute `0x10`.
+- Glyph code ranges: base set 0–8 and `0xFE`/`0xFF` (`sub_253991`), another
+  set at 9–`0x18`, `0x2A`–`0x77` and three 96-glyph sets at 0 (`sub_2537EB`,
+  overlay mode, reloaded with the base set afterwards), logo `0x4D`–`0xB0`,
+  rendered popup text from `0x20`.

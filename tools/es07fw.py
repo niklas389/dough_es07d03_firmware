@@ -237,6 +237,15 @@ def cmd_patch(pkg_path, out_path, names):
         missing = [r for r in allp[n].get('requires', []) if r not in names]
         if missing:
             sys.exit('patch %r requires %s in the same build' % (n, ', '.join(missing)))
+    order = []                      # required patches first (some edit code their dependency added)
+    def add(n):
+        if n not in order:
+            for r in allp[n].get('requires', []):
+                add(r)
+            order.append(n)
+    for n in names:
+        add(n)
+    for n in order:
         if is_pm51(allp[n]):
             p.d[:] = apply_patch(bytes(p.d), allp[n])
         else:

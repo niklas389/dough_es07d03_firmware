@@ -20,7 +20,7 @@ from the usual public sources. Flashing is done with `specflash` from
 | `tools/aeon/funcs.py`, `xrefs.py`, `fdis.py` | Function discovery, xref database, annotated listings |
 | `tools/aeon/names.txt` | Identified functions |
 | `tools/aeon/aeonasm.py` | Minimal assembler used for code-cave patches |
-| `tools/patches_src_*.py` | Sources that generate the code-cave patches (`standby-lhs`, `panel-t12`, `panel-prepower`, `audio-off`, `eeprom-fast-read`, `popup-flat`) |
+| `tools/patches_src_*.py` | Sources that generate the code-cave patches (`standby-lhs`, `panel-t12`, `panel-prepower`, `audio-off`, `eeprom-fast-read`, `popup-flat`, `popup-round`) |
 
 ## Quick start
 
@@ -53,7 +53,8 @@ output before writing it.
 | `pm51-wake-recheck` | **experimental** | PM51 standby controller: port activity wakes the monitor only if it is still present 200 ms later (the vendor check is a stub that always wakes); keys unaffected |
 | `panel-prepower` | **experimental** | Powers the panel up (backlight off) during start-up, so only the backlight step is left when the input is ready; requires `standby-lhs` |
 | `audio-off` | **experimental** | Skips the headphone DAC power-up (~350 ms of anti-pop waits at every start and wake); the 3.5 mm output stays silent |
-| `popup-flat` | **experimental** | OSD popups (No signal, input name, …) without the empty dark header band: one uniform gray box with the message vertically centred; the menu is unchanged |
+| `popup-flat` | **experimental** | One-line OSD popups (No signal, input name, …) as one see-through gray box with white centred text, without the empty header band; the menu is unchanged |
+| `popup-round` | **experimental** | Rounded corners (6 px) for the `popup-flat` popups; requires `popup-flat`. Assumes OSD colour 0 is transparent: if the corners show a colour, leave it out |
 | `eeprom-fast-read` | **tested, does not work** | Reads the settings EEPROM at ~200 kHz instead of ~100 kHz. On hardware, power-key off → on then shows "No signal" and returns to standby (mains start unaffected); cause not identified. Kept for reference |
 
 **Hardware status (2026-10-03, one monitor):** the build
