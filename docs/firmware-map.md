@@ -252,6 +252,7 @@ checked.
 | `0x434` / `0x436` | 7 | PM51 only: set high and released when awake, driven low on standby entry (`0x4C26`). **Main power:** clearing `0x434` bit 7 in link-held standby (`0x436` bit 7 still 1) stopped the CPU within ~0.1 s; keys and DDC dead until a mains power cycle (hardware test 2026-10-04). Not usable in link-held standby |
 | `0x43A` / `0x43B` | 1 | set by real power-save and by the power-on path |
 | `0x44A` / `0x44C` | 7, 6, 2, 1 | cleared on real power-save (`sub_23D6AA`), set again by `power_event` |
+| `0x44B` / `0x44D` | 3 | set by `power_event` at AC power-on (`0x260F67`) and by the PM51 on wake (`0x403C`); cleared on deep standby / power-off (`0x23D72F`, `0x261062`). **Backlight supply:** clearing it with the monitor on turns the backlight fully off, glow included, while CPU, DDC and the DP link keep running. Setting it again did not bring the backlight back (enable toggled too); a standby/wake cycle (DP cable out, then in) did. Hardware test 2026-10-04 |
 | `0x422` | 3, 2 | set on power-save; software I²C bus lines (`sub_240866`), i.e. bus idle, not a supply |
 | `0x42C` / `0x42E` | | EEPROM write protect |
 
