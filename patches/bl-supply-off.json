@@ -1,7 +1,7 @@
 {
   "name": "bl-supply-off",
   "summary": "Switch the backlight supply (0x44B bit 3) off with every panel-off and on at every panel-on; removes the standby glow",
-  "status": "experimental, hardware test pending",
+  "status": "hardware-tested 2026-10-04 (one monitor): supply off in link-held standby (0x44B = 0x02), backlight back on wake without firmware restart",
   "requires": [
     "standby-lhs"
   ],

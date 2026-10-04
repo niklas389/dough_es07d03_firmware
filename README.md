@@ -57,7 +57,7 @@ output before writing it.
 | `audio-off` | **experimental** | Skips the headphone DAC power-up (~350 ms of anti-pop waits at every start and wake); the 3.5 mm output stays silent |
 | `popup-flat` | **experimental** | One-line OSD popups (No signal, input name, …) as one see-through gray box with white centred text, without the empty header band; the menu is unchanged |
 | `popup-round` | **experimental** | Rounded corners (6 px) for the `popup-flat` popups; requires `popup-flat`. Assumes OSD colour 0 is transparent: if the corners show a colour, leave it out |
-| `bl-supply-off` | **experimental** | Standby backlight glow: panel-off also switches the LED supply off (`0x44B` bit 3, which the vendor only clears for deep standby); panel-on switches it on before VLCD. Requires `standby-lhs` |
+| `bl-supply-off` | **hardware-tested** (one monitor) | Standby backlight glow: panel-off also switches the LED supply off (`0x44B` bit 3, which the vendor only clears for deep standby); panel-on switches it on before VLCD. Requires `standby-lhs` |
 | `eeprom-fast-read` | **tested, does not work** | Reads the settings EEPROM at ~200 kHz instead of ~100 kHz. On hardware, power-key off → on then shows "No signal" and returns to standby (mains start unaffected); cause not identified. Kept for reference |
 
 **Hardware status (2026-10-03, one monitor):** the build

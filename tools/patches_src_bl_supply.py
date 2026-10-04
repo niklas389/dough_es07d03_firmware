@@ -17,7 +17,9 @@ on the way into deep standby / power-off (0x23D72F, 0x261062).
 
 Hardware (2026-10-04): clearing the bit removes the glow with CPU, DDC and DP
 link running; setting it again plus a vendor panel-on lights the backlight.
-Setting it again plus only the enable pin did not.
+Setting it again plus only the enable pin did not. With the patch: 0x44B reads
+0x02 in link-held standby and the backlight comes back on wake, without a
+firmware restart (diag-poke marker kept).
 
 Requires standby-lhs: the stock pre-standby cancel sub_2457FB switches the
 backlight on without going through sub_245919.
