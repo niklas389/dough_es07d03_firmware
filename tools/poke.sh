@@ -15,7 +15,8 @@ op=$1; addr=$(( $2 ))
 hi=$(( (addr >> 16) & 0xFFFF )); lo=$(( addr & 0xFFFF ))
 
 vcp_set() { "$SPECCTL" set "$1" "$2" -d "$MON" --fast >/dev/null 2>&1 || true; }
-vcp_get() { "$SPECCTL" get "$1" -d "$MON" --fast 2>/dev/null | sed -n 's/.*= \([0-9]*\) .*/\1/p'; }
+# '|| true': with set -e/pipefail a failed get must not end the script silently
+vcp_get() { "$SPECCTL" get "$1" -d "$MON" --fast 2>/dev/null | sed -n 's/.*= \([0-9]*\) .*/\1/p' || true; }
 
 # DDC/CI occasionally answers with a stale or missing reply: retry the address setup.
 ok=0

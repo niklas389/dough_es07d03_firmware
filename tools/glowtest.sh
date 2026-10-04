@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# glowtest.sh - backlight-glow test on a diag-poke build: drive the PM51 standby
-# outputs 0x434 bit 7 and bit 6 low one at a time in link-held standby, then restore.
+# glowtest.sh - backlight-glow test on a diag-poke build: drive one PM51 standby
+# output (0x434 bit 6 or bit 7) low in link-held standby, then restore it.
 #
-#   MON=1 ./glowtest.sh                  (same MON / SPECCTL as poke.sh)
+#   MON=1 ./glowtest.sh 6                (same MON / SPECCTL as poke.sh)
+#
+# Bit 7 was tested on 2026-10-04: driving it low cuts the main power (the CPU
+# stops; a mains power cycle restores). Only bit 6 is still open.
 #
 # Run it while the monitor glows (link-held standby: poke.sh read must answer).
 # If the monitor stops answering, the CPU lost power: unplug it for >= 10 s.
@@ -20,6 +23,8 @@ alive() {
 }
 step() { read -rp ">>> $1 -- note the glow, then press Enter " _; alive; }
 
+case ${1:-} in 6|7) ;; *) echo "usage: $0 6|7  (bit 7 is known to cut the main power)"; exit 2 ;; esac
+
 O434=$(rd 0x434); O436=$(rd 0x436)
 if [ -z "$O434" ] || [ -z "$O436" ]; then
     echo "no answer: not in link-held standby (or DDC problem); nothing changed"; exit 1
@@ -28,20 +33,25 @@ echo "start: 0x434 = $O434   0x436 = $O436"
 echo "       expected: 0x434 bit 7 = 1, bit 6 = 1; 0x436 bit 7 = 1, bit 6 = 0"
 step "baseline (nothing changed yet)"
 
-echo "--- bit 7: output low, then driver on"
-wr 0x434 $(( O434 & 0x7F ))
-wr 0x436 $(( O436 & 0x7F ))
-step "bit 7 driven low"
-echo "--- bit 7: restore (driver off first, then output value)"
-wr 0x436 $(( O436 ))
-wr 0x434 $(( O434 ))
-step "bit 7 restored"
-
-echo "--- bit 6: output low"
-wr 0x434 $(( O434 & 0xBF ))
-step "bit 6 driven low"
-echo "--- bit 6: restore"
-wr 0x434 $(( O434 ))
-step "bit 6 restored"
+case ${1:-} in
+7)
+    echo "--- bit 7: output low, then driver on"
+    wr 0x434 $(( O434 & 0x7F ))
+    wr 0x436 $(( O436 & 0x7F ))
+    step "bit 7 driven low"
+    echo "--- bit 7: restore (driver off first, then output value)"
+    wr 0x436 $(( O436 ))
+    wr 0x434 $(( O434 ))
+    step "bit 7 restored" ;;
+6)
+    echo "--- bit 6: output low"
+    wr 0x434 $(( O434 & 0xBF ))
+    step "bit 6 driven low"
+    echo "--- bit 6: restore"
+    wr 0x434 $(( O434 ))
+    step "bit 6 restored" ;;
+*)
+    echo "usage: $0 6|7  (bit 7 is known to cut the main power)"; exit 2 ;;
+esac
 
 echo "end:   0x434 = $(rd 0x434)   0x436 = $(rd 0x436)   (should equal the start values)"
