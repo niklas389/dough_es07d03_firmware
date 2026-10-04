@@ -256,7 +256,9 @@ checked.
 
 Boot pin setup is `sub_2411B5` (called from `sub_2414AE`).
 
-**Backlight brightness:** `sub_23A17E` → `sub_26159A` maps 0–100 linearly to a duty of 0–255, with brightness 50 at settings `+0x34`. The duty goes to scaler register `0x2E902F4B` (sub-bank `0x2E`, window `0x102F`, reg `0x4B`). Panel-off never changes the duty; it only drops the enable pin.
+**Backlight brightness:** `sub_23A17E` → `sub_26159A` maps 0–100 to 0–255 (piecewise linear, brightness 50 at settings `+0x34`) and writes it to scaler register `0x2E902F4B` (sub-bank `0x2E`, bank `0x102F`, reg `0x4B`; address form: top byte = sub-bank, bit 23 = sub-bank access). That sub-bank also holds video-processing registers, so whether `0x4B` is the physical backlight PWM is **not verified**; at brightness 0 the backlight still lights. Panel-off never changes it; it only drops the enable pin `0x426` bit 6, which is also its state at boot.
+
+**Backlight glow (open):** the LED strings (16 × 4 packages, 22.9 V at 75 mA per panel datasheet) are fed by a CN5120 boost whose input reaches the strings through the inductor and diode when it is shut down; each string returns through its own MOSFET (`BQ*`). In link-held standby only the enable pin is low and the glow can persist; in deep standby (`sub_23D6AA`: `0x44A` bits 7/6/2/1 cleared, `0x422` bits 3/2 set, clocks stopped) it ends. `patches/diag-poke.json` + `tools/poke.sh` allow testing these outputs one at a time during the glow.
 
 **Sequences** (`sub_241505(ms)` is a busy-wait on a 1 ms ISR counter)
 
