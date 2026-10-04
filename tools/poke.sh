@@ -34,7 +34,8 @@ case $op in
         v=""
         for try in 1 2 3; do v=$(vcp_get 0xEC); [ -n "$v" ] && break; sleep 0.3; done
         [ -n "$v" ] || { echo "no reply" >&2; exit 1; }
-        if [ "$v" -gt 255 ]; then echo "$(printf '0x%08X' "$addr"): BLOCKED (not readable)"
+        if [ "$v" = 65534 ]; then echo "$(printf '0x%08X' "$addr"): UNSTABLE (three reads differed; retry)"
+        elif [ "$v" -gt 255 ]; then echo "$(printf '0x%08X' "$addr"): BLOCKED (not readable)"
         else printf '0x%08X = 0x%02X\n' "$addr" "$v"; fi ;;
     write)
         [ $# -ge 3 ] || { echo "write needs a value" >&2; exit 2; }

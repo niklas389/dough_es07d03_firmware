@@ -20,9 +20,15 @@ Safety:
 - Writes only to an exact allowlist of volatile pin/scaler registers (WRITE_OK).
   No flash/SPI, EEPROM (incl. its write-protect pin 0x42C/0x42E), PM51,
   clock or factory-data access is possible. Every write is lost at power-off.
-- Reads only from the pages in READ_PAGES (PM 0x03xx/0x04xx, chip-top pad
-  configuration 0x101Exx, scaler bank 0x102Fxx with any sub-bank); no data-port
-  or controller registers whose read could have side effects.
+- Reads only from the pages in READ_PAGES (PM 0x03xx/0x04xx, PM PWM 0x05xx,
+  chip-top pad configuration 0x101Exx, scaler bank 0x102Fxx with any sub-bank,
+  PWM unit 0x103Cxx/0x103Dxx); no data-port or controller registers whose read
+  could have side effects.
+- A read runs with interrupts masked (SR IEE/TEE, as the firmware's own
+  critical sections at 0x2A74EA do) and is done three times; if the three
+  values differ, 0xFFFE (unstable) is returned instead of a value. This stops
+  scaler sub-bank reads from returning another sub-bank's register when an
+  interrupt switches the sub-bank in between.
 - No firmware function is called except the two register helpers; nothing is
   stored in the EEPROM. Power-cycle to undo any experiment.
 """
@@ -34,6 +40,7 @@ d = open(os.environ.get('RT', 'runtime_0x200000.bin'), 'rb').read()
 def cur(a, n): return d[a - 0x200000:a - 0x200000 + n]
 
 CAVE = 0x203DC0                         # after popup-round (0x203D00-0x203D99), below the flags at 0x203FF0
+RD_CAVE = 0x203C60                      # stable-read routine, after popup-flat (0x203C00-0x203C44)
 ADDR_VAR = 0x3FF4                       # u32 at 0x203FF4 (linker padding, reloaded at boot)
 GET_HOOK, GET_CONT = 0x26B17C, 0x26B180  # GET chain: unsupported code (b.movhi r23,0x48)
 SET_HOOK, SET_CONT = 0x26B331, 0x26B335  # SET chain: unsupported code (b.movhi r7,0x48)
@@ -45,7 +52,7 @@ REG_WRITE_MASK = 0x23DADB                 # (reg, set?, mask) read-modify-write 
 WRITE_OK = [0x00000422, 0x00000426, 0x00000428, 0x00000434, 0x00000436, 0x0000043A, 0x0000043B,
             0x0000044A, 0x0000044B, 0x0000044C, 0x0000044D,
             0x2E902F4A, 0x2E902F4B]
-READ_PAGES = [0x000300, 0x000400, 0x101E00, 0x102F00]      # (addr & 0x7FFF00); top byte only for 0x102F00
+READ_PAGES = [0x000300, 0x000400, 0x000500, 0x101E00, 0x102F00, 0x103C00, 0x103D00]  # (addr & 0x7FFF00); top byte only for 0x102F00
 
 R0, R1, R3, R4, R5, R6, R7, R8, R9, R23 = 0, 1, 3, 4, 5, 6, 7, 8, 9, 23
 ori = lambda rd, ra, v: ('bg.ori', {'D': rd, 'A': ra, 't': v})
@@ -76,8 +83,7 @@ prog = [
  'g_lo:', mh(R7, 0x20), lwz(R4, ADDR_VAR, R7), ori(R7, R0, 0xFFFF), andr(R4, R4, R7), j('g_ret'),
  'g_rd:', mh(R7, 0x20), lwz(R3, ADDR_VAR, R7),
  jal('chk_rd'), beqz(R3, 'g_blk'),
- mh(R7, 0x20), lwz(R3, ADDR_VAR, R7), jal(RIU_RD),
- ori(R7, R0, 0xFF), andr(R4, R3, R7), j('g_ret'),
+ j(RD_CAVE),                                       # stable read (rd_cave), returns to g_ret with r4
  'g_blk:', ori(R4, R0, 0xFFFF),
  'g_ret:',                                         # r4 = 16-bit value; max = 0xFFFF, type 0
  mh(R7, 0x45), ori(R6, R0, 0xFF), sb(0x3C88, R7, R6), sb(0x3C87, R7, R6),
@@ -152,9 +158,33 @@ assert cur(0x200000 + ADDR_VAR, 4) == b'\0' * 4
 assert cur(GET_HOOK, 4).hex() == 'c2e00901'                # b.movhi r23,0x48
 assert cur(SET_HOOK, 4).hex() == 'c0e00901'                # b.movhi r7,0x48
 
+
+# ---------------- stable read in its own cave (r3 = address already allowed) ----------------
+rd_prog = [
+ 'rd_cave:',
+ ori(R7, R0, 0x11), ('bg.mfspr', {'D': R8, 'A': R7, '|': 0}),       # r8 = SR
+ ('bt.movi', {'D': R5, 'I': -7}), andr(R6, R8, R5), ('bg.mtspr', {'A': R7, 'B': R6, '|': 0}),   # IEE/TEE off
+ mh(R7, 0x20), lwz(R3, ADDR_VAR, R7), jal(RIU_RD), ('bn.or', {'D': R4, 'A': R3, 'B': R0}),
+ mh(R7, 0x20), lwz(R3, ADDR_VAR, R7), jal(RIU_RD), bne(R3, R4, 'rd_uns'),
+ mh(R7, 0x20), lwz(R3, ADDR_VAR, R7), jal(RIU_RD), bne(R3, R4, 'rd_uns'),
+ ori(R7, R0, 0x11), ('bg.mtspr', {'A': R7, 'B': R8, '|': 0}),       # SR restored
+ ori(R7, R0, 0xFF), andr(R4, R4, R7), j(L['g_ret']),
+ 'rd_uns:',
+ ori(R7, R0, 0x11), ('bg.mtspr', {'A': R7, 'B': R8, '|': 0}),
+ ori(R4, R0, 0xFFFE), j(L['g_ret']),
+]
+rd_code, RL = S.assemble(rd_prog, RD_CAVE)
+for a, b, x in A.disasm(rd_code, RD_CAVE, RD_CAVE + len(rd_code), RD_CAVE):
+    lab = [k for k, v in RL.items() if v == a]
+    print(('%-10s' % (lab[0] + ':' if lab else '')) + '%08x: %-12s %-9s %s' % (a, b.hex(' '), x['mnem'], x['ops']))
+assert RD_CAVE + len(rd_code) <= 0x203D00
+assert cur(RD_CAVE, len(rd_code)) == b'\0' * len(rd_code)
+
 edits = [
  {'addr': '0x%06X' % CAVE, 'old': '00' * len(blob), 'new': blob.hex(),
   'asm': 'diag-poke handlers, allowlist checks and tables (linker padding 0x203DC0); address variable at 0x203FF4'},
+ {'addr': '0x%06X' % RD_CAVE, 'old': '00' * len(rd_code), 'new': rd_code.hex(),
+  'asm': 'diag-poke stable read (linker padding 0x203C60): interrupts masked, three reads, 0xFFFE if they differ'},
  {'addr': '0x%06X' % GET_HOOK, 'old': cur(GET_HOOK, 4).hex(), 'new': S.encode('bg.j', {'/': L['get_hook']}, GET_HOOK).hex(),
   'asm': 'VCP GET unsupported-code path -> get_hook (0xEA/0xEB/0xEC)'},
  {'addr': '0x%06X' % SET_HOOK, 'old': cur(SET_HOOK, 4).hex(), 'new': S.encode('bg.j', {'/': L['set_hook']}, SET_HOOK).hex(),
@@ -167,7 +197,7 @@ patch = {
  'edits': edits,
  'notes': ("VCP 0xEA/0xEB set the register address (high/low 16 bits), VCP 0xEC reads (GET) or writes (SET, value <= 0xFF) "
            "one byte through the firmware's register helpers. Writes are limited to: %s. Reads are limited to the pages "
-           "0x0003xx, 0x0004xx, 0x101Exx and the scaler bank 0x102Fxx (any sub-bank); blocked reads return 0xFFFF. "
+           "0x0003xx, 0x0004xx, 0x0005xx, 0x101Exx, 0x103Cxx, 0x103Dxx and the scaler bank 0x102Fxx (any sub-bank), with interrupts masked and three agreeing reads; blocked reads return 0xFFFF, unstable reads (three reads differ) 0xFFFE. "
            "No EEPROM, flash, PM51 or factory-data access; all writes are volatile (power-cycle to undo). "
            "Generated by tools/patches_src_diag_poke.py." % ', '.join('0x%08X' % a for a in WRITE_OK)),
 }
