@@ -1,7 +1,7 @@
 {
   "name": "eeprom-fast-read",
   "summary": "Read the settings EEPROM with 2 us instead of 4 us clock half-periods (~200 kHz; FM24C128D is rated 1 MHz); writes unchanged",
-  "status": "experimental, hardware test pending",
+  "status": "tested, does not work: after power-key off/on the monitor shows No signal and returns to standby (bisected 2026-10-04); kept for reference",
   "edits": [
     {
       "addr": "0x203B00",

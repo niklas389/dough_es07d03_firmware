@@ -53,13 +53,18 @@ output before writing it.
 | `pm51-wake-recheck` | **experimental** | PM51 standby controller: port activity wakes the monitor only if it is still present 200 ms later (the vendor check is a stub that always wakes); keys unaffected |
 | `panel-prepower` | **experimental** | Powers the panel up (backlight off) during start-up, so only the backlight step is left when the input is ready; requires `standby-lhs` |
 | `audio-off` | **experimental** | Skips the headphone DAC power-up (~350 ms of anti-pop waits at every start and wake); the 3.5 mm output stays silent |
-| `eeprom-fast-read` | **experimental** | Reads the settings EEPROM at ~200 kHz instead of ~100 kHz (chip rated 1 MHz); writes unchanged; worst case a settings reset |
+| `eeprom-fast-read` | **tested, does not work** | Reads the settings EEPROM at ~200 kHz instead of ~100 kHz. On hardware, power-key off → on then shows "No signal" and returns to standby (mains start unaffected); cause not identified. Kept for reference |
 
 **Hardware status (2026-10-03, one monitor):** the build
 `d6-standby-lock osd-lock-ignore panel-t12 standby-lhs no-logo panel-prepower
 audio-off eeprom-fast-read pm51-wake-recheck diag-pins` boots, keeps its
 settings and works in normal use. The specific behaviour of the
 standby/wake patches is still being observed.
+
+**2026-10-04:** that build showed "No signal" for about 5 s and then went
+to standby after power-key off → power-key on (stock: picture). Bisected
+to `eeprom-fast-read` (fails alone with `d6-standby-lock osd-lock-ignore
+panel-t12`; the same build without it works). It is excluded from builds.
 
 Recovery from any bad flash: flash the stock package. If FW2 fails its CRC,
 the bootloader falls back to the factory image at SPI `0x0`.

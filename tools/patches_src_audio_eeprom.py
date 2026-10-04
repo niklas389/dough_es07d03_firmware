@@ -64,7 +64,7 @@ for a, old in [(0x240163, 'e4002b3e'), (0x240174, 'e4002b1c'), (0x2401CD, 'e4002
 save({
  'name': 'eeprom-fast-read',
  'summary': 'Read the settings EEPROM with 2 us instead of 4 us clock half-periods (~200 kHz; FM24C128D is rated 1 MHz); writes unchanged',
- 'status': 'experimental, hardware test pending',
+ 'status': 'tested, does not work: after power-key off/on the monitor shows No signal and returns to standby (bisected 2026-10-04); kept for reference',
  'edits': edits,
  'notes': ("sub_240134 is the bit-banged I2C read-bit routine and is only reached from the EEPROM block read (sub_2403B5). "
            "Worst case if the EEPROM misread: settings reload to defaults (user area only); the factory area 0x1794-0x1C2F is "

@@ -381,6 +381,9 @@ Disassembled with radare2 (`-a 8051`). Keil C51 style: XRAM variables at `0x5000
 - `sub_261FDE`: pads, `nvram_init` (EEPROM, bit-banged I²C with ~4 µs
   half-periods, about 100 kHz; the 0x7A9-byte settings read takes roughly
   0.2 s), then `sub_23D3EB`.
+  Halving the read half-period (`eeprom-fast-read`) breaks the start after a
+  power-key off/on on hardware ("No signal", then standby), while a mains
+  start works; the mechanism is not identified, so the stock timing stays.
 - `sub_23D3EB`: `sub_2226F1` (scaler/receiver init, `power_event`), …, then
   `sub_20C6F3` → `sub_20C5EB`, which configures an external I²C device at
   `0x34` (the NAU8401 headphone DAC) with a fixed register table at
