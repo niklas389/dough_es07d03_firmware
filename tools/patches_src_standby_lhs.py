@@ -38,6 +38,12 @@ prog=[
  mh(R6,0x45), lbz(R6,0x51cc,R6), ('bg.bnei',{'A':R6,'I':0,';':'e_skip'}),
  ('bg.ori',{'D':R7,'A':10,'t':0x8000}), ('bg.j',{'/':0x263c2a}),
  'e_skip:', ('bg.j',{'/':0x263a6d}),
+ 'cave_k:',            # 0x259026: key cancels pre-standby; the power key (code 0x2A, r12) must not light the panel first
+ ('bg.ori',{'D':R7,'A':0,'t':0x2a}), ('bg.beq',{'A':12,'B':R7,';':'k_pwr'}),
+ ('bg.j',{'/':'cave_c'}),
+ 'k_pwr:',             # leave LHS; key_process then runs power-off (state 0, power_soft_off)
+ mh(R7,0x45), sb(0x51cc,R7,0),
+ ('bt.jr',{'A':9}),
 ]
 code,L=S.assemble(prog,CAVE)
 print('cave bytes',len(code))
@@ -49,7 +55,7 @@ hooks=[
  (0x26145e,'bg.jal',SUB_245860,'pre-standby: guarded one-shot panel off (was sub_24578B)'),
  (0x261492,'bg.j',L['cave_a'],'refusal tail: set pre-standby flag, then panel off'),
  (0x23aed5,'bg.jal',L['cave_b'],'relight: honour LHS / pre-standby'),
- (0x259026,'bg.jal',L['cave_c'],'cancel pre-standby by key/event (was sub_2457FB)'),
+ (0x259026,'bg.jal',L['cave_k'],'cancel pre-standby by key (was sub_2457FB); power key skips the panel-on'),
  (0x266b70,'bg.jal',L['cave_c'],'cancel pre-standby in sub_266B56 (was sub_2457FB)'),
  (0x263d10,'bg.j',L['cave_d'],'re-evaluation arming (2 ticks)'),
  (0x263c26,'bg.j',L['cave_e'],'re-evaluation arming (10 ticks)'),
@@ -61,4 +67,10 @@ for a,op,t,c in hooks:
     print('%x  %s %-22s -> %s %s   ; %s'%(a,ob.hex(),x['mnem']+' '+x['ops'],nb.hex(),y['mnem']+' '+y['ops'],c))
     edits.append({'addr':'0x%06X'%a,'old':ob.hex(),'new':nb.hex(),'asm':'%s %s -> %s %s (%s)'%(x['mnem'],x['ops'],y['mnem'],y['ops'],c)})
 edits.insert(0,{'addr':'0x%06X'%CAVE,'old':'00'*len(code),'new':code.hex(),'asm':'code cave in linker padding 0x203800-0x203FFF (see notes)'})
-json.dump(edits,open(os.environ.get('OUT','lhs_edits.json'),'w'),indent=1)
+out=os.environ.get('OUT','standby-lhs.json')
+if os.path.exists(out):
+    patch=json.load(open(out)); patch['edits']=edits
+else:
+    patch={'name':'standby-lhs','edits':edits}
+json.dump(patch,open(out,'w'),indent=2)
+open(out,'a').write('\n')
