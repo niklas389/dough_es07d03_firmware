@@ -4,8 +4,8 @@
 #
 #   MON=1 ./glowtest.sh 6                (same MON / SPECCTL as poke.sh)
 #
-# Bit 7 was tested on 2026-10-04: driving it low cuts the main power (the CPU
-# stops; a mains power cycle restores). Only bit 6 is still open.
+# Tested 2026-10-04: driving either bit low stops the CPU (a mains power cycle
+# restores). Kept for reference; neither is usable in link-held standby.
 #
 # Run it while the monitor glows (link-held standby: poke.sh read must answer).
 # If the monitor stops answering, the CPU lost power: unplug it for >= 10 s.
@@ -23,7 +23,7 @@ alive() {
 }
 step() { read -rp ">>> $1 -- note the glow, then press Enter " _; alive; }
 
-case ${1:-} in 6|7) ;; *) echo "usage: $0 6|7  (bit 7 is known to cut the main power)"; exit 2 ;; esac
+case ${1:-} in 6|7) ;; *) echo "usage: $0 6|7  (both are known to stop the CPU)"; exit 2 ;; esac
 
 O434=$(rd 0x434); O436=$(rd 0x436)
 if [ -z "$O434" ] || [ -z "$O436" ]; then
@@ -51,7 +51,7 @@ case ${1:-} in
     wr 0x434 $(( O434 ))
     step "bit 6 restored" ;;
 *)
-    echo "usage: $0 6|7  (bit 7 is known to cut the main power)"; exit 2 ;;
+    echo "usage: $0 6|7  (both are known to stop the CPU)"; exit 2 ;;
 esac
 
 echo "end:   0x434 = $(rd 0x434)   0x436 = $(rd 0x436)   (should equal the start values)"

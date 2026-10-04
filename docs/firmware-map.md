@@ -248,7 +248,7 @@ checked.
 |---|---|---|
 | `0x426` / `0x428` | 6 | backlight enable (mirrored in `bl` `0x453BF3`) |
 | `0x434` / `0x436` | 4 | panel VLCD |
-| `0x434` / `0x436` | 6 | driven high by the main firmware at boot (`0x241349`), driven low by the PM51 on standby entry (`0x53B2`); supply enable (inferred) |
+| `0x434` / `0x436` | 6 | driven high by the main firmware at boot (`0x241349`), driven low by the PM51 on standby entry (`0x53B2`). Clearing it in link-held standby stopped the CPU at once (no DDC reply to the write; hardware test 2026-10-04). Not usable in link-held standby |
 | `0x434` / `0x436` | 7 | PM51 only: set high and released when awake, driven low on standby entry (`0x4C26`). **Main power:** clearing `0x434` bit 7 in link-held standby (`0x436` bit 7 still 1) stopped the CPU within ~0.1 s; keys and DDC dead until a mains power cycle (hardware test 2026-10-04). Not usable in link-held standby |
 | `0x43A` / `0x43B` | 1 | set by real power-save and by the power-on path |
 | `0x44A` / `0x44C` | 7, 6, 2, 1 | cleared on real power-save (`sub_23D6AA`), set again by `power_event` |
@@ -283,7 +283,7 @@ Boot pin setup is `sub_2411B5` (called from `sub_2414AE`).
 - Register helpers: `0x2C75` masked write (addr R4..R7, value RAM `0x54`, mask `0x55`), `0x31A4` byte write (`0x5A`), `0x351E` 16-bit write, `0x2B6F` read.
 - It writes PM regs `0x03A6` (mode bits), `0x03AA` (wake status), `0x038A`/`0x039D`, the mailbox bank `0x1033C0..C9`/`0x1033F1..F9`, and pins `0x0434`/`0x0436` bits 6/7.
 - It never touches the backlight enable `0x426`/`0x428` or VLCD (`0x434` bit 4).
-- On standby entry (`0x4BE9`) it drives `0x434` bits 6 and 7 low; on wake (`0x4002`) it releases them. These are the only supply-like outputs that change between link-held standby and deep standby, where the backlight glow ends. Bit 7 cuts the main CPU's power (tested); bit 6 is still to be tested.
+- On standby entry (`0x4BE9`) it drives `0x434` bits 6 and 7 low; on wake (`0x4002`) it releases them. These are the only supply-like outputs that change between link-held standby and deep standby, where the backlight glow ends. Both stop the main CPU when cleared in link-held standby (tested 2026-10-04; the monitor did not glow during either test, so their effect on the glow is unknown). No output reachable from the main firmware removes a supply in link-held standby without stopping the CPU.
 - Its wake-source handling is the remaining open item for real standby.
 
 ## 10. PM51 standby controller (package `0x10080`, 8051, code base 0)
