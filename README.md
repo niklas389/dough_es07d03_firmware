@@ -21,6 +21,7 @@ from the usual public sources. Flashing is done with `specflash` from
 | `tools/aeon/names.txt` | Identified functions |
 | `tools/aeon/aeonasm.py` | Minimal assembler used for code-cave patches |
 | `tools/patches_src_*.py` | Sources that generate the code-cave patches (`standby-lhs`, `panel-t12`, `panel-prepower`, `audio-off`, `eeprom-fast-read`, `popup-flat`, `popup-round`, `diag-poke`) |
+| `tools/poke.sh`, `tools/glowtest.sh` | Live register read/write on a `diag-poke` build; guided backlight-glow test (`0x434` bit 7, then bit 6 driven low and restored, pausing for observation) |
 
 ## Quick start
 
