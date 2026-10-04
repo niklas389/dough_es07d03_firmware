@@ -42,7 +42,7 @@ SET_DONE = 0x26AFC9                      # r3 = 0, no reply (as the vendor SET h
 RIU_RD, RIU_WR = 0x23D972, 0x23D9E7
 REG_WRITE_MASK = 0x23DADB                 # (reg, set?, mask) read-modify-write under the PM51 register lock
 
-WRITE_OK = [0x00000422, 0x00000426, 0x00000428, 0x0000043A, 0x0000043B,
+WRITE_OK = [0x00000422, 0x00000426, 0x00000428, 0x00000434, 0x00000436, 0x0000043A, 0x0000043B,
             0x0000044A, 0x0000044B, 0x0000044C, 0x0000044D,
             0x2E902F4A, 0x2E902F4B]
 READ_PAGES = [0x000300, 0x000400, 0x101E00, 0x102F00]      # (addr & 0x7FFF00); top byte only for 0x102F00
