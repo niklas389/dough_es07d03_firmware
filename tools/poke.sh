@@ -17,14 +17,21 @@ hi=$(( (addr >> 16) & 0xFFFF )); lo=$(( addr & 0xFFFF ))
 vcp_set() { "$SPECCTL" set "$1" "$2" -d "$MON" --fast >/dev/null 2>&1 || true; }
 vcp_get() { "$SPECCTL" get "$1" -d "$MON" --fast 2>/dev/null | sed -n 's/.*= \([0-9]*\) .*/\1/p'; }
 
-vcp_set 0xEA "$hi"
-vcp_set 0xEB "$lo"
-[ "$(vcp_get 0xEA)" = "$hi" ] && [ "$(vcp_get 0xEB)" = "$lo" ] ||
-    { echo "address not accepted (is diag-poke in this build?)" >&2; exit 1; }
+# DDC/CI occasionally answers with a stale or missing reply: retry the address setup.
+ok=0
+for try in 1 2 3 4; do
+    vcp_set 0xEA "$hi"
+    vcp_set 0xEB "$lo"
+    gh=$(vcp_get 0xEA); gl=$(vcp_get 0xEB)
+    if [ "$gh" = "$hi" ] && [ "$gl" = "$lo" ]; then ok=1; break; fi
+    sleep 0.3
+done
+[ $ok = 1 ] || { echo "address not accepted after 4 tries (read back hi=${gh:-none} lo=${gl:-none}; is diag-poke in this build?)" >&2; exit 1; }
 
 case $op in
     read)
-        v=$(vcp_get 0xEC)
+        v=""
+        for try in 1 2 3; do v=$(vcp_get 0xEC); [ -n "$v" ] && break; sleep 0.3; done
         [ -n "$v" ] || { echo "no reply" >&2; exit 1; }
         if [ "$v" -gt 255 ]; then echo "$(printf '0x%08X' "$addr"): BLOCKED (not readable)"
         else printf '0x%08X = 0x%02X\n' "$addr" "$v"; fi ;;
