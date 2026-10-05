@@ -547,9 +547,12 @@ Start type matters (2026-10-06): both 4.6 s runs were mains power-cut starts
 (the PM51 boots from scratch); a power-key start (PM51 already running) had
 no gap: sub_261FA8 done at 1.0 s, about 13 mailbox transactions of ~66 ms
 each between 1.8 and 2.5 s, main loop 2.09 s, backlight 5.78 s.
-Unresolved: the stopwatch measured 8.4 s from the power key to the picture,
-while the log shows the backlight at 11.0 s after the timer start; either the
-1 ms tick runs faster than 1 ms or the picture appears before `B`.
+Clock check (2026-10-06): 212.7 s wall time = 213.8 s log time, so the 1 ms
+tick is accurate (within the ~1 s read-out uncertainty). The 11.0 s run was a
+power-cut start; the 8.4 s stopwatch time belongs to a power-key start, whose
+log shows the backlight at 5.8 s. So roughly 2.6 s pass between the power key
+and the start of the log clock (PM51 wake, boot loader CRC and inflate),
+assuming the stopwatch and log runs are comparable.
 
 **Boot cost before the main firmware:** stage 2 of the boot loader CRCs the
 main image and inflates 0xF148B bytes of deflate data to 0x250678 bytes
