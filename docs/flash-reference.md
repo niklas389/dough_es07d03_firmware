@@ -102,6 +102,14 @@ HDMI/TMDS/DSC code ending up at flash `0x549230`–`0x5F9238`). Packages that co
 `010F` (V108, 106) trigger the on-screen **"Processing update..."** stage after flashing;
 Beta03 does not contain it and never shows it. [V for the observation, ? for causality]
 
+Contents of `010F` (V106 build `Feb 16 2022 17:27:38`, V108 build `Nov 17 2022 16:47:59`; checked 2026-10-05):
+AEON R2 code (register-dump format strings `r0 : %08X …`, `mhal_default_isr`) with
+debug strings for HDCP 1.4/2.x (`HDCPHandler_*`, SECU_R2 mailbox), HDMI 2.1 FRL link
+training, TMDS auto-EQ and HDMI/DP **Tx** ports (`HdcpTx on DP Tx Port`). This matches
+the input front-end MSB3300, which receives HDMI/DP and re-transmits to the scaler.
+Inference: the scaler writes `010F` into the MSB3300's flash during "Processing
+update...", so after flashing Beta03 the MSB3300 keeps the version installed last.
+
 ---
 
 ## 5. Integrity checks
