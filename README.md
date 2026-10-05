@@ -57,7 +57,7 @@ output before writing it.
 | `audio-off` | **experimental** | Skips the headphone DAC power-up (~350 ms of anti-pop waits at every start and wake); the 3.5 mm output stays silent |
 | `popup-flat` | **hardware-tested** | One-line OSD popups (No signal, input name, …) as one see-through gray box with white centred text, without the empty header band; the menu is unchanged |
 | `popup-round` | **hardware-tested** | Rounded corners (6 px) for the `popup-flat` popups; requires `popup-flat`. Assumes OSD colour 0 is transparent: if the corners show a colour, leave it out |
-| `bl-supply-off` | **hardware-tested** (one monitor) | Standby backlight glow: panel-off also switches the LED supply off (`0x44B` bit 3, which the vendor only clears for deep standby); panel-on switches it on before VLCD. Requires `standby-lhs`. **Limitation:** a menu key press in standby wakes the monitor with a dark panel; the OSD appears once the PC sends video |
+| `bl-supply-off` | **hardware-tested** (two monitors, 2026-10-05: dark at once in standby, repeated wakes incl. deep standby) | Standby backlight glow: panel-off also switches the LED supply off (`0x44B` bit 3, which the vendor only clears for deep standby); panel-on switches it on before VLCD. Requires `standby-lhs`. **Limitation:** a menu key press in standby wakes the monitor with a dark panel; the OSD appears once the PC sends video |
 | `eeprom-fast-read` | **tested, does not work** | Reads the settings EEPROM at ~200 kHz instead of ~100 kHz. On hardware, power-key off → on then shows "No signal" and returns to standby (mains start unaffected); cause not identified. Kept for reference |
 
 **Hardware status (2026-10-03, one monitor):** the build
