@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Source of patches/diag-log.json. Run in an unpacked work dir (RT=runtime_0x200000.bin).
 
-DIAGNOSTIC: event log in RAM, read with diag-poke (page 0x203Bxx) and
-tools/logread.sh. Records who switches the panel on/off and the standby
-decisions, with a millisecond time stamp, to find what wakes the panel in
-link-held standby and where wake/start-up time goes.
+DIAGNOSTIC: event log in RAM, read with diag-poke (page 0x2039xx) and
+tools/logread.py. Records who switches the panel on/off, the standby
+decisions and the start-up milestones, with a millisecond time stamp, to find
+what wakes the panel in link-held standby and where wake/start-up time goes.
 
 Data (linker padding, zero at every start, lost on deep standby/restart):
   0x203968 u32  ms counter, incremented by the 1 ms timer ISR (sub_240C55)
@@ -13,7 +13,8 @@ Data (linker padding, zero at every start, lost on deep standby/restart):
                 +0 u32 ms, +4 u32 = hook tag << 24 | value & 0xFFFFFF
                 (tag = low byte of the hook cave's return address; value =
                 caller of the hooked function, or a result)
-Code: hook stubs at 0x203A99, ISR stub at 0x203CE0, log routine at 0x203B08.
+Code: hook stubs at 0x203A99, ISR stub at 0x203CE0, log routine at 0x203B08,
+start-up milestone stubs at 0x203BA3.
 
 Hooks (all keep the hooked function's behaviour; the log routine preserves
 r3-r8 and r10-r31):
@@ -23,12 +24,18 @@ r3-r8 and r10-r31):
   N  sub_245919 +5      panel on (after r9/r10 saved; works with bl-supply-off;
                         only when pnl = 0, i.e. the panel is off)
                                                value = caller
-  S  sub_258AB1 entry   re-enter "No signal" (OSD state 4) after a timer
-                                               value = caller
+  S  sub_258AB1 entry   OSD timer expiry handler (re-enters "No signal",
+                        ends the logo or a popup)  value = caller
   E  sub_26A7C5 entry   OSD state 4 entry handler (arms the 255 s countdown)
                                                value = caller
   G  0x2613A0           standby_gate_query in the power-save entry
                                                value = result (1 = refused)
+Start-up milestones (no value):
+  I  0x261FF0           main init start (sub_261FDE after its prologue)
+  D  0x26208C           after sub_23D3EB (EEPROM settings, scaler/receiver init)
+  M  0x2620F9           main loop about to start (after the panel prepower)
+  B  0x2459C0           backlight on (sub_245919, after the T8 wait or the
+                        prepared-panel shortcut)   value = caller of sub_245919
 """
 import sys, json, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aeon'))
@@ -41,6 +48,7 @@ DATA = 0x203968                     # after bl-supply-off (0x203940-0x203967), b
 STUB = 0x203A99                     # right after panel-prepower (0x203A00-0x203A98)
 ISR = 0x203CE0                      # after diag-poke's stable-read cave (0x203C60-0x203CDD)
 LOGC = 0x203B08                     # after eeprom-fast-read's cave (0x203B00-0x203B05, not used in builds)
+BOOT = 0x203BA3                     # after the log routine, before popup-flat (0x203C00)
 LOGT, IDX, BUF = DATA - 0x200000, DATA + 4 - 0x200000, DATA + 8 - 0x200000
 R0, R1, R3, R4, R5, R6, R7, R8, R9, R10 = 0, 1, 3, 4, 5, 6, 7, 8, 9, 10
 
@@ -101,15 +109,23 @@ isr_prog = [
  j(0x240C5A),
 ]
 icode, IL = S.assemble(isr_prog, ISR)
+boot_prog = [
+ 'm_init:', jal(LL['log_s0']), ('bg.ori', {'D': R3, 'A': R0, 't': 0x42C}), j(0x261FF4),   # replaces ori r3,r0,0x42c
+ 'm_dev:', jal(LL['log_s0']), jal(0x23FF28), j(0x262090),                                  # replaces jal sub_23FF28
+ 'm_loop:', jal(LL['log_s0']), mh(R10, 0x45), j(0x2620FD),                                 # replaces movhi r10,0x45
+ 'm_bl:', jal(LL['log_s4']), ('bg.ori', {'D': R3, 'A': R0, 't': 0x426}), j(0x2459C4),     # replaces ori r3,r0,0x426
+]
+bcode, BL = S.assemble(boot_prog, BOOT)
 L.update(IL)
-for code, base, labs in ((scode, STUB, L), (icode, ISR, IL), (lcode, LOGC, LL)):
+for code, base, labs in ((scode, STUB, L), (icode, ISR, IL), (lcode, LOGC, LL), (bcode, BOOT, BL)):
     for a, b, x in A.disasm(code, base, base + len(code), base):
         lab = [k for k, v in labs.items() if v == a]
         print(('%-8s' % (lab[0] + ':' if lab else '')) + '%08x: %-12s %-9s %s' % (a, b.hex(' '), x['mnem'], x['ops']))
     print('cave %#x-%#x (%d bytes)' % (base, base + len(code), len(code)))
-assert STUB + len(scode) <= 0x203B00 and LOGC + len(lcode) <= 0x203C00 and ISR + len(icode) <= 0x203D00
+assert STUB + len(scode) <= 0x203B00 and LOGC + len(lcode) <= BOOT and ISR + len(icode) <= 0x203D00
+assert BOOT + len(bcode) <= 0x203C00
 assert DATA + 8 + 16 * 8 <= 0x203A00
-for base, code in ((STUB, scode), (ISR, icode), (LOGC, lcode)):
+for base, code in ((STUB, scode), (ISR, icode), (LOGC, lcode), (BOOT, bcode)):
     assert cur(base, len(code)) == b'\0' * len(code)
 assert cur(DATA, 8 + 16 * 8) == b'\0' * (8 + 16 * 8)
 # tag of each hook = low byte of the return address after its jal to a log routine
@@ -117,6 +133,10 @@ TAGS = {}
 for a, b, x in A.disasm(scode, STUB, STUB + len(scode), STUB):
     if x.get('target') in (LL['log_s0'], LL['log_s4'], LL['log_r3']):
         owner = max((v, k) for k, v in L.items() if v <= a)[1]
+        TAGS[owner] = (a + x['len']) & 0xFF
+for a, b, x in A.disasm(bcode, BOOT, BOOT + len(bcode), BOOT):
+    if x.get('target') in (LL['log_s0'], LL['log_s4']):
+        owner = max((v, k) for k, v in BL.items() if v <= a)[1]
         TAGS[owner] = (a + x['len']) & 0xFF
 print('tags', {k: '%02X' % v for k, v in TAGS.items()})
 assert len(set(TAGS.values())) == len(TAGS)
@@ -128,13 +148,20 @@ hooks = [  # addr, expected original bytes, label, what
  (0x258AB1, '9c380d2104', 'h_sig', 'sub_258AB1 entry (re-enter No signal)'),
  (0x26A7C5, '9c380d2104', 'h_st4', 'sub_26A7C5 entry (OSD state 4 entry)'),
  (0x2613A0, 'e7fffeb2', 'h_gate', 'jal standby_gate_query in the power-save entry'),
+ (0x261FF0, 'c860042c', 'm_init', 'sub_261FDE after the prologue (main init start)'),
+ (0x26208C, 'e7fbbd38', 'm_dev', 'jal sub_23FF28 after sub_23D3EB (init done)'),
+ (0x2620F9, 'c14008a1', 'm_loop', 'movhi r10,0x45 before the main loop'),
+ (0x2459C0, 'c8600426', 'm_bl', 'sub_245919 backlight-on step'),
 ]
+L.update(BL)
 edits = [{'addr': '0x%06X' % STUB, 'old': '00' * len(scode), 'new': scode.hex(),
           'asm': 'diag-log hook stubs (linker padding 0x203A9C)'},
          {'addr': '0x%06X' % ISR, 'old': '00' * len(icode), 'new': icode.hex(),
           'asm': 'diag-log 1 ms ISR stub (linker padding 0x203CE0)'},
          {'addr': '0x%06X' % LOGC, 'old': '00' * len(lcode), 'new': lcode.hex(),
-          'asm': 'diag-log log routine (linker padding 0x203B08); data at 0x203968-0x2039EF'}]
+          'asm': 'diag-log log routine (linker padding 0x203B08); data at 0x203968-0x2039EF'},
+         {'addr': '0x%06X' % BOOT, 'old': '00' * len(bcode), 'new': bcode.hex(),
+          'asm': 'diag-log start-up milestone stubs (linker padding 0x203BA3)'}]
 for a, old, lab, what in hooks:
     assert cur(a, len(old) // 2).hex() == old, (hex(a), cur(a, len(old) // 2).hex())
     nb = S.encode('bg.j', {'/': L[lab]}, a)
@@ -143,14 +170,15 @@ for a, old, lab, what in hooks:
 
 patch = {
  'name': 'diag-log',
- 'summary': 'DIAGNOSTIC: RAM event log (ms time stamps) of panel on/off callers, No-signal re-entry and the standby gate; read with diag-poke + tools/logread.sh',
+ 'summary': 'DIAGNOSTIC: RAM event log (ms time stamps) of panel on/off callers, OSD timer expiry, the standby gate and start-up milestones; read with diag-poke + tools/logread.py',
  'status': 'diagnostic, hardware test pending',
  'requires': ['diag-poke'],
  'edits': edits,
  'tags': {k: '0x%02X' % v for k, v in TAGS.items()},
  'data': {'ms': '0x%06X' % DATA, 'count': '0x%06X' % (DATA + 4), 'ring': '0x%06X' % (DATA + 8), 'entries': 16},
  'notes': ("Log at 0x203968 (ms counter), 0x20396C (event count), 0x203970 (16 x 8-byte ring: ms, tag<<24 | value). "
-           "tools/logread.sh maps the tags (see 'tags') to F (panel off), N (panel on), S (No-signal re-entry), E (state 4 entry), G (gate result). "
+           "tools/logread.py maps the tags (see 'tags') to F (panel off), N (panel on), S (OSD timer expiry), E (state 4 entry), G (gate result), "
+           "I (main init start), D (init done), M (main loop start), B (backlight on). "
            "The log is in RAM and starts empty at every firmware start. Generated by tools/patches_src_diag_log.py."),
 }
 out = os.environ.get('OUT', 'diag-log.json')

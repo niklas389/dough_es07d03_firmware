@@ -55,9 +55,23 @@ clear the 0 bits. Scaler registers are written with `sub_23D9E7`.
 `patches/diag-log.json` (source `tools/patches_src_diag_log.py`, requires
 `diag-poke`) keeps a RAM log of the last 16 events with a millisecond time
 stamp: panel off (`sub_245860`, only when the panel is actually on) and panel on (`sub_245919`) with their callers,
-re-entry of "No signal" (`sub_258AB1`), the OSD state-4 entry handler
-(`sub_26A7C5`, arms the 255 s countdown) and the standby gate result in the
-power-save entry (`0x2613A0`). A 1 ms ISR hook keeps the time base. Data:
+the OSD timer expiry handler (`sub_258AB1`: re-enters "No signal", ends the
+logo or a popup), the OSD state-4 entry handler
+(`sub_26A7C5`, arms the 255 s countdown), the standby gate result in the
+power-save entry (`0x2613A0`) and the start-up milestones: main init start
+(`I`), init done after EEPROM and scaler/receiver set-up (`D`), main loop
+start (`M`) and backlight on (`B`, with the caller of `sub_245919`;
+`0x23AED9` = relight on valid video). A 1 ms ISR hook keeps the time base. Data:
 `0x203968` (ms), `0x20396C` (event count), `0x203970` (ring, 8 bytes per
 entry). Read with `tools/logread.py`. The log starts empty at every firmware
 start; a deep-standby wake clears it.
+
+The time base starts when the 1 ms timer runs, i.e. after the boot loader has
+checked and unpacked the firmware. Stopwatch time to picture minus the `B`
+time is therefore the time spent before the main firmware runs (standby
+controller wake, boot loader, image unpacking).
+
+| Patch name | File | Source (`tools/patches_src_diag_log.py` at) | Events |
+|---|---|---|---|
+| `diag-log-v1` | `patches/diag-log-v1.json` | `40e8def` | F, N, S, E, G |
+| `diag-log` (current) | `patches/diag-log.json` | see git log | v1 + I, D, M, B |

@@ -484,3 +484,52 @@ Packages supplied by the owner (not committed):
   "Less delay before image is displayed on PC"; V108 "Resolved an issue where
   the Windows desktop wallpaper disappeared after resuming from standby mode
   for some users with multiple monitors".
+
+## 16. DisplayPort power management and link-held standby power
+
+**What the DP standard requires of a sink** (VESA DisplayPort 1.1a §5.2.5 and
+Appendix D; the same text is in DP 1.2 §5.1.5):
+- The source puts the sink into power-save by writing `2` (D3) to DPCD `600h`
+  and wakes it by writing `1` (D0). Other listed reasons for sink power-save:
+  soft power button, source detected as absent.
+- HPD must stay asserted unless the sink is powered off (an IRQ_HPD pulse or
+  an intentional hot-plug event excepted), also in power-save.
+- In power-save the AUX channel must be ready within 1 ms after differential
+  activity is detected.
+- "The Source Device may keep transmitting Idle Pattern over Main Link even
+  when there is no stream to transmit … Therefore, the Sink Device must keep
+  the Main Link receiver active as long as it is receiving either a stream or
+  Idle Pattern and as long as it keeps the HPD signal asserted."
+
+**Consequences for this monitor**
+- The vendor gate (`standby_gate_query`, §8) refusing deep standby while the
+  source holds the link is consistent with this, if its state byte means "D0
+  with link active" (not decoded). A dock that removes the stream but keeps
+  idle pattern and never writes D3 therefore keeps the monitor in link-held
+  standby indefinitely (diag-log 2026-10-05: one refusal at the countdown end,
+  then no allowed re-query in 710 s).
+- Link-held standby itself is allowed: only the main-link receiver, AUX and
+  HPD must stay active. Panel, backlight, audio and picture processing may be
+  off. Measured 13 W there (deep standby 1.2 W).
+- Deep standby must keep HPD asserted. Whether it does is not verified; the
+  other monitor blanking twice during a wake suggests a hot-plug cycle.
+
+**What deep standby switches that link-held standby does not** (`sub_23D6AA`
+and the power-off path `0x261041`; power-on sets them again at `0x2611F4`)
+- `0x44A`/`0x44C` bits 7, 6, 2, 1 (output/enable): driven low. Set high again
+  at power-on in the order 7, 6, 2, 1 without delays. Function unknown
+  (candidates: supplies or resets of the USB hub, the MSB3300, the audio path).
+  The 2026-10-04 test showed no visible effect; power was not measured then.
+- `0x43A`/`0x43B` bit 1: set (1) in standby. On power-off it follows setting
+  `+0xC3` (OSD value at `0x457857`, written by `sub_266C41`); meaning unknown.
+- `sub_20B9A6(0)`: clears `0x407` bits 6:5 and writes `0x416` bits 7:4 via
+  `sub_23DC0F`; meaning unknown.
+- `sub_20C537`: `0x44B` bit 7 high, 100 ms, headphone DAC (I²C `0x34`) write.
+- `sub_23EF7E(1)`: `sub_20EDCC(port, 1)` for each port with flags `& 0x0E`.
+- `0x20E56B`: interrupts off, `0x2B08`/`0x2B18`/`0x2B28` = `0xFFFF` (likely
+  clock gates), PM mailbox handshake; the PM51 then drives `0x434` bits 6/7
+  low (main power).
+
+**Boot cost before the main firmware:** stage 2 of the boot loader CRCs the
+main image and inflates 0xF148B bytes of deflate data to 0x250678 bytes
+(§4). The 1 ms time base of `diag-log` starts only after that.

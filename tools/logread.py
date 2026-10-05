@@ -15,8 +15,11 @@ MON = os.environ.get('MON', '0')
 P = json.load(open(os.path.join(HERE, '..', 'patches', 'diag-log.json')))
 TAGS = {int(v, 16): k for k, v in P['tags'].items()}
 NAMES = {'h_off': 'F panel off      caller', 'h_on': 'N panel on       caller',
-         'h_sig': 'S No-signal re-entry caller', 'h_st4': 'E state-4 entry  caller',
-         'h_gate': 'G standby gate   result (1 = refused)'}
+         'h_sig': 'S OSD timer end  caller', 'h_st4': 'E state-4 entry  caller',
+         'h_gate': 'G standby gate   result (1 = refused)',
+         'm_init': 'I main init start', 'm_dev': 'D init done (EEPROM, scaler)',
+         'm_loop': 'M main loop start', 'm_bl': 'B backlight on   caller'}
+MILESTONES = ('m_init', 'm_dev', 'm_loop')
 BASE = int(P['data']['ms'], 16)
 N = P['data']['entries']
 
@@ -70,6 +73,6 @@ for i in range(first, count):
     tag, val = w >> 24, w & 0xFFFFFF
     name = NAMES.get(TAGS.get(tag), 'tag %02X' % tag)
     dt = '' if prev is None else '+%.3f' % ((t - prev) / 1000)
-    shown = ('%d' % val) if TAGS.get(tag) == 'h_gate' else '0x%06X' % val
+    shown = ('%d' % val) if TAGS.get(tag) == 'h_gate' else '' if TAGS.get(tag) in MILESTONES else '0x%06X' % val
     print('%10.3f s %10s  %s %s' % (t / 1000, dt, name, shown))
     prev = t
