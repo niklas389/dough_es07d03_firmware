@@ -537,6 +537,15 @@ and the power-off path `0x261041`; power-on sets them again at `0x2611F4`)
 I 0.112 s → D 0.893 s (EEPROM + scaler/receiver init) → panel prepower 5.506 s
 (**4.6 s** in the calls between, static waits explain only ~0.5 s) → main loop
 6.356 s → backlight on 10.235 s (relight on valid video, caller `0x23AED9`).
+Checkpoints (second run): the 4.6 s are all in `sub_261FA8` (input set-up:
+`sub_239BAE(0)`, then `sub_268877` → `sub_268668` / `sub_239223`). Those send
+commands to the PM51 through `mailbox_query` (`0x238FA5`: wait until
+`0x1033C0` is free, write the command, wait for the answer in `0x1033C1`, each
+with a 10000-tick timeout at `0x4551C8`); no fixed delays. Working assumption,
+not verified: the PM51 answers only after its own wake sequence.
+Unresolved: the stopwatch measured 8.4 s from the power key to the picture,
+while the log shows the backlight at 11.0 s after the timer start; either the
+1 ms tick runs faster than 1 ms or the picture appears before `B`.
 
 **Boot cost before the main firmware:** stage 2 of the boot loader CRCs the
 main image and inflates 0xF148B bytes of deflate data to 0x250678 bytes

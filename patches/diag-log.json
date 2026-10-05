@@ -27,14 +27,20 @@
     {
       "addr": "0x203BA3",
       "old": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-      "new": "e7fffecac860042ce40bc893e7fffeb2e40786eae40bc9b3e7fffe9ac14008a1e40bca75e7fffebac8600426e4083bebe40d6d3ee7fffe62e40bc973e40a3312e7fffe4ae40bc963e40bc77ae7fffe32e40bc953",
+      "new": "e7fffecac860042ce40bc893e7fffeb2e40786eae40bc9b3e7fffe9ac14008a1e40bca75e7fffebac8600426e4083bebe406bfb6e7fffe62e40bc7b1e40c9512e7fffe4ae40c9991e406ac70e7fffe32e40c99ad",
       "asm": "diag-log start-up milestone stubs (linker padding 0x203BA3)"
     },
     {
       "addr": "0x2038AA",
-      "old": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-      "new": "e407b1f6e40004b4e40bcfdde4014740e400049ce40bcfcde406951ce4000484e40bcfc1e40b8914e400046ce40bcfb1e4073884e4000454e40bcfd1",
-      "asm": "diag-log start-up call checkpoints (linker padding 0x2038AA)"
+      "old": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "new": "0e61020e4106c0e00401ecc7396aeca739f240c62dc0c0026ad40001b34cc609c0c1ffeec8a00fff48c530f0a739f44ca58044c62df0a739f554a50f4ca56044c62d450305446605e400049c446805e406ae1f",
+      "asm": "diag-log mailbox exit stub (linker padding 0x2038AA)"
+    },
+    {
+      "addr": "0x203FB8",
+      "old": "00000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "new": "c1c00401ecee396aecee39f0f98e39f4f9ae39f5c1c008a1e406a013e406a49ee7fff660e40c920f",
+      "asm": "diag-log mailbox entry stub and a checkpoint (linker padding 0x203FB8); scratch 0x2039F0-0x2039F5"
     },
     {
       "addr": "0x240C55",
@@ -97,52 +103,40 @@
       "asm": "b.ori -> j m_bl (sub_245919 backlight-on step)"
     },
     {
-      "addr": "0x262090",
-      "old": "e401a3c4",
-      "new": "e7f43687",
-      "asm": "b.jal -> j c_26f272 (jal sub_26F272: time stamp after it returns)"
+      "addr": "0x238FD5",
+      "old": "c1c008a1",
+      "new": "e7f95fc7",
+      "asm": "b.movhi -> j mb_in (mailbox_query: movhi r14,0x45 after the argument moves (start time, command))"
     },
     {
-      "addr": "0x262094",
-      "old": "e7fe69a8",
-      "new": "e7f43697",
-      "asm": "b.jal -> j c_255568 (jal sub_255568: time stamp after it returns)"
+      "addr": "0x239002",
+      "old": "0e61020e",
+      "new": "e7f95151",
+      "asm": "b.lwz -> j h_mb (mailbox_query epilogue: lwz r19/r18 (log if >= 20 ms); 0x239006-07 unused)"
     },
     {
-      "addr": "0x262098",
-      "old": "e7fffe20",
-      "new": "e7f436a7",
-      "asm": "b.jal -> j c_261fa8 (jal sub_261FA8: time stamp after it returns)"
+      "addr": "0x261FAF",
+      "old": "e7faf7fe",
+      "new": "e7f43849",
+      "asm": "b.jal -> j c_261faf (jal sub_239BAE: time stamp after it returns)"
     },
     {
-      "addr": "0x26209C",
-      "old": "e7fbe212",
-      "new": "e7f4301d",
-      "asm": "b.jal -> j c_2411a5 (jal sub_2411A5: time stamp after it returns)"
+      "addr": "0x2688AB",
+      "old": "e7fffb7a",
+      "new": "e7f36669",
+      "asm": "b.jal -> j c_2688ab (jal sub_268668: time stamp after it returns)"
     },
     {
-      "addr": "0x2620A0",
-      "old": "e7f5776c",
-      "new": "e7f4302d",
-      "asm": "b.jal -> j c_20dc56 (jal sub_20DC56: time stamp after it returns)"
+      "addr": "0x2688C5",
+      "old": "e7fa12bc",
+      "new": "e7f3664d",
+      "asm": "b.jal -> j c_2688c5 (jal sub_239223: time stamp after it returns)"
     },
     {
-      "addr": "0x2620A6",
-      "old": "e7fac554",
-      "new": "e7f43039",
-      "asm": "b.jal -> j c_238350 (jal sub_238350: time stamp after it returns)"
-    },
-    {
-      "addr": "0x2620AA",
-      "old": "e7ffb95c",
-      "new": "e7f43049",
-      "asm": "b.jal -> j c_25fd58 (jal sub_25FD58: time stamp after it returns)"
-    },
-    {
-      "addr": "0x2620C6",
-      "old": "e7fb68ac",
-      "new": "e7f43029",
-      "asm": "b.jal -> j c_23d51c (jal sub_23D51C: time stamp after it returns)"
+      "addr": "0x2688DF",
+      "old": "e7fa1288",
+      "new": "e7f36deb",
+      "asm": "b.jal -> j c_2688df (jal sub_239223: time stamp after it returns)"
     }
   ],
   "tags": {
@@ -155,14 +149,11 @@
     "m_dev": "0xB3",
     "m_loop": "0xBF",
     "m_bl": "0xCB",
-    "c_26f272": "0xDB",
-    "c_255568": "0xE7",
-    "c_261fa8": "0xF3",
-    "c_2411a5": "0xB2",
-    "c_20dc56": "0xBE",
-    "c_238350": "0xCA",
-    "c_25fd58": "0xD6",
-    "c_23d51c": "0xE2"
+    "c_261faf": "0xDB",
+    "c_2688ab": "0xE7",
+    "c_2688c5": "0xF3",
+    "h_mb": "0xF6",
+    "c_2688df": "0xDC"
   },
   "data": {
     "ms": "0x203968",
@@ -170,5 +161,11 @@
     "ring": "0x203970",
     "entries": 16
   },
-  "notes": "Log at 0x203968 (ms counter), 0x20396C (event count), 0x203970 (16 x 8-byte ring: ms, tag<<24 | value). tools/logread.py maps the tags (see 'tags') to F (panel off), N (panel on), S (OSD timer expiry), E (state 4 entry), G (gate result), I (main init start), D (init done), M (main loop start), B (backlight on), C (after a start-up call, c_<callee>). The log is in RAM and starts empty at every firmware start. Generated by tools/patches_src_diag_log.py."
+  "calls": {
+    "c_261faf": "0x239BAE",
+    "c_2688ab": "0x268668",
+    "c_2688c5": "0x239223",
+    "c_2688df": "0x239223"
+  },
+  "notes": "Log at 0x203968 (ms counter), 0x20396C (event count), 0x203970 (16 x 8-byte ring: ms, tag<<24 | value). tools/logread.py maps the tags (see 'tags') to F (panel off), N (panel on), S (OSD timer expiry), E (state 4 entry), G (gate result), I (main init start), D (init done), M (main loop start), B (backlight on), C (after a start-up call, c_<call address>), Q (mailbox transaction >= 20 ms: cmd << 16 | sub << 12 | duration / 2 ms). The log is in RAM and starts empty at every firmware start. Generated by tools/patches_src_diag_log.py."
 }

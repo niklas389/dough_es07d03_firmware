@@ -18,7 +18,9 @@ NAMES = {'h_off': 'F panel off      caller', 'h_on': 'N panel on       caller',
          'h_sig': 'S OSD timer end  caller', 'h_st4': 'E state-4 entry  caller',
          'h_gate': 'G standby gate   result (1 = refused)',
          'm_init': 'I main init start', 'm_dev': 'D init done (EEPROM, scaler)',
-         'm_loop': 'M main loop start', 'm_bl': 'B backlight on   caller'}
+         'm_loop': 'M main loop start', 'm_bl': 'B backlight on   caller',
+         'h_mb': 'Q mailbox >= 20 ms'}
+CALLS = P.get('calls', {})
 MILESTONES = ('m_init', 'm_dev', 'm_loop')
 BASE = int(P['data']['ms'], 16)
 N = P['data']['entries']
@@ -72,8 +74,20 @@ for i in range(first, count):
     t, w = u32(o), u32(o + 4)
     tag, val = w >> 24, w & 0xFFFFFF
     t_name = TAGS.get(tag, '')
-    name = NAMES.get(t_name) or ('C done sub_%s' % t_name[2:].upper() if t_name.startswith('c_') else 'tag %02X' % tag)
+    if t_name.startswith('c_') and t_name in CALLS:
+        name = 'C done sub_%s (call at 0x%s)' % (CALLS[t_name][2:].upper(), t_name[2:].upper())
+    elif t_name.startswith('c_'):
+        name = 'C done sub_%s' % t_name[2:].upper()
+    else:
+        name = NAMES.get(t_name, 'tag %02X' % tag)
     dt = '' if prev is None else '+%.3f' % ((t - prev) / 1000)
-    shown = ('%d' % val) if t_name == 'h_gate' else '' if t_name in MILESTONES or t_name.startswith('c_') else '0x%06X' % val
+    if t_name == 'h_gate':
+        shown = '%d' % val
+    elif t_name == 'h_mb':
+        shown = 'cmd 0x%02X sub %d took %d ms' % (val >> 16, (val >> 12) & 0xF, (val & 0xFFF) * 2)
+    elif t_name in MILESTONES or t_name.startswith('c_'):
+        shown = ''
+    else:
+        shown = '0x%06X' % val
     print('%10.3f s %10s  %s %s' % (t / 1000, dt, name, shown))
     prev = t
