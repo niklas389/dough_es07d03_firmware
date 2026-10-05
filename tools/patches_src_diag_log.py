@@ -13,12 +13,13 @@ Data (linker padding, zero at every start, lost on deep standby/restart):
                 +0 u32 ms, +4 u32 = hook tag << 24 | value & 0xFFFFFF
                 (tag = low byte of the hook cave's return address; value =
                 caller of the hooked function, or a result)
-Code: hook stubs at 0x203A9C, log routine at 0x203B08.
+Code: hook stubs at 0x203A99, log routine at 0x203B08.
 
 Hooks (all keep the hooked function's behaviour; the log routine preserves
 r3-r8 and r10-r31):
   T  sub_240C55 entry   1 ms ISR: ms counter
-  F  sub_245860 entry   panel off              value = caller
+  F  sub_245860 entry   panel off (only when pnl = 1, i.e. the panel is on;
+                        pre-standby calls it on every main-loop pass)  value = caller
   N  sub_245919 +5      panel on (after r9/r10 saved; works with bl-supply-off)
                                                value = caller
   S  sub_258AB1 entry   re-enter "No signal" (OSD state 4) after a timer
@@ -36,7 +37,7 @@ d = open(os.environ.get('RT', 'runtime_0x200000.bin'), 'rb').read()
 def cur(a, n): return d[a - 0x200000:a - 0x200000 + n]
 
 DATA = 0x203968                     # after bl-supply-off (0x203940-0x203967), before panel-prepower
-STUB = 0x203A9C                     # after panel-prepower (0x203A00-0x203A98)
+STUB = 0x203A99                     # right after panel-prepower (0x203A00-0x203A98)
 LOGC = 0x203B08                     # after eeprom-fast-read's cave (0x203B00-0x203B05, not used in builds)
 LOGT, IDX, BUF = DATA - 0x200000, DATA + 4 - 0x200000, DATA + 8 - 0x200000
 R0, R1, R3, R4, R5, R6, R7, R8, R9, R10 = 0, 1, 3, 4, 5, 6, 7, 8, 9, 10
@@ -75,7 +76,10 @@ stub_prog = [
  j(0x240C5A),
  'h_off:',                          # replaces sub_245860: addi r1,-4; sw 0(r1),r9
  ('bt.addi', {'D': R1, 'I': -4}), nsw(0, R1, R9),
- jal(LL['log_s0']), j(0x245865),
+ mh(R7, 0x45), ('bg.lbz', {'?': R7, 'A': R7, '!': 0x51A8}),      # pnl: log only real panel-offs
+ ('bg.beqi', {'A': R7, 'I': 0, ';': 'off_go'}),                 # (pre-standby calls this every main-loop pass)
+ jal(LL['log_s0']),
+ 'off_go:', j(0x245865),
  'h_on:',                           # replaces sub_245919+5: sw 0(r1),r10; movhi r10,0x45
  nsw(0, R1, R10), mh(R10, 0x45),
  jal(LL['log_s4']), j(0x245925),

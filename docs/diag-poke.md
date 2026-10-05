@@ -54,7 +54,7 @@ clear the 0 bits. Scaler registers are written with `sub_23D9E7`.
 
 `patches/diag-log.json` (source `tools/patches_src_diag_log.py`, requires
 `diag-poke`) keeps a RAM log of the last 16 events with a millisecond time
-stamp: panel off (`sub_245860`) and panel on (`sub_245919`) with their callers,
+stamp: panel off (`sub_245860`, only when the panel is actually on) and panel on (`sub_245919`) with their callers,
 re-entry of "No signal" (`sub_258AB1`), the OSD state-4 entry handler
 (`sub_26A7C5`, arms the 255 s countdown) and the standby gate result in the
 power-save entry (`0x2613A0`). A 1 ms ISR hook keeps the time base. Data:

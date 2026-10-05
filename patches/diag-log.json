@@ -7,9 +7,9 @@
   ],
   "edits": [
     {
-      "addr": "0x203A9C",
-      "old": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-      "new": "9c380d2104c0e00401ecc7396a9cc1ecc73968e407a3579c3c0d2100e40000a0e4083b530d4100c14008a1e40000bae4083cb59c380d2104e40000a0e40a9fbd9c380d2104e4000086e40cd9cbe40bb020e40000a6e40bb167",
+      "addr": "0x203A99",
+      "old": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "new": "9c380d2104c0e00401ecc7396a9cc1ecc73968e407a35d9c3c0d2100c0e008a1f0e751a8d0e00042e400008ee4083b410d4100c14008a1e40000a8e4083ca39c380d2104e400008ee40a9fab9c380d2104e4000074e40cd9b9e40bb00ee4000094e40bb155",
       "asm": "diag-log hook stubs (linker padding 0x203A9C)"
     },
     {
@@ -21,46 +21,46 @@
     {
       "addr": "0x240C55",
       "old": "9c380d21",
-      "new": "e7f85c8f",
+      "new": "e7f85c89",
       "asm": "b.addi -> j isr (1 ms ISR entry: ms counter)"
     },
     {
       "addr": "0x245860",
       "old": "9c3c0d21",
-      "new": "e7f7c4a7",
+      "new": "e7f7c4a1",
       "asm": "b.addi -> j h_off (sub_245860 entry (panel off))"
     },
     {
       "addr": "0x24591E",
       "old": "0d4100c1",
-      "new": "e7f7c345",
+      "new": "e7f7c357",
       "asm": "b.sw -> j h_on (sub_245919+5 (panel on))"
     },
     {
       "addr": "0x258AB1",
       "old": "9c380d21",
-      "new": "e7f5603d",
+      "new": "e7f5604f",
       "asm": "b.addi -> j h_sig (sub_258AB1 entry (re-enter No signal))"
     },
     {
       "addr": "0x26A7C5",
       "old": "9c380d21",
-      "new": "e7f3262f",
+      "new": "e7f32641",
       "asm": "b.addi -> j h_st4 (sub_26A7C5 entry (OSD state 4 entry))"
     },
     {
       "addr": "0x2613A0",
       "old": "e7fffeb2",
-      "new": "e7f44e93",
+      "new": "e7f44ea5",
       "asm": "b.jal -> j h_gate (jal standby_gate_query in the power-save entry)"
     }
   ],
   "tags": {
-    "h_off": "0xBC",
-    "h_on": "0xCB",
-    "h_sig": "0xD8",
-    "h_st4": "0xE5",
-    "h_gate": "0xF1"
+    "h_off": "0xC5",
+    "h_on": "0xD4",
+    "h_sig": "0xE1",
+    "h_st4": "0xEE",
+    "h_gate": "0xFA"
   },
   "data": {
     "ms": "0x203968",
