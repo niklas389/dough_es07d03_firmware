@@ -452,3 +452,27 @@ From the owner's board photos (`R01712273073` mainboard, PCB "Spectrum_D03 2021-
   set at 9–`0x18`, `0x2A`–`0x77` and three 96-glyph sets at 0 (`sub_2537EB`,
   overlay mode, reloaded with the base set afterwards), logo `0x4D`–`0xB0`,
   rendered popup text from `0x20`.
+
+## 13. Other vendor packages (compared 2026-10-05)
+
+Packages supplied by the owner (not committed):
+
+| Package | Build | Notes |
+|---|---|---|
+| `BD_EVE_4K_Release_20220216_V106_rev988_USB update.bin` | Feb 16 2022 | same package layout, checksums OK |
+| `ES07D03_V108_rev1148_USB update.bin` | Dec 19 2022 | last public release; version string `V108` |
+| `ES07D03_Beta03_rev1169-E771_USB_update.bin` (base of this project) | Jul 29 2024 | version string `V108T` |
+| `dough_es07e91_v1.0.19_USB-update.bin` (Spectrum Black, OLED) | 2025 | Realtek **RTD2739** scaler, panel LW315AQQ; different architecture, nothing transferable at code level |
+
+- PM51 standby controller, second 8051 image and `sboot` are byte-identical in
+  V106, V108 and Beta03. Only the main runtime and `secu_r2` differ.
+- V106 and V108 contain one panel-on and one panel-off routine (the
+  equivalents of `sub_245919`/`sub_245860`). The pre-standby routines
+  `sub_24578B` (panel off without `pnl`, called every main-loop pass) and
+  `sub_2457FB` (panel on without link) exist **only in Beta03**. The
+  pre-standby behaviour that `standby-lhs` reworks was therefore added in the
+  beta.
+- Vendor change logs: V104 "Reduced coil whine when used in HDR mode",
+  "Less delay before image is displayed on PC"; V108 "Resolved an issue where
+  the Windows desktop wallpaper disappeared after resuming from standby mode
+  for some users with multiple monitors".
