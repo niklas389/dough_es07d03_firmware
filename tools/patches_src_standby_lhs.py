@@ -19,6 +19,7 @@ prog=[
  'cave_b:',            # replaces jal sub_245919 at 0x23AED5 (relight on signal)
  mh(R7,0x45), lbz(R6,0x51cc,R7), ('bg.bnei',{'A':R6,'I':0,';':'b_lhs'}),
  lbz(R6,0x51ae,R7), ('bn.andi',{'D':R6,'A':R6,'N':0x10}), ('bg.bnei',{'A':R6,'I':0,';':'b_ret'}),
+ ('bg.lhz',{'D':R6,'A':R7,'X':0x51ac}), ('bn.andi',{'D':R6,'A':R6,'N':0x02}), ('bg.bnei',{'A':R6,'I':0,';':'b_ret'}),  # power-save requested: gate decides first
  ('bg.j',{'/':SUB_245919}),
  'b_lhs:',             # leaving link-held standby on valid timing
  lbz(R6,0x51ae,R7), ('bn.andi',{'D':R6,'A':R6,'N':0xef}), sb(0x51ae,R7,R6),

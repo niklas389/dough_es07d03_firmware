@@ -357,6 +357,14 @@ Disassembled with radare2 (`-a 8051`). Keil C51 style: XRAM variables at `0x5000
 
 **`standby-lhs`** (source `tools/patches_src_standby_lhs.py`) turns the refusal into a stable link-held standby. This is the DP-conformant behaviour for a source that keeps the sink in D0 without video. Deep power-save follows as soon as the vendor's 5-tick gate re-query sees the link released. See `patches/standby-lhs.json` for the exact hooks.
 
+**Countdown-end flash** (found with `diag-log`, 2026-10-05): in link-held standby the
+255 s countdown keeps running. At `cnt` 0 the tick sets `pwr` bit 1 (power-save
+requested) and clears the pre-standby flag in the same step. Before the power-save
+entry asks the gate, the relight in `sub_23ADAF` (`0x23AED5`, our `cave_b`) saw no
+pre-standby flag and switched the panel on; the refusal then switched it off again.
+Result: a brief panel-on (and "No signal") every ~250 s. `cave_b` now also skips the
+relight while `pwr` bit 1 is set.
+
 ## 12. Power-on logo and start-up
 
 - **Tick:** the 1 ms ISR reloads `0x3B4948` with 1000 and sets `0x4551A2`
