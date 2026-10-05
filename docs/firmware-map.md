@@ -519,7 +519,10 @@ and the power-off path `0x261041`; power-on sets them again at `0x2611F4`)
 - `0x44A`/`0x44C` bits 7, 6, 2, 1 (output/enable): driven low. Set high again
   at power-on in the order 7, 6, 2, 1 without delays. Function unknown
   (candidates: supplies or resets of the USB hub, the MSB3300, the audio path).
-  The 2026-10-04 test showed no visible effect; power was not measured then.
+  The 2026-10-04 test showed no visible effect. In link-held standby
+  (2026-10-06) `0x44A` = `0x00` and `0x44C` = `0xFF`: none of these pins is
+  driven, so they are probably unused on this board (the power-on path that
+  drives them, `0x2611F4`, runs only for event `0x11`). No power to gain there.
 - `0x43A`/`0x43B` bit 1: set (1) in standby. On power-off it follows setting
   `+0xC3` (OSD value at `0x457857`, written by `sub_266C41`); meaning unknown.
 - `sub_20B9A6(0)`: clears `0x407` bits 6:5 and writes `0x416` bits 7:4 via
@@ -529,6 +532,11 @@ and the power-off path `0x261041`; power-on sets them again at `0x2611F4`)
 - `0x20E56B`: interrupts off, `0x2B08`/`0x2B18`/`0x2B28` = `0xFFFF` (likely
   clock gates), PM mailbox handshake; the PM51 then drives `0x434` bits 6/7
   low (main power).
+
+**Start-up timing** (`diag-log`, power key from soft-off, 2026-10-06; ms since the 1 ms timer started):
+I 0.112 s → D 0.893 s (EEPROM + scaler/receiver init) → panel prepower 5.506 s
+(**4.6 s** in the calls between, static waits explain only ~0.5 s) → main loop
+6.356 s → backlight on 10.235 s (relight on valid video, caller `0x23AED9`).
 
 **Boot cost before the main firmware:** stage 2 of the boot loader CRCs the
 main image and inflates 0xF148B bytes of deflate data to 0x250678 bytes

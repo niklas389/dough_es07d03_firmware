@@ -36,6 +36,10 @@ Start-up milestones (no value):
   M  0x2620F9           main loop about to start (after the panel prepower)
   B  0x2459C0           backlight on (sub_245919, after the T8 wait or the
                         prepared-panel shortcut)   value = caller of sub_245919
+  C  after each call between D and the panel prepower in sub_261FDE
+     (sub_26F272, sub_255568, sub_261FA8, sub_2411A5, sub_20DC56, sub_238350,
+     sub_25FD58, sub_23D51C)                       no value; the tag names the call
+     (D -> panel prepower took 4.6 s on hardware, static waits explain ~0.5 s)
 """
 import sys, json, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aeon'))
@@ -49,6 +53,11 @@ STUB = 0x203A99                     # right after panel-prepower (0x203A00-0x203
 ISR = 0x203CE0                      # after diag-poke's stable-read cave (0x203C60-0x203CDD)
 LOGC = 0x203B08                     # after eeprom-fast-read's cave (0x203B00-0x203B05, not used in builds)
 BOOT = 0x203BA3                     # after the log routine, before popup-flat (0x203C00)
+CHK = 0x2038AA                      # after standby-lhs (0x203800-0x2038A9), before panel-t12 (0x203900)
+# checkpoints after the calls between D and the panel prepower: (address of the jal, callee)
+CALLS = [(0x262090, 0x26F272), (0x262094, 0x255568), (0x262098, 0x261FA8), (0x26209C, 0x2411A5),
+         (0x2620A0, 0x20DC56), (0x2620A6, 0x238350), (0x2620AA, 0x25FD58), (0x2620C6, 0x23D51C)]
+N_BOOT = 3                          # the first calls go after the milestone stubs, the rest to CHK
 LOGT, IDX, BUF = DATA - 0x200000, DATA + 4 - 0x200000, DATA + 8 - 0x200000
 R0, R1, R3, R4, R5, R6, R7, R8, R9, R10 = 0, 1, 3, 4, 5, 6, 7, 8, 9, 10
 
@@ -115,17 +124,23 @@ boot_prog = [
  'm_loop:', jal(LL['log_s0']), mh(R10, 0x45), j(0x2620FD),                                 # replaces movhi r10,0x45
  'm_bl:', jal(LL['log_s4']), ('bg.ori', {'D': R3, 'A': R0, 't': 0x426}), j(0x2459C4),     # replaces ori r3,r0,0x426
 ]
+chk = lambda a, t: ['c_%x:' % t, jal(t), jal(LL['log_s0']), j(a + 4)]   # replaces jal t at a; r3 (result) preserved
+for a, t in CALLS[:N_BOOT]:
+    boot_prog += chk(a, t)
+chk_prog = [x for a, t in CALLS[N_BOOT:] for x in chk(a, t)]
 bcode, BL = S.assemble(boot_prog, BOOT)
+ccode, CL = S.assemble(chk_prog, CHK)
+BL.update(CL)
 L.update(IL)
-for code, base, labs in ((scode, STUB, L), (icode, ISR, IL), (lcode, LOGC, LL), (bcode, BOOT, BL)):
+for code, base, labs in ((scode, STUB, L), (icode, ISR, IL), (lcode, LOGC, LL), (bcode, BOOT, BL), (ccode, CHK, CL)):
     for a, b, x in A.disasm(code, base, base + len(code), base):
         lab = [k for k, v in labs.items() if v == a]
         print(('%-8s' % (lab[0] + ':' if lab else '')) + '%08x: %-12s %-9s %s' % (a, b.hex(' '), x['mnem'], x['ops']))
     print('cave %#x-%#x (%d bytes)' % (base, base + len(code), len(code)))
 assert STUB + len(scode) <= 0x203B00 and LOGC + len(lcode) <= BOOT and ISR + len(icode) <= 0x203D00
-assert BOOT + len(bcode) <= 0x203C00
+assert BOOT + len(bcode) <= 0x203C00 and CHK + len(ccode) <= 0x203900
 assert DATA + 8 + 16 * 8 <= 0x203A00
-for base, code in ((STUB, scode), (ISR, icode), (LOGC, lcode), (BOOT, bcode)):
+for base, code in ((STUB, scode), (ISR, icode), (LOGC, lcode), (BOOT, bcode), (CHK, ccode)):
     assert cur(base, len(code)) == b'\0' * len(code)
 assert cur(DATA, 8 + 16 * 8) == b'\0' * (8 + 16 * 8)
 # tag of each hook = low byte of the return address after its jal to a log routine
@@ -134,10 +149,11 @@ for a, b, x in A.disasm(scode, STUB, STUB + len(scode), STUB):
     if x.get('target') in (LL['log_s0'], LL['log_s4'], LL['log_r3']):
         owner = max((v, k) for k, v in L.items() if v <= a)[1]
         TAGS[owner] = (a + x['len']) & 0xFF
-for a, b, x in A.disasm(bcode, BOOT, BOOT + len(bcode), BOOT):
-    if x.get('target') in (LL['log_s0'], LL['log_s4']):
-        owner = max((v, k) for k, v in BL.items() if v <= a)[1]
-        TAGS[owner] = (a + x['len']) & 0xFF
+for code, base in ((bcode, BOOT), (ccode, CHK)):
+    for a, b, x in A.disasm(code, base, base + len(code), base):
+        if x.get('target') in (LL['log_s0'], LL['log_s4']):
+            owner = max((v, k) for k, v in BL.items() if v <= a and base <= v < base + len(code))[1]
+            TAGS[owner] = (a + x['len']) & 0xFF
 print('tags', {k: '%02X' % v for k, v in TAGS.items()})
 assert len(set(TAGS.values())) == len(TAGS)
 
@@ -152,7 +168,7 @@ hooks = [  # addr, expected original bytes, label, what
  (0x26208C, 'e7fbbd38', 'm_dev', 'jal sub_23FF28 after sub_23D3EB (init done)'),
  (0x2620F9, 'c14008a1', 'm_loop', 'movhi r10,0x45 before the main loop'),
  (0x2459C0, 'c8600426', 'm_bl', 'sub_245919 backlight-on step'),
-]
+] + [(a, S.encode('bg.jal', {'/': t}, a).hex(), 'c_%x' % t, 'jal sub_%X: time stamp after it returns' % t) for a, t in CALLS]
 L.update(BL)
 edits = [{'addr': '0x%06X' % STUB, 'old': '00' * len(scode), 'new': scode.hex(),
           'asm': 'diag-log hook stubs (linker padding 0x203A9C)'},
@@ -161,7 +177,9 @@ edits = [{'addr': '0x%06X' % STUB, 'old': '00' * len(scode), 'new': scode.hex(),
          {'addr': '0x%06X' % LOGC, 'old': '00' * len(lcode), 'new': lcode.hex(),
           'asm': 'diag-log log routine (linker padding 0x203B08); data at 0x203968-0x2039EF'},
          {'addr': '0x%06X' % BOOT, 'old': '00' * len(bcode), 'new': bcode.hex(),
-          'asm': 'diag-log start-up milestone stubs (linker padding 0x203BA3)'}]
+          'asm': 'diag-log start-up milestone stubs (linker padding 0x203BA3)'},
+         {'addr': '0x%06X' % CHK, 'old': '00' * len(ccode), 'new': ccode.hex(),
+          'asm': 'diag-log start-up call checkpoints (linker padding 0x2038AA)'}]
 for a, old, lab, what in hooks:
     assert cur(a, len(old) // 2).hex() == old, (hex(a), cur(a, len(old) // 2).hex())
     nb = S.encode('bg.j', {'/': L[lab]}, a)
@@ -178,7 +196,7 @@ patch = {
  'data': {'ms': '0x%06X' % DATA, 'count': '0x%06X' % (DATA + 4), 'ring': '0x%06X' % (DATA + 8), 'entries': 16},
  'notes': ("Log at 0x203968 (ms counter), 0x20396C (event count), 0x203970 (16 x 8-byte ring: ms, tag<<24 | value). "
            "tools/logread.py maps the tags (see 'tags') to F (panel off), N (panel on), S (OSD timer expiry), E (state 4 entry), G (gate result), "
-           "I (main init start), D (init done), M (main loop start), B (backlight on). "
+           "I (main init start), D (init done), M (main loop start), B (backlight on), C (after a start-up call, c_<callee>). "
            "The log is in RAM and starts empty at every firmware start. Generated by tools/patches_src_diag_log.py."),
 }
 out = os.environ.get('OUT', 'diag-log.json')

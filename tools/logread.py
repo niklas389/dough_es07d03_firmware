@@ -71,8 +71,9 @@ for i in range(first, count):
     o = 8 + 8 * (i % N)
     t, w = u32(o), u32(o + 4)
     tag, val = w >> 24, w & 0xFFFFFF
-    name = NAMES.get(TAGS.get(tag), 'tag %02X' % tag)
+    t_name = TAGS.get(tag, '')
+    name = NAMES.get(t_name) or ('C done sub_%s' % t_name[2:].upper() if t_name.startswith('c_') else 'tag %02X' % tag)
     dt = '' if prev is None else '+%.3f' % ((t - prev) / 1000)
-    shown = ('%d' % val) if TAGS.get(tag) == 'h_gate' else '' if TAGS.get(tag) in MILESTONES else '0x%06X' % val
+    shown = ('%d' % val) if t_name == 'h_gate' else '' if t_name in MILESTONES or t_name.startswith('c_') else '0x%06X' % val
     print('%10.3f s %10s  %s %s' % (t / 1000, dt, name, shown))
     prev = t
