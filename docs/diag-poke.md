@@ -3,7 +3,8 @@
 Diagnostic patch for experiments on the running monitor. VCP `0xEA`/`0xEB`
 set the register address (high/low 16 bits), VCP `0xEC` reads (GET) or writes
 (SET, value ≤ `0xFF`) one byte. Tools: `tools/poke.sh` (single register),
-`tools/regdump.sh` (ranges), `tools/glowtest.sh` (guided `0x434` test).
+`tools/regdump.sh` (ranges), `tools/watch.sh` (periodic power-state log),
+`tools/glowtest.sh` (guided `0x434` test), `tools/logread.py` (reads the `diag-log` event log).
 
 Not for daily use. Every write is volatile: a mains power cycle (≥ 10 s)
 restores everything. No EEPROM, flash, PM51 code or factory data can be
@@ -18,7 +19,8 @@ All versions use the same VCP codes and the same main code cave
 |---|---|---|---|---|---|
 | `diag-poke-v1` | `patches/diag-poke-v1.json` | `3137dee` | `0x422`, `0x426`, `0x428`, `0x43A`, `0x43B`, `0x44A`–`0x44D`, `0x2E902F4A`, `0x2E902F4B` | pages `0x03xx`, `0x04xx`, `0x101Exx`, scaler `0x102Fxx` (any sub-bank) | single read through the firmware helper `sub_23D972` |
 | `diag-poke-v2` | `patches/diag-poke-v2.json` | `799f4fe` | v1 + `0x434`, `0x436` | as v1 | as v1 |
-| `diag-poke` (current) | `patches/diag-poke.json` | `1a9ebef` | as v2 | v1 + PM PWM `0x05xx`, PWM unit `0x103Cxx`/`0x103Dxx` | interrupts masked (SR IEE/TEE), three reads, `0xFFFE` (UNSTABLE) if they differ; extra code at `0x203C60` |
+| `diag-poke-v3` | `patches/diag-poke-v3.json` | `1a9ebef` | as v2 | v1 + PM PWM `0x05xx`, PWM unit `0x103Cxx`/`0x103Dxx` | interrupts masked (SR IEE/TEE), three reads, `0xFFFE` (UNSTABLE) if they differ; extra code at `0x203C60` |
+| `diag-poke` (current) | `patches/diag-poke.json` | see git log | as v2 | v3 + RAM page `0x2039xx` (the `diag-log` data) | as v3; the RAM page is read with a plain byte load |
 
 Return values of a GET on `0xEC`: `0x00`–`0xFF` value, `0xFFFF` address not
 readable (BLOCKED), `0xFFFE` three reads differed (UNSTABLE, current version
@@ -47,3 +49,15 @@ clear the 0 bits. Scaler registers are written with `sub_23D9E7`.
   Fixed in the current version.
 - While the firmware is busy (key presses, OSD, panel sequences) many DDC
   transfers fail; `regdump.sh` prints `ERR` for those. Repeat the read.
+
+## diag-log (event log)
+
+`patches/diag-log.json` (source `tools/patches_src_diag_log.py`, requires
+`diag-poke`) keeps a RAM log of the last 16 events with a millisecond time
+stamp: panel off (`sub_245860`) and panel on (`sub_245919`) with their callers,
+re-entry of "No signal" (`sub_258AB1`), the OSD state-4 entry handler
+(`sub_26A7C5`, arms the 255 s countdown) and the standby gate result in the
+power-save entry (`0x2613A0`). A 1 ms ISR hook keeps the time base. Data:
+`0x203968` (ms), `0x20396C` (event count), `0x203970` (ring, 8 bytes per
+entry). Read with `tools/logread.py`. The log starts empty at every firmware
+start; a deep-standby wake clears it.

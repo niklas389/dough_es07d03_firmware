@@ -20,8 +20,8 @@ from the usual public sources. Flashing is done with `specflash` from
 | `tools/aeon/funcs.py`, `xrefs.py`, `fdis.py` | Function discovery, xref database, annotated listings |
 | `tools/aeon/names.txt` | Identified functions |
 | `tools/aeon/aeonasm.py` | Minimal assembler used for code-cave patches |
-| `tools/patches_src_*.py` | Sources that generate the code-cave patches (`standby-lhs`, `panel-t12`, `panel-prepower`, `audio-off`, `eeprom-fast-read`, `popup-flat`, `popup-round`, `diag-poke`, `bl-supply-off`) |
-| `tools/poke.sh`, `tools/glowtest.sh`, `tools/regdump.sh`, `tools/watch.sh` | Live register read/write on a `diag-poke` build; guided backlight-glow test (`0x434` bit 7, then bit 6 driven low and restored, pausing for observation); register range dump for before/after diffs; periodic power-state log |
+| `tools/patches_src_*.py` | Sources that generate the code-cave patches (`standby-lhs`, `panel-t12`, `panel-prepower`, `audio-off`, `eeprom-fast-read`, `popup-flat`, `popup-round`, `diag-poke`, `bl-supply-off`, `diag-log`) |
+| `tools/poke.sh`, `tools/glowtest.sh`, `tools/regdump.sh`, `tools/watch.sh`, `tools/logread.py` | Live register read/write on a `diag-poke` build; guided backlight-glow test (`0x434` bit 7, then bit 6 driven low and restored, pausing for observation); register range dump for before/after diffs; periodic power-state log; `diag-log` reader |
 
 ## Quick start
 
@@ -48,6 +48,7 @@ output before writing it.
 | `diag-probes` | diagnostic | VCP E0–E9 GET report power-management state |
 | `diag-pins` | diagnostic | Like diag-probes, but E2/E5/E7/E8 read live pin registers (backlight enable, VLCD, standby power) and the PM wake status; use instead of diag-probes |
 | `diag-poke` | diagnostic | VCP 0xEA/0xEB/0xEC read/write an **allowlisted** set of volatile pin and scaler registers (`tools/poke.sh`); reads with interrupts masked, three agreeing reads per value, also from the PWM units (`0x05xx`, `0x103Cxx`/`0x103Dxx`). No EEPROM, flash, PM51 or factory-data access; a power cycle undoes every write. Combines with `diag-pins`. Earlier versions kept as `diag-poke-v1`/`-v2`; see `docs/diag-poke.md` |
+| `diag-log` | diagnostic | RAM event log (ms time stamps) of panel on/off callers, "No signal" re-entry and the standby gate result; read with `tools/logread.py`. Requires `diag-poke` |
 | `panel-t12` | analysis-verified | Enforces the panel's ≥1 s VLCD-off time (T12): panel-on waits for the vendor's own 1.2 s off-timer, which nobody checked; no delay when the panel was off long enough |
 | `panel-seq` | **experimental** | One-shot proper panel-off in pre-standby; cancelling pre-standby uses the full panel-on with eDP link training (likely wake-flash cause) |
 | `standby-lhs` | **experimental** (power key from standby without panel flash: hardware-tested 2026-10-04) | Link-held standby: while the source keeps the DP link up without video, stay dark with the standby LED instead of looping through "No signal"; wake on valid video or key; deep standby once the link is released. Includes panel-seq (use one or the other) |
