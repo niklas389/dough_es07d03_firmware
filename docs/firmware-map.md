@@ -543,6 +543,10 @@ commands to the PM51 through `mailbox_query` (`0x238FA5`: wait until
 `0x1033C0` is free, write the command, wait for the answer in `0x1033C1`, each
 with a 10000-tick timeout at `0x4551C8`); no fixed delays. Working assumption,
 not verified: the PM51 answers only after its own wake sequence.
+Start type matters (2026-10-06): both 4.6 s runs were mains power-cut starts
+(the PM51 boots from scratch); a power-key start (PM51 already running) had
+no gap: sub_261FA8 done at 1.0 s, about 13 mailbox transactions of ~66 ms
+each between 1.8 and 2.5 s, main loop 2.09 s, backlight 5.78 s.
 Unresolved: the stopwatch measured 8.4 s from the power key to the picture,
 while the log shows the backlight at 11.0 s after the timer start; either the
 1 ms tick runs faster than 1 ms or the picture appears before `B`.

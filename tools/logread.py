@@ -19,7 +19,7 @@ NAMES = {'h_off': 'F panel off      caller', 'h_on': 'N panel on       caller',
          'h_gate': 'G standby gate   result (1 = refused)',
          'm_init': 'I main init start', 'm_dev': 'D init done (EEPROM, scaler)',
          'm_loop': 'M main loop start', 'm_bl': 'B backlight on   caller',
-         'h_mb': 'Q mailbox >= 20 ms'}
+         'h_mb': 'Q mailbox slow  ', 'h_port': 'P port state     ', 'h_path': 'Y input path     '}
 CALLS = P.get('calls', {})
 MILESTONES = ('m_init', 'm_dev', 'm_loop')
 BASE = int(P['data']['ms'], 16)
@@ -85,6 +85,8 @@ for i in range(first, count):
         shown = '%d' % val
     elif t_name == 'h_mb':
         shown = 'cmd 0x%02X sub %d took %d ms' % (val >> 16, (val >> 12) & 0xF, (val & 0xFFF) * 2)
+    elif t_name in ('h_port', 'h_path'):
+        shown = '%d -> state %d' % ((val >> 8) & 0xFF, val & 0xFF)
     elif t_name in MILESTONES or t_name.startswith('c_'):
         shown = ''
     else:

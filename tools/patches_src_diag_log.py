@@ -14,8 +14,8 @@ Data (linker padding, zero at every start, lost on deep standby/restart):
                 (tag = low byte of the hook cave's return address; value =
                 caller of the hooked function, or a result)
 Code: hook stubs at 0x203A99, ISR stub at 0x203CE0, log routine at 0x203B08,
-start-up milestone and checkpoint stubs at 0x203BA3, mailbox exit stub at
-0x2038AA, mailbox entry stub and one checkpoint at 0x203FB8. Mailbox scratch:
+start-up milestone and port-state stubs at 0x203BA3, mailbox exit stub at
+0x2038AA, mailbox entry stub at 0x203FB8, path-state stub at 0x203D9A. Mailbox scratch:
 0x2039F0 u32 start ms, 0x2039F4 cmd, 0x2039F5 sub.
 
 Hooks (all keep the hooked function's behaviour; the log routine preserves
@@ -38,13 +38,16 @@ Start-up milestones (no value):
   M  0x2620F9           main loop about to start (after the panel prepower)
   B  0x2459C0           backlight on (sub_245919, after the T8 wait or the
                         prepared-panel shortcut)   value = caller of sub_245919
-  C  after selected calls in sub_261FA8, which took 4.6 s of the start-up on
-     hardware (2026-10-06): sub_239BAE, and in its tail sub_268877 the input
-     set-up calls sub_268668 / sub_239223      no value; the tag names the call site
+  C  checkpoint after a call (list CALLS, currently empty; used 2026-10-06 to
+     find that sub_261FA8 takes 4.6 s after a mains power cut)
   Q  mailbox_query sub_238FA5 (main CPU -> PM51 mailbox 0x1033C0..) taking
-     >= 20 ms: entry at 0x238FD5 stores the start time and the command (r3, r4),
+     >= 100 ms: entry at 0x238FD5 stores the start time and the command (r3, r4),
      the common epilogue 0x239002 logs   value = cmd << 16 | (sub & 0xF) << 12 |
      min(duration / 2 ms, 0xFFF); the entry time is the end of the transaction
+     (a normal transaction takes ~66 ms, measured 2026-10-06)
+  P  sub_22F2C7 0x22F300: port state (0x3B495C + n*0xB0) changed   value = n << 8 | state
+  Y  sub_22F2C7 0x22F35A: input path state (0x47FA64 + n*0x7C) changed
+                                                   value = n << 8 | state
 """
 import sys, json, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aeon'))
@@ -62,11 +65,20 @@ CHK = 0x2038AA                      # after standby-lhs (0x203800-0x2038A9), bef
 MBIN = 0x203FB8                     # after diag-poke (0x203DC0-0x203FB7), before the panel-prepower flags (0x203FF0)
 MBT, MBC = 0x2039F0 - 0x200000, 0x2039F4 - 0x200000   # mailbox scratch, after the log ring
 # checkpoints: (address of the jal, callee); the first N_BOOT go after the milestones, the rest to MBIN
-CALLS = [(0x261FAF, 0x239BAE), (0x2688AB, 0x268668), (0x2688C5, 0x239223), (0x2688DF, 0x239223)]
-N_BOOT = 3
+CALLS = []
+N_BOOT = 0
+ST2 = 0x203D9A                      # after popup-round (0x203D00-0x203D99), before diag-poke (0x203DC0)
 LOGT, IDX, BUF = DATA - 0x200000, DATA + 4 - 0x200000, DATA + 8 - 0x200000
 R0, R1, R3, R4, R5, R6, R7, R8, R9, R10 = 0, 1, 3, 4, 5, 6, 7, 8, 9, 10
-R12, R13, R14, R18, R19 = 12, 13, 14, 18, 19
+R11, R12, R13, R14, R18, R19, R28 = 11, 12, 13, 14, 18, 19, 28
+def state_stub(lab, cur_r, old_r, idx_r, cache_r, back):
+    # replaces 'beq cur,old,back' + the following 'sb 0(cache),cur': log index << 8 | new state on a change
+    go = lab + '_go'
+    return [lab + ':', ('bg.beq', {'A': cur_r, 'B': old_r, ';': go}), ('bn.sb', {'z': 0, 'A': cache_r, 'B': cur_r}),
+            ('bn.addi', {'D': R1, 'A': R1, 'O': -4}), nsw(0, R1, R3),
+            ('bn.slli', {'D': R3, 'A': idx_r, 'H': 8}), ('bn.or', {'D': R3, 'A': R3, 'B': cur_r}),
+            jal(LL['log_r3']), nlw(R3, 0, R1), ('bn.addi', {'D': R1, 'A': R1, 'O': 4}),
+            go + ':', j(back)]
 
 mh = lambda rd, v: ('bg.movhi', {'D': rd, 'U': v})
 lwz = lambda rd, off, ra: ('bg.lwz', {'D': rd, 'A': ra, 'W': off})
@@ -134,6 +146,8 @@ boot_prog = [
 chk = lambda a, t: ['c_%x:' % a, jal(t), jal(LL['log_s0']), j(a + 4)]   # replaces jal t at a; r3 (result) preserved
 for a, t in CALLS[:N_BOOT]:
     boot_prog += chk(a, t)
+boot_prog += state_stub('h_port', R7, R6, R10, R11, 0x22F307)     # beq r7,r6 at 0x22F300; cache r11, port r10
+st2_prog = state_stub('h_path', R10, R28, R11, R13, 0x22F361)       # beq r10,r28 at 0x22F35A; cache r13, path r11
 mbin_prog = [
  'mb_in:',                          # replaces movhi r14,0x45 at 0x238FD5 (r12 = cmd, r13 = sub; r7 is free here)
  mh(R14, 0x20), lwz(R7, LOGT, R14), sw(MBT, R14, R7),
@@ -144,7 +158,7 @@ ccode_prog = [
  'h_mb:',                           # replaces lwz r19,0(r1); lwz r18,4(r1) at 0x239002 (r3 = result; r4-r8 free)
  nlw(R19, 0, R1), nlw(R18, 4, R1),
  mh(R7, 0x20), lwz(R6, LOGT, R7), lwz(R5, MBT, R7), ('bn.sub', {'D': R6, 'A': R6, 'B': R5}),
- ('bg.sfleui', {'A': R6, 'Y': 19}), ('bg.bf', {"'": 'mb_done'}),          # < 20 ms: no entry
+ ('bg.sfleui', {'A': R6, 'Y': 99}), ('bg.bf', {"'": 'mb_done'}),          # < 100 ms: no entry
  ('bn.srli', {'D': R6, 'A': R6, 'H': 1}), ('bg.sfgtui', {'A': R6, 'Y': 0xFFF}),
  ('bg.ori', {'D': R5, 'A': R0, 't': 0xFFF}), ('bn.cmov', {'D': R6, 'A': R5, 'B': R6}),  # min(dt/2, 0xFFF)
  ('bg.lbz', {'?': R5, 'A': R7, '!': MBC}), ('bn.slli', {'D': R5, 'A': R5, 'H': 16}), ('bn.or', {'D': R6, 'A': R6, 'B': R5}),
@@ -157,17 +171,18 @@ ccode_prog = [
 bcode, BL = S.assemble(boot_prog, BOOT)
 ccode, CL = S.assemble(ccode_prog, CHK)
 mcode, ML = S.assemble(mbin_prog, MBIN)
-BL.update(CL); BL.update(ML)
+tcode, TL = S.assemble(st2_prog, ST2)
+BL.update(CL); BL.update(ML); BL.update(TL)
 L.update(IL)
-for code, base, labs in ((scode, STUB, L), (icode, ISR, IL), (lcode, LOGC, LL), (bcode, BOOT, BL), (ccode, CHK, CL), (mcode, MBIN, ML)):
+for code, base, labs in ((scode, STUB, L), (icode, ISR, IL), (lcode, LOGC, LL), (bcode, BOOT, BL), (ccode, CHK, CL), (mcode, MBIN, ML), (tcode, ST2, TL)):
     for a, b, x in A.disasm(code, base, base + len(code), base):
         lab = [k for k, v in labs.items() if v == a]
         print(('%-8s' % (lab[0] + ':' if lab else '')) + '%08x: %-12s %-9s %s' % (a, b.hex(' '), x['mnem'], x['ops']))
     print('cave %#x-%#x (%d bytes)' % (base, base + len(code), len(code)))
 assert STUB + len(scode) <= 0x203B00 and LOGC + len(lcode) <= BOOT and ISR + len(icode) <= 0x203D00
-assert BOOT + len(bcode) <= 0x203C00 and CHK + len(ccode) <= 0x203900 and MBIN + len(mcode) <= 0x203FF0
+assert BOOT + len(bcode) <= 0x203C00 and CHK + len(ccode) <= 0x203900 and MBIN + len(mcode) <= 0x203FF0 and ST2 + len(tcode) <= 0x203DC0
 assert DATA + 8 + 16 * 8 <= 0x203A00
-for base, code in ((STUB, scode), (ISR, icode), (LOGC, lcode), (BOOT, bcode), (CHK, ccode), (MBIN, mcode)):
+for base, code in ((STUB, scode), (ISR, icode), (LOGC, lcode), (BOOT, bcode), (CHK, ccode), (MBIN, mcode), (ST2, tcode)):
     assert cur(base, len(code)) == b'\0' * len(code)
 assert cur(DATA, 8 + 16 * 8) == b'\0' * (8 + 16 * 8) and DATA + 8 + 16 * 8 <= 0x200000 + MBT
 assert cur(0x200000 + MBT, 6) == b'\0' * 6
@@ -177,7 +192,7 @@ for a, b, x in A.disasm(scode, STUB, STUB + len(scode), STUB):
     if x.get('target') in (LL['log_s0'], LL['log_s4'], LL['log_r3']):
         owner = max((v, k) for k, v in L.items() if v <= a)[1]
         TAGS[owner] = (a + x['len']) & 0xFF
-for code, base in ((bcode, BOOT), (ccode, CHK), (mcode, MBIN)):
+for code, base in ((bcode, BOOT), (ccode, CHK), (mcode, MBIN), (tcode, ST2)):
     for a, b, x in A.disasm(code, base, base + len(code), base):
         if x.get('target') in (LL['log_s0'], LL['log_s4'], LL['log_r3']):
             owner = max((v, k) for k, v in BL.items() if v <= a and base <= v < base + len(code))[1]
@@ -197,7 +212,9 @@ hooks = [  # addr, expected original bytes, label, what
  (0x2620F9, 'c14008a1', 'm_loop', 'movhi r10,0x45 before the main loop'),
  (0x2459C0, 'c8600426', 'm_bl', 'sub_245919 backlight-on step'),
  (0x238FD5, 'c1c008a1', 'mb_in', 'mailbox_query: movhi r14,0x45 after the argument moves (start time, command)'),
- (0x239002, '0e61020e4106', 'h_mb', 'mailbox_query epilogue: lwz r19/r18 (log if >= 20 ms); 0x239006-07 unused'),
+ (0x239002, '0e61020e4106', 'h_mb', 'mailbox_query epilogue: lwz r19/r18 (log if >= 100 ms); 0x239006-07 unused'),
+ (0x22F300, 'd4e6003a18eb00', 'h_port', 'sub_22F2C7 port state change check (beq + sb)'),
+ (0x22F35A, 'd55c003a194d00', 'h_path', 'sub_22F2C7 input path state change check (beq + sb)'),
 ] + [(a, S.encode('bg.jal', {'/': t}, a).hex(), 'c_%x' % a, 'jal sub_%X: time stamp after it returns' % t) for a, t in CALLS]
 L.update(BL)
 edits = [{'addr': '0x%06X' % STUB, 'old': '00' * len(scode), 'new': scode.hex(),
@@ -211,7 +228,9 @@ edits = [{'addr': '0x%06X' % STUB, 'old': '00' * len(scode), 'new': scode.hex(),
          {'addr': '0x%06X' % CHK, 'old': '00' * len(ccode), 'new': ccode.hex(),
           'asm': 'diag-log mailbox exit stub (linker padding 0x2038AA)'},
          {'addr': '0x%06X' % MBIN, 'old': '00' * len(mcode), 'new': mcode.hex(),
-          'asm': 'diag-log mailbox entry stub and a checkpoint (linker padding 0x203FB8); scratch 0x2039F0-0x2039F5'}]
+          'asm': 'diag-log mailbox entry stub (linker padding 0x203FB8); scratch 0x2039F0-0x2039F5'},
+         {'addr': '0x%06X' % ST2, 'old': '00' * len(tcode), 'new': tcode.hex(),
+          'asm': 'diag-log input path state stub (linker padding 0x203D9A)'}]
 for a, old, lab, what in hooks:
     assert cur(a, len(old) // 2).hex() == old, (hex(a), cur(a, len(old) // 2).hex())
     nb = S.encode('bg.j', {'/': L[lab]}, a)
@@ -230,7 +249,7 @@ patch = {
  'notes': ("Log at 0x203968 (ms counter), 0x20396C (event count), 0x203970 (16 x 8-byte ring: ms, tag<<24 | value). "
            "tools/logread.py maps the tags (see 'tags') to F (panel off), N (panel on), S (OSD timer expiry), E (state 4 entry), G (gate result), "
            "I (main init start), D (init done), M (main loop start), B (backlight on), C (after a start-up call, c_<call address>), "
-           "Q (mailbox transaction >= 20 ms: cmd << 16 | sub << 12 | duration / 2 ms). "
+           "Q (mailbox transaction >= 100 ms: cmd << 16 | sub << 12 | duration / 2 ms), P/Y (port/input path state change: n << 8 | state). "
            "The log is in RAM and starts empty at every firmware start. Generated by tools/patches_src_diag_log.py."),
 }
 out = os.environ.get('OUT', 'diag-log.json')
