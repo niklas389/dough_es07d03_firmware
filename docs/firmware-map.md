@@ -600,3 +600,13 @@ the second `0x03`. Readings:
   from `sub_2398F9`, `sub_239618`, `sub_23979A`, `sub_2394DC`). The current
   `diag-log` records every mailbox command between 1.5 and 4.5 s.
 
+**PM51 mailbox commands during a deep-standby wake** (2026-10-07, firmware clock):
+0.93 s panel prepower; 1.68 `0x60` sub 0 (data 7); 1.72 / 1.78 `0x20` sub 1
+(data `0x0B`, `0x0C`); 1.85 / 1.92 / 1.93 `0x20` sub 12 (data 1, 0, 1); 1.99
+`0x60` sub 6 (8); 2.00 / 2.00 `0x20` sub 14 (8, 8); 2.01 `0x20` sub 12 (0);
+2.01 main loop; 2.08 `0x70` sub 15 (0); 2.08 / 2.15 `0x20` sub 3 (7, 8); later
+entries were beyond the 16-entry log. From the payload/commit anchors of the
+third wake the firmware start is ≈ command + 2.65–2.95 s, which puts the dock's
+disconnect at ≈ 2.4–2.7 s on the firmware clock; the earlier slow-transaction
+log showed `0x20` sub 12 / 14 / 3 commands at 2.2–2.55 s.
+

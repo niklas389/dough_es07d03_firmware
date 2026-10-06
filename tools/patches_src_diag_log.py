@@ -151,7 +151,7 @@ for a, t in CALLS[:N_BOOT]:
     boot_prog += chk(a, t)
 boot_prog += state_stub('h_port', R7, R6, R10, R11, 0x22F307)     # beq r7,r6 at 0x22F300; cache r11, port r10
 # mailbox commands (main CPU -> PM51) in the window MB_LO..MB_HI ms: value = cmd << 16 | (sub & 0xF) << 12 | arg0 << 4
-MB_LO, MB_HI = 1500, 4500
+MB_LO, MB_HI = 2100, 4000
 mbin_prog = [
  'mb_in:',                          # replaces movhi r14,0x45 at 0x238FD5 (r12 = cmd, r13 = sub, r11 = length, r17 = data)
  mh(R14, 0x20), ('bg.sb', {'Y': MBC, 'A': R14, 'B': R12}), ('bg.sb', {'Y': MBC + 1, 'A': R14, 'B': R13}),
