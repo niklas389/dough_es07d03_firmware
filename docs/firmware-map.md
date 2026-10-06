@@ -405,7 +405,12 @@ relight while `pwr` bit 1 is set.
 - The DP receiver's hot-plug control has not been located yet.
 - `patches/panel-prepower.json` runs the vendor panel-on at `0x2620CC`
   (where the stock logo powered the panel) with the backlight held off and
-  finishes it at the next panel-on call.
+  finishes it at the next panel-on call. v2 replaces the 550 ms busy-wait of
+  that sequence with a countdown in slot 8 of the 1 ms ISR timer table
+  (`sub_240C55`: 9 slots, active flags `0x455171`+n, halfword counters
+  `0x45517A`+2n, cleared at 0; no vendor code uses them) and completes
+  `pnl` = 1 / output mode 0 from the main loop (hook on the port-task call
+  `0x262114`); see §17.
 
 ## 14. Board components (identified)
 
@@ -758,3 +763,12 @@ Name transfers from LG strings are mostly PQ/HDR/GOP functions (e.g.
 - LG panel-off `0x24F8C8`: backlight off, 100 ms (ours 320 ms), mode 2
   (ours 1), 80 ms, mode 0, eDP off, 10 ms (ours 20), VLCD off, 1200 ms off
   timer (`0x538FAA`); otherwise the same order as our `sub_245860`.
+
+**`panel-prepower` v2** (non-blocking, after the LG model): boot runs the
+vendor panel-on up to the link training, starts a 550 ms countdown (ISR timer
+slot 8) and returns, so the main loop and the front-end port set-up start
+~0.55 s earlier. The main loop then sets `pnl` = 1 and output mode 0 (vendor
+order). A panel-on before the countdown ends waits for the rest, so training
+→ backlight stays ≥ 550 ms; a panel-off during the countdown runs normally.
+Whether this shortens the wake depends on the port enable being on the
+critical path (not measured yet).

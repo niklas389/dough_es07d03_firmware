@@ -1,41 +1,59 @@
 {
   "name": "panel-prepower",
-  "summary": "Power the panel up (backlight off) during start-up so only the backlight step remains when the input is ready",
-  "status": "experimental, hardware test pending",
+  "summary": "Power the panel up (backlight off) during start-up; the 550 ms panel wait runs as a timer in the main loop instead of blocking the start",
+  "status": "experimental, hardware test pending (v2; v1 = panel-prepower-v1)",
   "requires": [
     "standby-lhs"
   ],
   "edits": [
     {
       "addr": "0x203A00",
-      "old": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-      "new": "f0ca51a8d0c00046e4083e5dc0e00401f0c73ff0d0c00046e4083e29f8073ff0e4083ee3c0e00401f0c73ff1d0c00066c0c00901e4083ec3f8073ff198c1f8c73ff0e4083f45f80751a8c0c00401f8063ff0e4083c539c3c0d2100c0e00761ece75f3af0e7004854e701d0e00132c0e008a1f0c751a8d0c000d6c0e0040198c1f8c73ff1e4083d2ac0e00401f8073ff10d21029c24e40ca381",
-      "asm": "panel-prepower code in linker padding (0x203A00); flags PRE/PREQ at 0x203FF0/0x203FF1"
+      "old": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "new": "c0e00401f0c73ff0d0c10046e40000b8f0ca51a8d0c00046e4083e3dc0e00401f0c73ff0d0c20042e4083e09f8073ff0e4083ec3c0e00401f0c73ff1d0c00066c8600226e4083e7bf8073ff198c1f8c73ff0c0e008a1c8c00226ecc7518b98c1f8c75179e4083f01c0e00401f0c73ff0d0c1003285299c380d21040d4100c9400258c0e008a1f0e75179d0e000829861e407b4ea9d5fd140ff66c0e008a1f807517998c1f8c751a8c0e0040198c2f8c73ff09860e40724420d41020d21069c288529c0e00401f0c73ff0d0c100f6c0e008a1f0e75179d0e000969c3c0d2100e7ffff120d21029c24e4056fbf",
+      "asm": "panel-prepower v2 code part 1 in linker padding (0x203A00); PST/PREQ at 0x203FF0/0x203FF1; ISR timer slot 8"
+    },
+    {
+      "addr": "0x203B08",
+      "old": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "new": "f0c751a8d0c0007ec0c00401f0c63ff054c601e4083aa5f80751a8f8075179c0c00401f8063ff0e4083a999c3c0d2100c0e00761ece75f3af0e7004854e701d0e00132c0e008a1f0c751a8d0c000d6c0e0040198c1f8c73ff1e4083b70c0e00401f8073ff10d21029c24e40ca1c7",
+      "asm": "panel-prepower v2 code part 2 (panel-off hooks, boot hook) in linker padding (0x203B08)"
     },
     {
       "addr": "0x245925",
       "old": "f0ca51a8",
       "new": "e7f7c1b7",
-      "asm": "b.lbz r6,0x51a8(r10) -> b.j 0x203a00 (sub_245919 entry: lbz r6,pnl -> prepared-panel check)"
+      "asm": "b.lbz r6,0x51a8(r10) -> b.j 0x203a00 (sub_245919 entry: lbz r6,pnl -> preparation check)"
     },
     {
-      "addr": "0x245991",
-      "old": "c0c00901",
-      "new": "e7f7c127",
-      "asm": "b.movhi r6,0x48 -> b.j 0x203a24 (sub_245919 tail: stop before re-detect/backlight when preparing)"
+      "addr": "0x24597D",
+      "old": "c8600226",
+      "new": "e7f7c16f",
+      "asm": "b.ori r3,r0,0x226 -> b.j 0x203a34 (sub_245919 550 ms wait: countdown instead of busy-wait when preparing)"
+    },
+    {
+      "addr": "0x245869",
+      "old": "f0c751a8",
+      "new": "e7f7c53f",
+      "asm": "b.lbz r6,0x51a8(r7) -> b.j 0x203b08 (sub_245860 guard: also run while a preparation is in progress)"
     },
     {
       "addr": "0x245877",
       "old": "f80751a8",
-      "new": "e7f7c39f",
-      "asm": "b.sb 0x51a8(r7),r0 -> b.j 0x203a46 (sub_245860: clear PRE with pnl)"
+      "new": "e7f7c551",
+      "asm": "b.sb 0x51a8(r7),r0 -> b.j 0x203b1f (sub_245860: clear preparation state with pnl)"
+    },
+    {
+      "addr": "0x262114",
+      "old": "e7f9a366",
+      "new": "e7f4335c",
+      "asm": "b.jal 0x22f2c7 -> b.jal 0x203ac2 (main loop: finish preparation after 550 ms, then sub_22F2C7)"
     },
     {
       "addr": "0x2620CC",
       "old": "e400d712",
-      "new": "e7f43314",
-      "asm": "b.jal 0x268c55 -> b.jal 0x203a56 (boot: prepare panel, then sub_268C55)"
+      "new": "e7f434ce",
+      "asm": "b.jal 0x268c55 -> b.jal 0x203b33 (boot: prepare panel, then sub_268C55)"
     }
   ],
-  "notes": "At boot (0x2620CC, where the stock logo powered the panel) the vendor panel-on runs with the backlight held off; the later panel-on from mode setup only does the re-detect check and backlight-on. Panel-off clears the state. The vendor already keeps the panel powered across mode changes (No signal -> picture), so the panel sees the same transition as stock. Boot is blocked for the panel sequence (~0.6-0.8 s) as with the stock logo. Generated by tools/patches_src_panel_prepower.py."
+  "notes": "Boot (0x2620CC): vendor panel-on up to the link training, then a 550 ms countdown (1 ms ISR timer slot 8, 0x455179/0x45518A) instead of the busy-wait; the main loop then sets pnl = 1 and output mode 0 (vendor order). A panel-on before the countdown ends waits for the rest, so training -> backlight stays >= 550 ms. Panel-off also runs during the countdown. Same idea as the LG 28MQ780 panel state machine. Part 2 of the code uses 0x203B08, which the current diag-log also uses: build without diag-log. Generated by tools/patches_src_panel_prepower.py."
 }
