@@ -20,7 +20,7 @@ from the usual public sources. Flashing is done with `specflash` from
 | `tools/aeon/funcs.py`, `xrefs.py`, `fdis.py` | Function discovery, xref database, annotated listings |
 | `tools/aeon/names.txt` | Identified functions |
 | `tools/aeon/aeonasm.py` | Minimal assembler used for code-cave patches |
-| `tools/patches_src_*.py` | Sources that generate the code-cave patches (`standby-lhs`, `panel-t12`, `panel-prepower`, `audio-off`, `eeprom-fast-read`, `popup-flat`, `popup-round`, `diag-poke`, `bl-supply-off`, `diag-log`) |
+| `tools/patches_src_*.py` | Sources that generate the code-cave patches (`standby-lhs`, `panel-t12`, `panel-prepower`, `audio-off`, `eeprom-fast-read`, `popup-flat`, `popup-round`, `diag-poke`, `bl-supply-off`, `diag-log`, `wake-no-replug`) |
 | `tools/poke.sh`, `tools/glowtest.sh`, `tools/regdump.sh`, `tools/watch.sh`, `tools/logread.py`, `tools/lhspower.sh` | Live register read/write on a `diag-poke` build; guided backlight-glow test (`0x434` bit 7, then bit 6 driven low and restored, pausing for observation); register range dump for before/after diffs; periodic power-state log; `diag-log` reader; guided link-held standby power test (`0x44A` bits 7/6/2/1 driven low one at a time and restored) |
 
 ## Quick start
@@ -54,6 +54,7 @@ output before writing it.
 | `standby-lhs` | **hardware-tested** (2026-10-05: no panel flash at the end of the countdown; reaches deep standby, 1.2 W, stays there; wake and power key work; power-key fix 2026-10-04) | Link-held standby: while the source keeps the DP link up without video, stay dark with the standby LED instead of looping through "No signal"; wake on valid video or key; deep standby once the link is released. Includes panel-seq (use one or the other) |
 | `no-logo` | **experimental** | Skips the 2–3 s power-on logo and the forced input re-detection plus panel off/on that follow it; power-on then takes the standby-wake path |
 | `pm51-wake-recheck` | **experimental** | PM51 standby controller: port activity wakes the monitor only if it is still present 200 ms later (the vendor check is a stub that always wakes); keys unaffected |
+| `wake-no-replug` | **experimental** | After a deep-standby wake (PM `0x3AA` bits 4:2 = 1), does not re-send the unchanged port configuration to the input front-end in the first 5 s; that re-send made it drop HPD for ~0.2 s, so the PC removed and re-added the monitor (other monitors blank). Power-key and mains starts unchanged. Shares its cave with the current `diag-log`: build without `diag-log` |
 | `panel-prepower` | **experimental** | Powers the panel up (backlight off) during start-up, so only the backlight step is left when the input is ready; requires `standby-lhs` |
 | `audio-off` | **experimental** | Skips the headphone DAC power-up (~350 ms of anti-pop waits at every start and wake); the 3.5 mm output stays silent |
 | `popup-flat` | **hardware-tested** | One-line OSD popups (No signal, input name, …) as one see-through gray box with white centred text, without the empty header band; the menu is unchanged |

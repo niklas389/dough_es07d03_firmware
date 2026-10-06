@@ -628,3 +628,14 @@ commands 2.1–4.0 s): 2.14 `0x20` sub 3 (8); 2.21 `0x20` sub 12 (1);
   unchanged (IRQ_HPD for a link retrain only); a long pulse only when they
   change. Next step: capture the update's payload (current `diag-log`).
 
+**Payload of the update** (2026-10-07, identical after a deep-standby wake and
+after a power-key start): `0x20` sub 12 `01`; `0x20` sub 14 `08 00 00 00`;
+`0x20` sub 14 `08 01 02 8A`; `0x60` sub 2 `08 01`; `0x20` sub 0
+`01 08 00 00 00 08 07 00 00`; (`0x20` sub 12 `00`). Port 8 is most likely the
+DP input (inference). The firmware therefore re-sends the same configuration
+on every start (case (a): fixable in the main firmware).
+
+**PM wake status `0x3AA`** read after the start (2026-10-07): deep-standby wake
+`0x04`, power key from soft-off `0x0C`, mains power-up `0x00` (bits 4:2 =
+PM51 state at wake: 1 standby, 3 soft-off, 0 cold). Used by `wake-no-replug`.
+
