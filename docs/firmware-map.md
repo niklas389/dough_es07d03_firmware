@@ -888,3 +888,36 @@ right after writing the request), so their "0 ms" says nothing about the
 transfer speed. A `kscreen-doctor` disable/enable without standby produced no
 other transaction. The log changed while it was read (~6 min for 512 bytes),
 so its order is mixed. `diag-log-mb` now skips posted messages.
+
+## 20. Port wake: our PM51 vs LG 28MQ780 (2026-10-07)
+
+**Report:** a friend's monitors (latest build, no diagnostics; USB-C through a
+dock, DP directly from a GPU) stayed in standby (no LED/panel change) when the
+USB-C source became active; a manual wake made USB-C work; the stock firmware
+woke. Since nothing woke, `wake-no-replug` (main firmware) is not involved;
+the PM51 wake decision is. Event 2 (port activity) comes from PM `0x0386`
+bit 5 (with `0x038B`) or `0x038B` bits 2:0 (`0x5CCA`/`0x5D31`);
+`pm51-wake-recheck` re-reads exactly these after 200 ms and stays asleep if
+they are clear. A one-shot event, or bits that clear on read, are lost: most
+likely cause (not verified on the friend's monitor).
+
+**LG 28MQ780 PM51** (flash image `0x11080` bank 0, `0x21080` bank 1; same
+SDK, event code at XDATA `0x5425`, ours `0x5E89`):
+- Event classifier `0x427E` (ours `0x5BAA`): on port activity it finds the
+  port (`0x8E98`) and raises event 2 only if the monitor is in automatic input
+  mode (`0x53A1` bit 0; the port is stored in `0x5426`) or the port is the
+  selected input (`0x5426`/`0x5427`). Activity on other ports does not wake.
+- Wake decision `0x7FF0` (ours `0x745A`): event 2 → `0x5C68` (ours: stub
+  `0x9D54`, always wake). `0x5C68` checks the port (index < 6, type < 10),
+  switches the port receiver on (`0x3A2B`), waits 30 ms (`0xABEB`), tests a
+  status bit (`0x04`) and only then continues with the port set-up (150 ms) and
+  the wake. The code is not in our PM51, and LG's DP receivers are in the
+  scaler, ours behind the MSB3300, so it cannot be copied as is.
+- Our PM51 also keeps the wake event and port: on the wake transition
+  `0x40F4` copies `0x5E89`/`0x5E8A` to `0x5E8B`–`0x5E90`. Whether the main
+  firmware uses the port for the input choice is not checked.
+
+**Automatic input selection:** "No signal" takes 30 s+ with "Select
+Automatically" and less with a fixed input (friend's report). The no-signal
+threshold per port is 400–500 passes of 20 ms (8–10 s) in our firmware and 100
+(2 s) in LG's for the same port classes (§17); scanning several ports adds up.
