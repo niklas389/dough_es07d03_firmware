@@ -628,9 +628,13 @@ commands 2.1–4.0 s): 2.14 `0x20` sub 3 (8); 2.21 `0x20` sub 12 (1);
 - `0x20` sub 0 (`sub_23959E`, 9 bytes) is the port configuration sent by
   `sub_239618`; data[0] is the constant 1, data[1] the port type (`+4` of the
   table).
-- The PM51 also writes the mailbox registers (`0x4D0B`–`0x4E53`), so the
-  partner that executes these commands is a third processor, most likely the
-  input front-end MSB3300 (own R2 firmware; V108's `010F` on this monitor).
+- Correction (2026-10-07): the PM51 is the mailbox server. Its main loop
+  (`0x9574`) calls `0x9D02` every pass while its state `XDATA 0x5E6B` = 3
+  (awake); `0x9D02` checks `0x1033C0` and runs `0x4C4C`, which reads the
+  request (`0x1033C1`–`C9`, data window `0x1033D0`–`EF` in 32-byte blocks),
+  executes it (`0x64A4`, arguments from `C2`–`C4`) and clears `0x1033C0`.
+  Whether `0x64A4` forwards commands to the MSB3300 front-end is not
+  checked.
 - DP-correct behaviour on wake: no hot-plug event when the capabilities are
   unchanged (IRQ_HPD for a link retrain only); a long pulse only when they
   change. Next step: capture the update's payload (current `diag-log`).
@@ -805,3 +809,39 @@ the stock firmware).
   analysis does not resolve. Not used for patches: proving a block unreachable
   needs a reference check per block, and a wrong guess fails only when the
   rare path runs.
+
+## 19. Timing log of a deep-standby wake (2026-10-07)
+
+Build: final list + `port-accept` + `panel-prepower` v2 + `diag-poke` +
+`diag-log` (head-area version). Stopwatch `kscreen-doctor` enable → picture
+6.8 s; log (firmware clock):
+
+| Time | Event |
+|---|---|
+| 0.113 | main init start |
+| 0.894 | init done (EEPROM, scaler) |
+| 0.911–0.966 | `0x80` sub 4 (`0x0B`, `0x0C`); front-end set-up done |
+| 0.981–1.180 | boot panel preparation (VLCD, eDP, training; 550 ms countdown from here) |
+| 1.180–1.508 | `0x20` sub 1 ×2, sub 12 ×4, `0x60` sub 6 (~66 ms each) |
+| 1.511 | main loop |
+| 1.511–1.787 | `0x70` sub 255, `0x20` sub 3 ×2, update: sub 12 begin, `0x60` sub 2, **sub 0 enable 1.784**, sub 12 end (no sub 14: `wake-no-replug`) |
+| 1.800–2.081 | `0x20` sub 3 ×6 (~69 ms each) |
+| 2.151 | `panel-prepower` ready (main loop blocked by the mailbox until then; not on the critical path) |
+| **2.380** | port 1 status `0x03` (signal), 0.60 s after the enable |
+| **2.983** | port 1 state 3 → 4 (accepted), 0.603 s = 30 × 20 ms (`port-accept`) |
+| **3.059** | backlight on |
+
+So 6.8 − 3.06 ≈ 3.7 s pass between the `kscreen-doctor` command and the
+start of the firmware clock (PC-side link start, PM51 wake, boot loader).
+
+**Mailbox speed:** after a deep-standby wake (and after a power-key start,
+2026-10-06) every transaction takes 66–69 ms; after a mains start (log of
+the same day: `0x80` sub 4 `0x0C` waits 4.56 s for the cold PM51, then)
+4–6 ms. The PM51 code path is the same (`0x4C4C`; no fixed waits, the copy
+loops are short). Working hypothesis, not verified: the PM51 runs ~13×
+slower after leaving standby (clock source or divider set for standby and not
+restored). Candidate: `sub_7E4C` (`0x0391`/`0x0372`/`0x03B8` 2-bit fields;
+standby entry calls it with 0 or 1, the wake path `0x745A` with 1). The 9
+transactions before the port enable cost ~0.55 s more than at mains speed.
+Check: compare PM registers `0x0300`–`0x04FF` after a mains start and after a
+wake (`tools/regdump.sh`).
