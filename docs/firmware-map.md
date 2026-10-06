@@ -470,7 +470,9 @@ Packages supplied by the owner (not committed):
 | `BD_EVE_4K_Release_20220216_V106_rev988_USB update.bin` | Feb 16 2022 | same package layout, checksums OK |
 | `ES07D03_V108_rev1148_USB update.bin` | Dec 19 2022 | last public release; version string `V108` |
 | `ES07D03_Beta03_rev1169-E771_USB_update.bin` (base of this project) | Jul 29 2024 | version string `V108T` |
+| `BD_EVE_4K_Release_20211126_V105_rev957_USB update.bin` | Nov 26 2021 | oldest public ES07D03 package; same layout, contains `010F` (MSB3300 firmware) like V106/V108 |
 | `dough_es07e91_v1.0.19_USB-update.bin` (Spectrum Black, OLED) | 2025 | Realtek **RTD2739** scaler, panel LW315AQQ; different architecture, nothing transferable at code level |
+| LG 28MQ780 `28MQ780_MSTAR_MST9W00V4_V3.3.0` (raw scaler flash image) | Mar 17 2022 | MStar **MST9W00** (other scaler generation), same packaging style (`TEL` table at `0x33080`, deflate main image at `0x34880`, 3.2 MB inflated); TV-SDK style code with debug strings (`msAPI_*`, `MDrv_*`, `HDCPHandler_*`, EDID variant names, `HPD : %d`, `Check Signal : %d`); different code base, nothing transferable at code level |
 
 - PM51 standby controller, second 8051 image and `sboot` are byte-identical in
   V106, V108 and Beta03. Only the main runtime and `secu_r2` differ.
