@@ -88,7 +88,11 @@ for i in range(first, min(count, first + N)):
     if t_name == 'h_gate':
         shown = '%d' % val
     elif t_name == 'h_mb':
-        shown = 'cmd 0x%02X sub %d took %d ms' % (val >> 16, (val >> 12) & 0xF, (val & 0xFFF) * 2)
+        if 'mailbox_window_ms' in P:
+            name = 'Q mailbox cmd   '
+            shown = '0x%02X sub %2d  data[0] 0x%02X' % (val >> 16, (val >> 12) & 0xF, (val >> 4) & 0xFF)
+        else:
+            shown = 'cmd 0x%02X sub %d took %d ms' % (val >> 16, (val >> 12) & 0xF, (val & 0xFFF) * 2)
     elif t_name == 'w_lp':
         w = WATCH.get('0x%04X' % (val >> 8), {})
         name = 'W %-16s' % w.get('addr', '?')

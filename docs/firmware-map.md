@@ -583,3 +583,20 @@ firmware start ≈ command + 2.6 s):
   `+0x1C` = `0x2E`, `+0x20` = `0x43` at that moment), which points to a common
   gate rather than per-port signal timing.
 
+**Third wake with kernel log** (2026-10-07; firmware log with the main-loop
+variable watcher). Port 1 status `+0x20`: `0x03` at 3.10 s, `0x0F` (no
+signal) at 3.64 s, `0x03` again at 4.50 s; flags `+0x1C` `0x26` and port 1 →
+state 3 at 6.10 s. Kernel log (from the command): CSN disconnect +5.34 s,
+connect +5.49 s (the connector came back as DP-18), mode set +7.14 s. With
+the firmware start at about command + 2.6 s (stopwatch alignment of run 2)
+the disconnect falls at ≈ 2.7 s and the PC's mode set at ≈ 4.5 s, matching
+the second `0x03`. Readings:
+- the source's stream reaches the port within tens of ms of the PC's mode set;
+- the firmware then needs a fixed ~1.6 s (4.50 → 6.10 s; 5.17 → 6.77 s in the
+  run before) before it accepts the signal;
+- the HPD drop lies after the main loop start (2.06 s) and the first second
+  tick (2.36 s), i.e. in main-loop activity, not in the power-up of the board.
+  Candidates: the per-port set-up commands to the PM51 (`0x20` sub 0/1/3/12/14
+  from `sub_2398F9`, `sub_239618`, `sub_23979A`, `sub_2394DC`). The current
+  `diag-log` records every mailbox command between 1.5 and 4.5 s.
+

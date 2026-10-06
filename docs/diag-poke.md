@@ -58,14 +58,12 @@ stamp: panel off (`sub_245860`, only when the panel is actually on) and panel on
 the OSD timer expiry handler (`sub_258AB1`: re-enters "No signal", ends the
 logo or a popup), the OSD state-4 entry handler
 (`sub_26A7C5`, arms the 255 s countdown), the standby gate result in the
-power-save entry (`0x2613A0`) and the start-up milestones: main init start
-(`I`), init done after EEPROM and scaler/receiver set-up (`D`), main loop
-start (`M`), backlight on (`B`, with the caller of `sub_245919`;
-`0x23AED9` = relight on valid video), every port state change seen by the
-input state machine `sub_22F2C7` (`P`, port → new state) and changes of seven
-watched variables, checked once per main-loop pass (`W`: re-evaluation timer
-`0x4551B5`, `0x453C70` flag bytes, port 1 `+0x1C`/`+0x20`, OSD state, input path 1
-state; the list is in `patches/diag-log.json`, key `watch`). A 1 ms ISR hook keeps the time base. Data:
+power-save entry (`0x2613A0`), main loop start (`M`), backlight on (`B`, with
+the caller of `sub_245919`; `0x23AED9` = relight on valid video), every port
+state change seen by the input state machine `sub_22F2C7` (`P`, port → new
+state) and every main-CPU → PM51 mailbox command between 1.5 and 4.5 s (`Q`:
+command, sub-command, first data byte), to find the command that drops HPD
+during a wake. A 1 ms ISR hook keeps the time base. Data:
 `0x203968` (ms), `0x20396C` (event count), `0x203970` (ring, 8 bytes per
 entry). The current build keeps the **first** 16 events (start-up analysis) and only
 counts later ones (`KEEP_FIRST` in the generator); `logread.py` says which. Read with `tools/logread.py`. The log starts empty at every firmware
@@ -82,4 +80,5 @@ controller wake, boot loader, image unpacking).
 | `diag-log` (`3e65d35`) | not kept (checkpoints after the eight calls between `D` and the panel prepower) | `3e65d35` | v1 + I, D, M, B, C |
 | `diag-log` (`c5f9fd5`) | not kept | `c5f9fd5` | v1 + I, D, M, B, C (inside `sub_261FA8`), Q ≥ 20 ms |
 | `diag-log` (`d9e1508`) | not kept | `d9e1508` | v1 + I, D, M, B, Q ≥ 100 ms, P, Y |
-| `diag-log` (current) | `patches/diag-log.json` | see git log | v1 + I, D, M, B, P, W |
+| `diag-log` (`bdbf388`) | not kept | `bdbf388` | v1 + I, D, M, B, P, W (main-loop variable watcher) |
+| `diag-log` (current) | `patches/diag-log.json` | see git log | v1 + M, B, P, Q (all mailbox commands 1.5–4.5 s) |
