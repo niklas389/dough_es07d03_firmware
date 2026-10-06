@@ -656,4 +656,9 @@ PM51 state at wake: 1 standby, 3 soft-off, 0 cold). Used by `wake-no-replug`.
   Hypothesis: during the first seconds after a mains start `0x3AA` still holds
   an older value, so the check suppresses the pulse on a cold start too. The
   patch now stores the value it reads at `0x2039F8` (diag-poke readable).
+- v2 deep-standby wake test (2026-10-07, kernel log with `drm.debug=0x104`):
+  no CSN disconnect, no connector removal, only DP short-pulse (IRQ_HPD)
+  handling by the PC at about +0.4–1.4 s and +6 s; picture after 9.3 s
+  (stopwatch; 10.2–13.1 s with the vendor pulse). The mains-start EDID
+  fallback was not caused by the patch (check read `0x00`, so it did not act).
 
