@@ -557,3 +557,26 @@ assuming the stopwatch and log runs are comparable.
 **Boot cost before the main firmware:** stage 2 of the boot loader CRCs the
 main image and inflates 0xF148B bytes of deflate data to 0x250678 bytes
 (§4). The 1 ms time base of `diag-log` starts only after that.
+
+**Deep-standby wake, PC side** (`drm.debug=0x104` kernel log through the
+Synaptics MST dock, 2026-10-06, aligned by command time and stopwatch;
+firmware start ≈ command + 2.6 s):
+
+| From command | PC / dock | Firmware clock |
+|---|---|---|
+| 0 – 1.3 s | stream to DP-17 allocated, mode set done | (deep standby) |
+| +1.9 s | I²C over MST to the monitor | (PM51 wake) |
+| +5.37 s | dock CSN: DP-17 **disconnected**, connector removed, desktop reconfigured | ≈ 2.75 s |
+| +5.59 s | dock CSN: DP-17 connected again (HPD low for ~0.2 s) | ≈ 2.97 s |
+| +6.67 s | stream re-allocated, mode set done | ≈ 4.05 s |
+| +10.3 s | — | 7.703 s port 1 → state 3/4, 7.777 s backlight |
+
+- During the restart the monitor drops HPD for ~0.2 s. DP requires HPD to stay
+  asserted unless the sink is powered off; the drop makes the PC remove and
+  re-add the monitor (other monitors blank, ~1 s of PC-side set-up). Where the
+  firmware or the PM51 drops HPD is not located yet.
+- Video is detected at 7.703 s in two separate wakes (identical to the ms)
+  although the PC timing differed: the remaining wait is timed by the
+  firmware, ~3.6 s after the source is sending again. Power-key start: port 1
+  state 1 at 2.10 s → 3/4 at 5.69 s.
+

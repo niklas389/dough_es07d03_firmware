@@ -61,11 +61,11 @@ logo or a popup), the OSD state-4 entry handler
 power-save entry (`0x2613A0`) and the start-up milestones: main init start
 (`I`), init done after EEPROM and scaler/receiver set-up (`D`), main loop
 start (`M`), backlight on (`B`, with the caller of `sub_245919`;
-`0x23AED9` = relight on valid video), every main-CPU → PM51 mailbox transaction
-(`mailbox_query` `0x238FA5`) that takes 100 ms or more (`Q`: command, sub-command,
-duration; the entry time is the end of the transaction; a normal one takes about
-66 ms) and every change of a port state (`P`) or input path state (`Y`) seen by
-the input state machine `sub_22F2C7` (index → new state). A 1 ms ISR hook keeps the time base. Data:
+`0x23AED9` = relight on valid video), every port state change seen by the
+input state machine `sub_22F2C7` (`P`, port → new state) and changes of seven
+watched variables, checked once per main-loop pass (`W`: re-evaluation timer
+`0x4551B5`, `0x453C70` flag bytes, port 1 `+0x1C`/`+0x20`, OSD state, input path 1
+state; the list is in `patches/diag-log.json`, key `watch`). A 1 ms ISR hook keeps the time base. Data:
 `0x203968` (ms), `0x20396C` (event count), `0x203970` (ring, 8 bytes per
 entry). Read with `tools/logread.py`. The log starts empty at every firmware
 start; a deep-standby wake clears it.
@@ -80,4 +80,5 @@ controller wake, boot loader, image unpacking).
 | `diag-log-v1` | `patches/diag-log-v1.json` | `40e8def` | F, N, S, E, G |
 | `diag-log` (`3e65d35`) | not kept (checkpoints after the eight calls between `D` and the panel prepower) | `3e65d35` | v1 + I, D, M, B, C |
 | `diag-log` (`c5f9fd5`) | not kept | `c5f9fd5` | v1 + I, D, M, B, C (inside `sub_261FA8`), Q ≥ 20 ms |
-| `diag-log` (current) | `patches/diag-log.json` | see git log | v1 + I, D, M, B, Q ≥ 100 ms, P, Y |
+| `diag-log` (`d9e1508`) | not kept | `d9e1508` | v1 + I, D, M, B, Q ≥ 100 ms, P, Y |
+| `diag-log` (current) | `patches/diag-log.json` | see git log | v1 + I, D, M, B, P, W |
