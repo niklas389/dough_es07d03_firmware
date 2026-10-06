@@ -950,3 +950,17 @@ sets the port state 2 and every input path that uses the port (port `+0x12`
 mask) path state 5, which `sub_22F2C7` hands to `sub_23ADAF`. That the
 automatic scan advances per port on this decision is inferred from the
 timing (30 s+ over 3–4 ports), not traced.
+
+**Front-end port ids and the start-up HPD sequence:** the front-end port table
+`0x3B4288` (6 × `0x18`) holds the front-end id at +4 and a type at +8:
+id 7 (type 8), id 8 (7), `0x0B` (1), `0x0C` (3), 0 (4), 0 (2). Id 8 is the DP
+connector (the id in the update of a DP wake); id 7 is most likely USB-C (the
+other DP-class input; inference). `sub_268668` (start-up, flag set) sends
+`(id, 0, 0)` (HPD low) for ids 7, 8, `0x0B`, `0x0C`, 0, then the port
+configuration (`sub_239223`; table entries 3 and 4 depend on settings
+`+0xC5`/`+0xC6`), then `(id, 1, 650)` for all. Whether `(id, 1, 650)` only
+releases HPD or is itself a pulse (650 µs would be an IRQ_HPD) is unknown;
+the front-end firmware (`010F`) contains a "Short HPD" path.
+
+**`wake-no-replug` v3:** drops only `(8, 0, 0)` after a deep-standby wake;
+v2 dropped every sub 14 command (all ports) in that window.
