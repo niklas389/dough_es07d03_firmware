@@ -313,7 +313,7 @@ Disassembled with radare2 (`-a 8051`). Keil C51 style: XRAM variables at `0x5000
 | `0x0365` low nibble | 4 (no wake) |
 | keys (`0x6881`, debounced, `0x7847` reads key pins) | `0x0C` and up |
 | `0x0386` bit 7: main-firmware mailbox (`0x3EC2..0x3EF3`) | 5/6/7 (command 4 → 5, 5 → 6 power off, else 7) |
-| message channel `0x6E0A` (only if `0x5E6D` bit 0) | `0x0A` |
+| message channel `0x6E0A` (only if `0x5E6D` bit 1: `0x53EC` shifts right, then bit 0 is tested) | `0x0A` |
 | port activity `0x7D10` | 2, port index in `0x5E8A` |
 | software queue `0x61E9` (mailbox dispatcher `0x5F35`; commands → events 5/6/7) | that value |
 | `0x5E87` | 4 |
@@ -321,8 +321,8 @@ Disassembled with radare2 (`-a 8051`). Keil C51 style: XRAM variables at `0x5000
 - Port activity is configured by the constant table at code `0x2928`, `0x23` bytes per port, 6 ports.
   - Byte +0 is the port type.
   - Bytes +1..+4 are a 32-bit config. Port wake is enabled when bit 3 of the last byte is set (ports 2–5).
-  - Type 1 triggers on PM status `0x0386` bit 5; types 2 and 3 on `0x038B` bits 0 and 1 (mask table at code `0x291E`).
-  - XRAM `0x5E81+port` ≠ 0 suppresses a port.
+  - Type 1 triggers on PM status `0x0386` bit 5; types 2, 3 and 4 on `0x038B` bits 0, 1 and 2 (mask table at code `0x291E`).
+  - XRAM `0x5E81+port` ≠ 0 makes the finder skip a port; if no port matches, the finder returns port 5, and event 2 is raised anyway (§21).
 
 **Wake decision** `0x745A` (after re-arming PM regs `0x03A6`/`0x03BC`)
 
@@ -908,14 +908,11 @@ SDK, event code at XDATA `0x5425`, ours `0x5E89`):
   mode (`0x53A1` bit 0; the port is stored in `0x5426`) or the port is the
   selected input (`0x5426`/`0x5427`). Activity on other ports does not wake.
 - Wake decision `0x7FF0` (ours `0x745A`): event 2 → `0x5C68` (ours: stub
-  `0x9D54`, always wake). `0x5C68` checks the port (index < 6, type < 10),
-  switches the port receiver on (`0x3A2B`), waits 30 ms (`0xABEB`), tests a
-  status bit (`0x04`) and only then continues with the port set-up (150 ms) and
-  the wake. The code is not in our PM51, and LG's DP receivers are in the
-  scaler, ours behind the MSB3300, so it cannot be copied as is.
+  `0x9D54`, always wake). `0x5C68` measures the signal on the scaler's own
+  receiver before waking; details and corrections in §21.
 - Our PM51 also keeps the wake event and port: on the wake transition
-  `0x40F4` copies `0x5E89`/`0x5E8A` to `0x5E8B`–`0x5E90`. Whether the main
-  firmware uses the port for the input choice is not checked.
+  `0x40F4` copies `0x5E89`/`0x5E8A` to `0x5E8B`–`0x5E90` (hand-over to the
+  main firmware: §21).
 
 **Automatic input selection:** "No signal" takes 30 s+ with "Select
 Automatically" and less with a fixed input (friend's report). The no-signal
@@ -930,7 +927,9 @@ ports). +2 is the current port (`0x47FAF5`), +8…+0xF settings `+0xBF`…`+0xC2
 The PM51 reads the request from the mailbox registers (`0x8958`: 24 bytes
 from bank `0x1033` into XDATA `0x5E93`…) and, for command 1 (standby), copies
 word 2 (`0x5E97`) into its suppress list `0x5E81+port` (`0x41A8` → `0x95CB`),
-which the port finder `0x7D10` honours. Same scheme as LG's PM51.
+which the port finder `0x7D10` honours. **Correction (§21):** in our PM51 this
+does not filter the wake. The finder skips suppressed ports but then returns
+port 5, and event 2 is raised in any case. LG filters in the classifier instead.
 
 **PM51 time base:** the timer interrupt `0x2511` (1 ms) reloads `0x16`/`0x17`
 from 1000 and sets bit `0x21.0` every second; the task `0x880F` (run by the
@@ -964,3 +963,101 @@ the front-end firmware (`010F`) contains a "Short HPD" path.
 
 **`wake-no-replug` v3:** drops only `(8, 0, 0)` after a deep-standby wake;
 v2 dropped every sub 14 command (all ports) in that window.
+
+## 21. LG robustness features re-checked
+
+**LG wake check `0x5C68` (PM51), fully traced.** Argument 0/1 selects the
+candidate port from `0x5426`/`0x5427`.
+1. Port index ≤ 6 and type ≤ 10, else no wake.
+2. Receiver set-up writes (`0x2B7C` with `0x36`/`0x34`), 30 ms.
+3. Config bit 2 of the port's type word (code table `0x2830`, the same layout
+   as ours at `0x2928`; never set on either monitor), then mux/port selection
+   (`0x3A2B`, `0x8A61`, `0x97DB`) and port set-up `0x585B`.
+4. 150 ms, then the measurements:
+   - `0x9624`: a clock measurement; above 340 → no wake. Unit and purpose
+     not identified.
+   - `0xA6DA`: a 14-bit value at receiver offset `+0x40`.
+   - `0xA707`: a 13-bit value at `+0x3E`, read from the scaler's receiver
+     registers `0x17xxxx` (per-port base `0x0200`/`0x0400`/`0x0600`).
+5. Wake if the first value is neither `0x3FFF` nor ≤ 10 and the second is
+   neither `0x1FFF` nor ≤ 200, i.e. a measured, non-overflowing timing (most
+   likely line period and lines per frame).
+6. Alternatively wake if:
+   - a PM detect bit (`0x9449`);
+   - a receiver status (`0xA25C`, bits `0x88`);
+   - and `0xA5BC` bit 1
+   
+   are all set.
+7. Under some receiver status (`0xA25C`, `0x9AF1`, `0xA67F` bit 1) it drives
+   the port's HPD low for 100 ms (`0x80C3`).
+
+The earlier note "tests status bit `0x04`" (§20) was wrong: that is the static
+config flag.
+
+**Our PM51 has the same SDK helpers but does not use them.**
+- `0x97B3` = LG `0xA6DA` and `0x97E0` = LG `0xA707` are only called once each,
+  with argument 0, from the list at `0x7BC0`.
+- The check itself is replaced by the stub `0x9D54`.
+
+**Port wake in our PM51 is not filtered by input.**
+- The finder `0x7D10` only matches ports whose type has bit 1/2/3 set (ports
+  2–5 = PM ports 1–4: `0x0386` bit 5 → port 5; `0x038B` bits 0/1/2 → ports
+  4/3/2). Ports 0 and 1 (type `0x20`; in the main firmware port 0 → front-end
+  id 7, port 1 → id 8 = DP) are never matched.
+- When no unsuppressed port matches, it returns 5.
+- `0x5D31` then raises event 2 regardless, and `0x9D54` always wakes. So the
+  stock suppress list only changes the reported port.
+- A second port path, event `0x0A` (`0x6E0A`, only if `0x5E6D` bit 1: `0x53EC` shifts right, then bit 0 is tested), does
+  return "none" for suppressed ports.
+
+LG's classifier (`0x44EA`…`0x45B9`):
+- automatic input (`0x53A1` bit 0): stores the found port in `0x5426` and
+  raises event 2;
+- fixed input: raises event 2 only if the found port equals `0x5426` or
+  `0x5427`;
+- then measures that port (`0x5C68`).
+
+**Why the LG check cannot be copied as is.**
+- On this monitor the inputs are on the MSB3300. Input selection and HPD are
+  front-end mailbox commands (§20), so the scaler receivers see only the
+  MSB3300's output.
+- The PM51 port table gives no PM detection to ports 0/1, which carry USB-C and
+  DP in the main firmware.
+- Which PM bit a DP or USB-C source actually raises on this board, and whether
+  the MSB3300 drives its output during standby, are unknown. A measurement on
+  the scaler receiver could therefore never see the source and block every
+  port wake.
+
+**Wake hand-over to the main firmware.**
+- `0x879C` writes `0x5E8B`–`0x5E92` to RIU `0x103380`–`0x103387` (byte-swapped
+  words): event at `0x103380`, port at `0x103384`, flags (`0x5E91`) at
+  `0x103386`.
+- At start, `sub_20E254` (from `sub_2411B5`/`sub_2414AE`) copies them to RAM
+  `0x453C74`–`0x453C7B` if RIU `0x10181E` == 2, otherwise it clears them.
+- `sub_23D51C` returns the event word, used in `sub_22F2C7`'s helpers,
+  `sub_261FDE` (event `0x14`), `sub_2676B2` and `sub_239B2D`. Nothing reads the
+  port.
+- LG has the same copy (`0x20C4F1`, 10 bytes) and a port getter `0x246FA6`
+  that is never called. Neither firmware uses the wake port for the input
+  choice.
+- `diag-poke` reads RAM page `0x453Cxx`, so event (`0x453C74`) and port
+  (`0x453C78`) can be read after a wake.
+
+**LG path set-up retries (`sub_230177`, ours `sub_22F2C7`, state 1).**
+- `sub_21D946`/ours `sub_21C8C1` waits a number of frames from the measured
+  frame period: LG (0x28, 0x14) = 20 frames, ours (0x20, 2) = 2 frames.
+- LG then reads a receiver status (`0x20CF6F` → `0x234480`, front-end types
+  ≤ 3). If bits 1:0 are set and fewer than 3 retries were made, it restarts the
+  port (+0x1C bit 0) and increments `0x538F65`.
+- In the port monitor `0x24588E`, a non-zero `0x538F65` requires a second
+  stable count `0x538EA4` before accepting: 100 passes (2 s), or 300 (6 s) when
+  the PM wake event is `0x12`. It then resets to 100.
+- Ours has no matched counterpart of `0x20CF6F` and no retry. On this board, the link
+  that LG checks there is the MSB3300 → scaler link, not the source link. Not
+  ported: it would add ≥ 0.3 s per set-up and 2 s after a retry without a known
+  failure it would fix.
+
+**Automatic scan.** The decision that moves to the next input on "no signal"
+was not found as an LG-matched function. Ours calls application code
+(`0x245785`/`0x245787`/`0x245919`, `sub_2676B2`, `0x23EC38`, `0x23AD3C`,
+`0x267D13`) from `sub_23ADAF`, which has no LG counterpart. Not traced further.
