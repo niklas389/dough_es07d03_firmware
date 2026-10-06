@@ -942,3 +942,11 @@ No PCON idle/power-down is used: the sleep loop polls the event classifier.
 255 (`0x882C`), is cleared when the standby request is processed (`0x41A8`),
 and the event-2 check `0x9D54` wakes only if `0x5E5E` ≥ 5 (s). Re-entering
 sleep after an ignored event does not restart the window.
+
+**`port-nosignal`** (untested): the no-signal thresholds (port `+0x1A`, set in
+`sub_260E0E`: 400 for type `0x20`, 500 for types bit 3/4/`0x400`, 200 in the
+flag case) become 200 passes (4 s). On a no-signal decision `sub_23E64A`
+sets the port state 2 and every input path that uses the port (port `+0x12`
+mask) path state 5, which `sub_22F2C7` hands to `sub_23ADAF`. That the
+automatic scan advances per port on this decision is inferred from the
+timing (30 s+ over 3–4 ports), not traced.
