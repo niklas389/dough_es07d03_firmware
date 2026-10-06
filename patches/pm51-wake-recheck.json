@@ -1,7 +1,7 @@
 {
   "name": "pm51-wake-recheck",
   "summary": "PM51: wake on port activity only if it is still present 200 ms later (replaces the always-wake stub); keys unaffected",
-  "status": "experimental, hardware test pending",
+  "status": "superseded by pm51-wake-window (loses one-shot wake events, e.g. USB-C behind a dock; 2026-10-07)",
   "space": "pm51",
   "edits": [
     {

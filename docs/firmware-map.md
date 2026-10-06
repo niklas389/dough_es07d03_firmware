@@ -921,3 +921,24 @@ SDK, event code at XDATA `0x5425`, ours `0x5E89`):
 Automatically" and less with a fixed input (friend's report). The no-signal
 threshold per port is 400–500 passes of 20 ms (8–10 s) in our firmware and 100
 (2 s) in LG's for the same port classes (§17); scanning several ports adds up.
+
+**Stock input filter for port wake** (main firmware → PM51): at power-save
+entry (`0x2613EB`) the main firmware writes a port mask into the hand-off block
+`0x48A740` +4: settings `+0x4F` = selected input + 1 → mask `~(1 << input)`
+(only that port may wake); `+0x4F` = 0 (automatic input) → mask stays 0 (all
+ports). +2 is the current port (`0x47FAF5`), +8…+0xF settings `+0xBF`…`+0xC2`.
+The PM51 reads the request from the mailbox registers (`0x8958`: 24 bytes
+from bank `0x1033` into XDATA `0x5E93`…) and, for command 1 (standby), copies
+word 2 (`0x5E97`) into its suppress list `0x5E81+port` (`0x41A8` → `0x95CB`),
+which the port finder `0x7D10` honours. Same scheme as LG's PM51.
+
+**PM51 time base:** the timer interrupt `0x2511` (1 ms) reloads `0x16`/`0x17`
+from 1000 and sets bit `0x21.0` every second; the task `0x880F` (run by the
+awake loop `0x9574` and by the sleep loop `0x9BA5`) increments XDATA `0x5E5E`
+per second. `0x5E5E` is cleared at PM51 start (`0x9D88`) and read nowhere.
+No PCON idle/power-down is used: the sleep loop polls the event classifier.
+
+**`pm51-wake-window`** (replaces `pm51-wake-recheck`): `0x5E5E` saturates at
+255 (`0x882C`), is cleared when the standby request is processed (`0x41A8`),
+and the event-2 check `0x9D54` wakes only if `0x5E5E` ≥ 5 (s). Re-entering
+sleep after an ignored event does not restart the window.
