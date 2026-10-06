@@ -1,54 +1,35 @@
 #!/usr/bin/env python3
 """Source of patches/diag-log.json. Run in an unpacked work dir (RT=runtime_0x200000.bin).
 
-DIAGNOSTIC: event log in RAM, read with diag-poke (page 0x2039xx) and
-tools/logread.py. Records who switches the panel on/off, the standby
-decisions and the start-up milestones, with a millisecond time stamp, to find
-what wakes the panel in link-held standby and where wake/start-up time goes.
+DIAGNOSTIC: timing log in RAM, read with diag-poke and tools/logread.py, to
+find the critical path of a start or a deep-standby wake.
 
-Data (linker padding, zero at every start, lost on deep standby/restart;
-with KEEP_FIRST the ring keeps the first 16 events and only counts later ones):
-  0x203968 u32  ms counter, incremented by the 1 ms timer ISR (sub_240C55)
-  0x20396C u32  number of events written so far
-  0x203970      16 entries x 8 bytes, ring (entry = count & 15):
-                +0 u32 ms, +4 u32 = hook tag << 24 | value & 0xFFFFFF
-                (tag = low byte of the hook cave's return address; value =
-                caller of the hooked function, or a result)
-Code: hook stubs at 0x203A99, ISR stub at 0x203CE0, log routine at 0x203B08,
-milestone and port-state stubs after the log routine, mailbox exit stub at
-0x2038AA, mailbox entry stub at 0x203FB8, mailbox scratch 0x2039F4-0x2039F6.
+Location (since 2026-10-07): code and data are in the zero areas of the
+uncompressed image head, which the boot loader copies to 0x200000 with the
+rest of the head; no firmware code references them (only register offsets
+with the same numeric value, added to the RIU base). So the log no longer
+shares the 0x203800 linker padding with the regular patches and combines with
+the whole build list (wake-no-replug, panel-prepower v2, ...).
 
-Hooks (all keep the hooked function's behaviour; the log routine preserves
-r3-r8 and r10-r31):
-  T  sub_240C55 entry   1 ms ISR: ms counter
-  F  sub_245860 entry   panel off (only when pnl = 1, i.e. the panel is on;
-                        pre-standby calls it on every main-loop pass)  value = caller
-  N  sub_245919 +5      panel on (after r9/r10 saved; works with bl-supply-off;
-                        only when pnl = 0, i.e. the panel is off)
-                                               value = caller
-  S  sub_258AB1 entry   OSD timer expiry handler (re-enters "No signal",
-                        ends the logo or a popup)  value = caller
-  E  sub_26A7C5 entry   OSD state 4 entry handler (arms the 255 s countdown)
-                                               value = caller
-  G  0x2613A0           standby_gate_query in the power-save entry
-                                               value = result (1 = refused)
-Start-up milestones (no value; I 0x261FF0 main init start and D 0x26208C init
-done were logged in earlier versions: 0.11 s and 0.89 s on every start):
-  M  0x2620F9           main loop about to start (after the panel prepower)
-  B  0x2459C0           backlight on (sub_245919, after the T8 wait or the
-                        prepared-panel shortcut)   value = caller of sub_245919
-  C  checkpoint after a call (list CALLS, currently empty; used 2026-10-06 to
-     find that sub_261FA8 takes 4.6 s after a mains power cut)
-  P  sub_22F2C7 0x22F300: port state (0x3B495C + n*0xB0) changed   value = n << 8 | state
-  Q  payload capture in mailbox_query sub_238FA5 (hook 0x238FD5): after the
-     main-loop start (armed by the M stub), the first configuration update
-     from 0x20 sub 12 data 1 (begin) to 0x20 sub 12 data 0 (end); per command
-     a header (cmd << 16 | sub << 8 | length) and the data, 3 bytes per entry.
-     The mailbox partner is not the PM51 (the PM51 sends on the same
-     registers); the update at ~2.2-2.3 s precedes the HPD drop of a wake.
-  (Earlier versions: Y input path state changes, W main-loop variable watcher,
-  Q with durations: every PM51 mailbox transaction takes ~66 ms; video is
-  accepted ~1.6 s after the port status shows a signal; see git history.)
+Data (zero at every start; lost on deep standby/restart):
+  0x202200 u32  ms counter, incremented by the 1 ms timer ISR (sub_240C55)
+  0x202204 u32  number of events written so far
+  0x202208      64 entries x 8 bytes: +0 u32 ms, +4 u32 = tag << 24 | value
+                (tag = low byte of the stub's return address); the first 64
+                events are kept, later ones are only counted.
+
+Events (tools/logread.py names):
+  I  0x261FF0  main init start            D  0x26208C  init done (EEPROM, scaler)
+  X  0x26209C  sub_261FA8 done (input front-end set-up)
+  R  0x2620D2  panel preparation returned (panel-prepower boot step)
+  M  0x2620F9  main loop about to start
+  P  0x22F300  port state change            value = port << 8 | state
+  W  0x262105  watched byte changed (table WATCH; checked every main-loop pass)
+  Q  0x238FD5  mailbox command sent         value = cmd << 16 | sub << 8 | data[0]
+               (until the backlight is on, so the log is not filled later)
+  N  sub_245919+5 panel on (pnl = 0)        F sub_245860 panel off (pnl = 1)
+  B  0x2459C0  backlight on                 S sub_258AB1 OSD timer end
+  E  sub_26A7C5 state 4 ("No signal")       G 0x2613A0 standby gate result
 """
 import sys, json, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aeon'))
@@ -57,206 +38,185 @@ import aeondis as A, aeonasm as S
 d = open(os.environ.get('RT', 'runtime_0x200000.bin'), 'rb').read()
 def cur(a, n): return d[a - 0x200000:a - 0x200000 + n]
 
-DATA = 0x203968                     # after bl-supply-off (0x203940-0x203967), before panel-prepower
-STUB = 0x203A99                     # right after panel-prepower (0x203A00-0x203A98)
-ISR = 0x203CE0                      # after diag-poke's stable-read cave (0x203C60-0x203CDD)
-LOGC = 0x203B08                     # after eeprom-fast-read's cave (0x203B00-0x203B05, not used in builds)
-KEEP_FIRST = True                   # keep the first 16 events (start-up analysis) instead of the last 16
-BOOT = None                         # directly after the log routine (set below), before popup-flat (0x203C00)
-CHK = 0x2038AA                      # after standby-lhs (0x203800-0x2038A9), before panel-t12 (0x203900)
-MBIN = 0x203FB8                     # after diag-poke (0x203DC0-0x203FB7), before the panel-prepower flags (0x203FF0)
-MBT, MBC = 0x2039F0 - 0x200000, 0x2039F4 - 0x200000   # mailbox scratch, after the log ring
-# checkpoints: (address of the jal, callee); the first N_BOOT go after the milestones, the rest to MBIN
-CALLS = []
-N_BOOT = 0
-ST2 = 0x203D9A                      # after popup-round (0x203D00-0x203D99), before diag-poke (0x203DC0)
+CODE = 0x201400                     # head zero area 0x201214-0x201FFF
+DATA = 0x202200                     # head zero area 0x202087-0x2037FF (after the TEL key table)
+N = 64
 LOGT, IDX, BUF = DATA - 0x200000, DATA + 4 - 0x200000, DATA + 8 - 0x200000
+QOFF = DATA + 8 + 8 * N - 0x200000  # mailbox logging off flag (set by the backlight stub)
+WFLAG = QOFF + 1                    # watcher: first pass done
+WATCH = [(0x3B4970, 'port 0 +0x20 status'), (0x3B4A20, 'port 1 +0x20 status'),
+         (0x3B4A1C, 'port 1 +0x1C flags'), (0x457854, 'OSD state'),
+         (0x203FF0, 'panel-prepower state (1 waiting, 2 ready)')]
 R0, R1, R3, R4, R5, R6, R7, R8, R9, R10 = 0, 1, 3, 4, 5, 6, 7, 8, 9, 10
-R11, R12, R13, R14, R18, R19, R28 = 11, 12, 13, 14, 18, 19, 28
-def state_stub(lab, cur_r, old_r, idx_r, cache_r, back):
-    # replaces 'beq cur,old,back' + the following 'sb 0(cache),cur': log index << 8 | new state on a change
-    go = lab + '_go'
-    return [lab + ':', ('bg.beq', {'A': cur_r, 'B': old_r, ';': go}), ('bn.sb', {'z': 0, 'A': cache_r, 'B': cur_r}),
-            ('bn.addi', {'D': R1, 'A': R1, 'O': -4}), nsw(0, R1, R3),
-            ('bn.slli', {'D': R3, 'A': idx_r, 'H': 8}), ('bn.or', {'D': R3, 'A': R3, 'B': cur_r}),
-            jal(LL['log_r3']), nlw(R3, 0, R1), ('bn.addi', {'D': R1, 'A': R1, 'O': 4}),
-            go + ':', j(back)]
+R11, R12, R13, R14, R17 = 11, 12, 13, 14, 17
 
 mh = lambda rd, v: ('bg.movhi', {'D': rd, 'U': v})
 lwz = lambda rd, off, ra: ('bg.lwz', {'D': rd, 'A': ra, 'W': off})
 sw = lambda off, ra, rb: ('bg.sw', {'W': off, 'A': ra, 'B': rb})
+lbz = lambda rd, off, ra: ('bg.lbz', {'?': rd, 'A': ra, '!': off})
+sb = lambda off, ra, rb: ('bg.sb', {'Y': off, 'A': ra, 'B': rb})
 nsw = lambda off, ra, rb: ('bn.sw', {':': off, 'A': ra, 'B': rb})
 nlw = lambda rd, off, ra: ('bn.lwz', {'D': rd, 'A': ra, ':': off})
 j = lambda t: ('bg.j', {'/': t})
 jal = lambda t: ('bg.jal', {'/': t})
+movi = lambda r, i: ('bt.movi', {'D': r, 'I': i})
 SAVE = [('bn.addi', {'D': R1, 'A': R1, 'O': -24})] + [nsw(4 * i, R1, r) for i, r in enumerate((R3, R4, R5, R6, R7, R8))]
 REST = [nlw(r, 4 * i, R1) for i, r in enumerate((R3, R4, R5, R6, R7, R8))] + [('bn.addi', {'D': R1, 'A': R1, 'O': 24})]
 
-log_prog = [
- # ---- log routines: r9 = hook return address; value from the caller's frame or r3 ----
- 'log_s0:', *SAVE, nlw(R4, 24, R1), j('log_c'),
- 'log_s4:', *SAVE, nlw(R4, 28, R1), j('log_c'),
- 'log_r3:', *SAVE, ('bn.or', {'D': R4, 'A': R3, 'B': R0}),
- 'log_c:',
- mh(R7, 0x20), lwz(R5, IDX, R7),
- *([('bg.sfgtui', {'A': R5, 'Y': 15}), ('bg.bf', {"'": 'log_cnt'})] if KEEP_FIRST else []),   # ring full: count only
- ('bn.andi', {'D': R6, 'A': R5, 'N': 0x0F}),
- ('bn.slli', {'D': R6, 'A': R6, 'H': 3}), ('bn.add', {'D': R6, 'A': R6, 'B': R7}),    # r6 = 0x200000 + 8*slot
- lwz(R8, LOGT, R7), sw(BUF, R6, R8),
- mh(R8, 0xFF), ('bg.ori', {'D': R8, 'A': R8, 't': 0xFFFF}),
- ('bn.and', {'D': R4, 'A': R4, 'B': R8}),                                          # value & 0xFFFFFF
- ('bn.slli', {'D': R8, 'A': R9, 'H': 24}), ('bn.or', {'D': R4, 'A': R4, 'B': R8}),   # | tag << 24
- sw(BUF + 4, R6, R4),
- 'log_cnt:',
- ('bt.addi', {'D': R5, 'I': 1}), sw(IDX, R7, R5),
- *REST, ('bt.jr', {'A': R9}),
-]
-lcode, LL = S.assemble(log_prog, LOGC)
-BOOT = LOGC + len(lcode)
-stub_prog = [
- 'h_off:',                          # replaces sub_245860: addi r1,-4; sw 0(r1),r9
- ('bt.addi', {'D': R1, 'I': -4}), nsw(0, R1, R9),
- mh(R7, 0x45), ('bg.lbz', {'?': R7, 'A': R7, '!': 0x51A8}),      # pnl: log only real panel-offs
- ('bg.beqi', {'A': R7, 'I': 0, ';': 'off_go'}),                 # (pre-standby calls this every main-loop pass)
- jal(LL['log_s0']),
- 'off_go:', j(0x245865),
- 'h_on:',                           # replaces sub_245919+5: sw 0(r1),r10; movhi r10,0x45
- nsw(0, R1, R10), mh(R10, 0x45),
- ('bg.lbz', {'?': R7, 'A': R10, '!': 0x51A8}),                   # pnl: log only real panel-ons
- ('bg.bnei', {'A': R7, 'I': 0, ';': 'on_go'}),                  # (the relight calls this on every pass while on)
- jal(LL['log_s4']),
- 'on_go:', j(0x245925),
- 'h_sig:',                          # replaces sub_258AB1: addi r1,-8; sw 4(r1),r9
- ('bt.addi', {'D': R1, 'I': -8}), nsw(4, R1, R9),
- jal(LL['log_s4']), j(0x258AB6),
- 'h_st4:',                          # replaces sub_26A7C5: addi r1,-8; sw 4(r1),r9
- ('bt.addi', {'D': R1, 'I': -8}), nsw(4, R1, R9),
- jal(LL['log_s4']), j(0x26A7CA),
- 'h_gate:',                         # replaces jal standby_gate_query at 0x2613A0
- jal(0x2612F9), jal(LL['log_r3']), j(0x2613A4),
-]
-scode, L = S.assemble(stub_prog, STUB)
-isr_prog = [
- 'isr:',                            # replaces sub_240C55: addi r1,-8; sw 4(r1),r9
- ('bt.addi', {'D': R1, 'I': -8}), nsw(4, R1, R9),
- mh(R7, 0x20), lwz(R6, LOGT, R7), ('bt.addi', {'D': R6, 'I': 1}), sw(LOGT, R7, R6),
- j(0x240C5A),
-]
-icode, IL = S.assemble(isr_prog, ISR)
-STATE = 0x2039F4 - 0x200000            # payload capture state: 0 idle, 3 armed (main loop), 1 capturing, 2 done
-boot_prog = [
- 'm_bl:', jal(LL['log_s4']), ('bg.ori', {'D': R3, 'A': R0, 't': 0x426}), j(0x2459C4),     # replaces ori r3,r0,0x426
- 'm_loop:', jal(LL['log_s0']), mh(R10, 0x45),                                             # replaces movhi r10,0x45
- ('bt.movi', {'D': R6, 'I': 3}), mh(R7, 0x20), ('bg.sb', {'Y': STATE, 'A': R7, 'B': R6}),  # arm the payload capture
- j(0x2620FD),
-]
-chk = lambda a, t: ['c_%x:' % a, jal(t), jal(LL['log_s0']), j(a + 4)]   # replaces jal t at a; r3 (result) preserved
-for a, t in CALLS[:N_BOOT]:
-    boot_prog += chk(a, t)
-# Payload capture: the first PM-side configuration update after the main-loop start, i.e. from mailbox
-# command 0x20 sub 12 data 1 (begin) to 0x20 sub 12 data 0 (end). Each command logs a header
-# (cmd << 16 | sub << 8 | length) and then its data, 3 bytes per entry. Hooked at 0x238FD5 in mailbox_query
-# (r12 = cmd, r13 = sub, r11 = length, r17 = data; r3-r9 are free here, r14 is reloaded with 0x450000).
-R17 = 17
-seg_b = [                                  # data loop (MBIN)
- 'q_dat:',
- ('bg.blesi', {'A': R6, 'I': 0, ';': 'q_end'}),
- ('bn.lbz', {'?': R3, 'A': R8, 'z': 0}), ('bn.slli', {'D': R3, 'A': R3, 'H': 16}),
- ('bn.lbz', {'?': R4, 'A': R8, 'z': 1}), ('bn.slli', {'D': R4, 'A': R4, 'H': 8}), ('bn.or', {'D': R3, 'A': R3, 'B': R4}),
- ('bn.lbz', {'?': R4, 'A': R8, 'z': 2}), ('bn.or', {'D': R3, 'A': R3, 'B': R4}),
- jal(LL['log_r3']),
- ('bn.addi', {'D': R8, 'A': R8, 'O': 3}), ('bn.addi', {'D': R6, 'A': R6, 'O': -3}),
- j('q_dat'),
-]
-seg_c = [                                  # end check and exit (ST2)
- 'q_end:',
- ('bn.sfnei', {'A': R12, 'O': 0x20}), ('bg.bf', {"'": 'q_out'}),
- ('bg.bnei', {'A': R13, 'I': 12, ';': 'q_out'}),
- ('bn.lbz', {'?': R4, 'A': R17, 'z': 0}), ('bg.bnei', {'A': R4, 'I': 0, ';': 'q_out'}),
- ('bt.movi', {'D': R6, 'I': 2}), mh(R7, 0x20), ('bg.sb', {'Y': STATE, 'A': R7, 'B': R6}),
- 'q_out:', mh(R14, 0x45), j(0x238FD9),
-]
-def seg_a(lb, lc):
-    return [                               # entry: state check, start check, header (CHK)
- 'mb_in:',
- mh(R7, 0x20), ('bg.lbz', {'?': R6, 'A': R7, '!': STATE}),
- ('bg.bnei', {'A': R6, 'I': 1, ';': 'q_chk'}),
- 'q_hdr:',
- ('bn.slli', {'D': R3, 'A': R12, 'H': 16}), ('bn.slli', {'D': R4, 'A': R13, 'H': 8}),
- ('bn.or', {'D': R3, 'A': R3, 'B': R4}), ('bn.or', {'D': R3, 'A': R3, 'B': R11}),
- jal(LL['log_r3']),
- ('bn.or', {'D': R8, 'A': R17, 'B': R0}), ('bn.or', {'D': R6, 'A': R11, 'B': R0}),
- j(lb['q_dat']),
- 'q_chk:',
- ('bg.bnei', {'A': R6, 'I': 3, ';': 'q_x'}),
- ('bn.sfnei', {'A': R12, 'O': 0x20}), ('bg.bf', {"'": 'q_x'}),
- ('bg.bnei', {'A': R13, 'I': 12, ';': 'q_x'}),
- ('bn.lbz', {'?': R4, 'A': R17, 'z': 0}), ('bg.bnei', {'A': R4, 'I': 1, ';': 'q_x'}),
- ('bt.movi', {'D': R6, 'I': 1}), ('bg.sb', {'Y': STATE, 'A': R7, 'B': R6}),
- j('q_hdr'),
- 'q_x:', j(lc['q_out']),
-]
-# assemble C first (B jumps into it), then B, then A
-tcode, TL = S.assemble(seg_c, ST2)
-seg_b[1] = ('bg.blesi', {'A': R6, 'I': 0, ';': TL['q_end']})
-mcode, ML = S.assemble(seg_b, MBIN)
-ccode, CL = S.assemble(seg_a(ML, TL), CHK)
-bcode, BL = S.assemble(boot_prog, BOOT)
-BL.update(CL); BL.update(ML); BL.update(TL)
-L.update(IL)
-for code, base, labs in ((scode, STUB, L), (icode, ISR, IL), (lcode, LOGC, LL), (bcode, BOOT, BL), (ccode, CHK, CL), (mcode, MBIN, ML), (tcode, ST2, TL)):
-    for a, b, x in A.disasm(code, base, base + len(code), base):
-        lab = [k for k, v in labs.items() if v == a]
-        print(('%-8s' % (lab[0] + ':' if lab else '')) + '%08x: %-12s %-9s %s' % (a, b.hex(' '), x['mnem'], x['ops']))
-    print('cave %#x-%#x (%d bytes)' % (base, base + len(code), len(code)))
-assert STUB + len(scode) <= 0x203B00 and LOGC + len(lcode) <= BOOT and ISR + len(icode) <= 0x203D00
-assert BOOT + len(bcode) <= 0x203C00 and CHK + len(ccode) <= 0x203900 and MBIN + len(mcode) <= 0x203FF0
-assert ST2 + len(tcode) <= 0x203DC0
-assert DATA + 8 + 16 * 8 <= 0x203A00
-for base, code in ((STUB, scode), (ISR, icode), (LOGC, lcode), (BOOT, bcode), (CHK, ccode), (MBIN, mcode), (ST2, tcode)):
-    assert cur(base, len(code)) == b'\0' * len(code)
-assert cur(DATA, 8 + 16 * 8) == b'\0' * (8 + 16 * 8) and DATA + 8 + 16 * 8 <= 0x200000 + STATE
-assert cur(0x200000 + STATE, 1) == b'\0'
-# tag of each hook = low byte of the return address after its jal to a log routine
-TAGS = {}
-for a, b, x in A.disasm(scode, STUB, STUB + len(scode), STUB):
-    if x.get('target') in (LL['log_s0'], LL['log_s4'], LL['log_r3']):
-        owner = max((v, k) for k, v in L.items() if v <= a)[1]
-        TAGS[owner] = (a + x['len']) & 0xFF
-for code, base in ((bcode, BOOT), (ccode, CHK), (mcode, MBIN), (tcode, ST2)):
-    for a, b, x in A.disasm(code, base, base + len(code), base):
-        if x.get('target') in (LL['log_s0'], LL['log_s4'], LL['log_r3']):
-            owner = max((v, k) for k, v in BL.items() if v <= a and base <= v < base + len(code))[1]
-            TAGS[owner] = (a + x['len']) & 0xFF
-print('tags', {k: '%02X' % v for k, v in TAGS.items()})
+def program(pad):
+    """pad: label -> number of 2-byte nops inserted before that stub (to make the tags unique)."""
+    P = lambda lab: [('bt.nop', {})] * pad.get(lab, 0) + [lab + ':']
+    return [
+     # ---- log routines (r9 = stub return address = tag; preserve r3-r8, r10-r31) ----
+     'log_s0:', *SAVE, nlw(R4, 24, R1), j('log_c'),          # value = word at caller's 0(r1) (saved r9)
+     'log_s4:', *SAVE, nlw(R4, 28, R1), j('log_c'),          # value = word at caller's 4(r1)
+     'log_r3:', *SAVE, ('bn.or', {'D': R4, 'A': R3, 'B': R0}),
+     'log_c:',
+     mh(R7, 0x20), lwz(R5, IDX, R7),
+     ('bg.sfgtui', {'A': R5, 'Y': N - 1}), ('bg.bf', {"'": 'log_cnt'}),   # full: count only
+     ('bn.slli', {'D': R6, 'A': R5, 'H': 3}), ('bn.add', {'D': R6, 'A': R6, 'B': R7}),
+     lwz(R8, LOGT, R7), sw(BUF, R6, R8),
+     mh(R8, 0xFF), ('bg.ori', {'D': R8, 'A': R8, 't': 0xFFFF}), ('bn.and', {'D': R4, 'A': R4, 'B': R8}),
+     ('bn.slli', {'D': R8, 'A': R9, 'H': 24}), ('bn.or', {'D': R4, 'A': R4, 'B': R8}),
+     sw(BUF + 4, R6, R4),
+     'log_cnt:',
+     ('bt.addi', {'D': R5, 'I': 1}), sw(IDX, R7, R5),
+     *REST, ('bt.jr', {'A': R9}),
+
+     # ---- 1 ms ISR: ms counter (replaces sub_240C55: addi r1,-8; sw 4(r1),r9) ----
+     'isr:', ('bt.addi', {'D': R1, 'I': -8}), nsw(4, R1, R9),
+     mh(R7, 0x20), lwz(R6, LOGT, R7), ('bt.addi', {'D': R6, 'I': 1}), sw(LOGT, R7, R6),
+     j(0x240C5A),
+
+     # ---- milestones ----
+     *P('m_init'), jal('log_s0'), ('bg.ori', {'D': R3, 'A': R0, 't': 0x42C}), j(0x261FF4),   # ori r3,r0,0x42c
+     *P('m_dev'), jal('log_s0'), jal(0x23FF28), j(0x262090),                                  # jal sub_23FF28
+     *P('m_fe'), jal('log_s0'), jal(0x2411A5), j(0x2620A0),                                   # jal sub_2411A5 (after sub_261FA8)
+     *P('m_prep'), jal('log_s0'), jal(0x2676B2), j(0x2620D6),                                 # jal sub_2676B2 (after the boot prep)
+     *P('m_loop'), jal('log_s0'), mh(R10, 0x45), j(0x2620FD),                                 # movhi r10,0x45
+     *P('m_bl'), jal('log_s4'),                                                               # backlight on; stop Q logging
+     movi(R6, 1), mh(R7, 0x20), sb(QOFF, R7, R6),
+     ('bg.ori', {'D': R3, 'A': R0, 't': 0x426}), j(0x2459C4),
+
+     # ---- panel on / off, OSD timer, state 4, standby gate ----
+     *P('h_off'), ('bt.addi', {'D': R1, 'I': -4}), nsw(0, R1, R9),
+     mh(R7, 0x45), lbz(R7, 0x51A8, R7), ('bg.beqi', {'A': R7, 'I': 0, ';': 'off_go'}),
+     jal('log_s0'),
+     'off_go:', j(0x245865),
+     *P('h_on'), nsw(0, R1, R10), mh(R10, 0x45),
+     lbz(R7, 0x51A8, R10), ('bg.bnei', {'A': R7, 'I': 0, ';': 'on_go'}),
+     jal('log_s4'),
+     'on_go:', j(0x245925),
+     *P('h_sig'), ('bt.addi', {'D': R1, 'I': -8}), nsw(4, R1, R9), jal('log_s4'), j(0x258AB6),
+     *P('h_st4'), ('bt.addi', {'D': R1, 'I': -8}), nsw(4, R1, R9), jal('log_s4'), j(0x26A7CA),
+     *P('h_gate'), jal(0x2612F9), jal('log_r3'), j(0x2613A4),
+
+     # ---- port state change in sub_22F2C7 (replaces beq r7,r6,0x22F307; sb 0(r11),r7) ----
+     *P('h_port'),
+     ('bg.beq', {'A': R7, 'B': R6, ';': 'port_x'}), ('bn.sb', {'z': 0, 'A': R11, 'B': R7}),
+     ('bn.addi', {'D': R1, 'A': R1, 'O': -4}), nsw(0, R1, R3),
+     ('bn.slli', {'D': R3, 'A': R10, 'H': 8}), ('bn.or', {'D': R3, 'A': R3, 'B': R7}),
+     jal('log_r3'), nlw(R3, 0, R1), ('bn.addi', {'D': R1, 'A': R1, 'O': 4}),
+     'port_x:', j(0x22F307),
+
+     # ---- mailbox command (replaces movhi r14,0x45 at 0x238FD5; r12 cmd, r13 sub, r11 length, r17 data) ----
+     *P('h_mb'),
+     mh(R7, 0x20), lbz(R6, QOFF, R7), ('bg.bnei', {'A': R6, 'I': 0, ';': 'mb_x'}),
+     movi(R4, 0), ('bg.beqi', {'A': R11, 'I': 0, ';': 'mb_v'}), ('bn.lbz', {'?': R4, 'A': R17, 'z': 0}),
+     'mb_v:',
+     ('bn.slli', {'D': R3, 'A': R12, 'H': 16}), ('bn.slli', {'D': R5, 'A': R13, 'H': 8}),
+     ('bn.or', {'D': R3, 'A': R3, 'B': R5}), ('bn.or', {'D': R3, 'A': R3, 'B': R4}),
+     jal('log_r3'),
+     'mb_x:', mh(R14, 0x45), j(0x238FD9),
+
+     # ---- main-loop watcher (replaces jal sub_261C04 at 0x262105; r3-r8 free there) ----
+     'h_loop:', jal('w_run'), jal(0x261C04), j(0x262109),
+     'w_run:',
+     ('bn.or', {'D': R8, 'A': R9, 'B': R0}),
+     mh(R7, 0x20), lbz(R6, WFLAG, R7), ('bg.ori', {'D': R7, 'A': R7, 't': 0}),    # r7 = table (patched below)
+     'w_lp:',
+     nlw(R5, 0, R7), ('bn.lbz', {'?': R4, 'A': R5, 'z': 0}), ('bn.lbz', {'?': R3, 'A': R7, 'z': 4}),
+     ('bg.beq', {'A': R3, 'B': R4, ';': 'w_nx'}),
+     ('bn.sb', {'z': 4, 'A': R7, 'B': R4}),
+     ('bg.beqi', {'A': R6, 'I': 0, ';': 'w_nx'}),
+     ('bn.slli', {'D': R3, 'A': R7, 'H': 8}), ('bn.or', {'D': R3, 'A': R3, 'B': R4}),
+     jal('log_r3'),
+     'w_nx:',
+     ('bn.addi', {'D': R7, 'A': R7, 'O': 8}),
+     mh(R3, 0x20), ('bg.ori', {'D': R3, 'A': R3, 't': 0}),                            # r3 = table end (patched below)
+     ('bn.sfne', {'A': R7, 'B': R3}), ('bg.bf', {"'": 'w_lp'}),
+     movi(R6, 1), mh(R7, 0x20), sb(WFLAG, R7, R6),
+     ('bt.jr', {'A': R8}),
+    ]
+
+def assemble(pad, wtab):
+    prog = program(pad)
+    k = 0
+    for i, it in enumerate(prog):                      # fill the watch-table start / end
+        if isinstance(it, tuple) and it[0] == 'bg.ori' and it[1]['t'] == 0 and it[1]['A'] in (R7, R3) and it[1]['D'] == it[1]['A']:
+            prog[i] = ('bg.ori', {'D': it[1]['D'], 'A': it[1]['A'], 't': (wtab if k == 0 else wtab + 8 * len(WATCH)) & 0xFFFF})
+            k += 1
+    assert k == 2
+    return S.assemble(prog, CODE)
+
+LOGS = ('log_s0', 'log_s4', 'log_r3')
+def tags_of(code, L):
+    t = {}
+    for a, b, x in A.disasm(code, CODE, CODE + len(code), CODE):
+        if x['mnem'] == 'b.jal' and x['target'] in [L[k] for k in LOGS]:
+            owner = max((v, k) for k, v in L.items() if v <= a and k not in LOGS and not k.endswith(('_go', '_x', '_v', '_nx', '_lp')))[1]
+            t[owner] = (a + x['len']) & 0xFF
+    return t
+
+pad = {}
+for _ in range(64):                                     # insert nops until every stub has its own tag
+    code, L = assemble(pad, 0x201000)
+    t = tags_of(code, L)
+    seen, clash = {}, None
+    for k, v in sorted(t.items(), key=lambda kv: L[kv[0]]):
+        if v in seen: clash = k; break
+        seen[v] = k
+    if clash is None: break
+    pad[clash] = pad.get(clash, 0) + 1
+else:
+    raise SystemExit('could not make the tags unique')
+wtab = (CODE + len(code) + 7) & ~7
+code, L = assemble(pad, wtab)
+TAGS = tags_of(code, L)
 assert len(set(TAGS.values())) == len(TAGS)
+wbytes = b''.join(a.to_bytes(4, 'little') + b'\0' * 4 for a, _ in WATCH)
+blob = code + b'\0' * (wtab - CODE - len(code)) + wbytes
+for a, b, x in A.disasm(code, CODE, CODE + len(code), CODE):
+    lab = [k for k, v in L.items() if v == a]
+    print(('%-8s' % (lab[0] + ':' if lab else '')) + '%08x: %-12s %-9s %s' % (a, b.hex(' '), x['mnem'], x['ops']))
+print('code %#x-%#x, watch table %#x, data %#x-%#x' % (CODE, CODE + len(code), wtab, DATA, 0x200000 + WFLAG + 1))
+print('tags', {k: '%02X' % v for k, v in TAGS.items()})
+assert CODE + len(blob) <= 0x202000
+assert 0x200000 + WFLAG < 0x202500
+assert cur(CODE, len(blob)) == b'\0' * len(blob)
+assert cur(DATA, WFLAG + 1 - LOGT) == b'\0' * (WFLAG + 1 - LOGT)
+assert cur(0x201200, 0x14) != b'\0' * 0x14 and cur(0x201214, 0x201400 - 0x201214) == b'\0' * (0x201400 - 0x201214)
+assert cur(0x202087, DATA - 0x202087) == b'\0' * (DATA - 0x202087)
 
 hooks = [  # addr, expected original bytes, label, what
  (0x240C55, '9c380d2104', 'isr', '1 ms ISR entry: ms counter'),
- (0x245860, '9c3c0d2100', 'h_off', 'sub_245860 entry (panel off)'),
- (0x24591E, '0d4100c14008a1', 'h_on', 'sub_245919+5 (panel on)'),
- (0x258AB1, '9c380d2104', 'h_sig', 'sub_258AB1 entry (re-enter No signal)'),
- (0x26A7C5, '9c380d2104', 'h_st4', 'sub_26A7C5 entry (OSD state 4 entry)'),
- (0x2613A0, 'e7fffeb2', 'h_gate', 'jal standby_gate_query in the power-save entry'),
+ (0x261FF0, 'c860042c', 'm_init', 'sub_261FDE after the prologue (main init start)'),
+ (0x26208C, 'e7fbbd38', 'm_dev', 'jal sub_23FF28 after sub_23D3EB (init done)'),
+ (0x26209C, 'e7fbe212', 'm_fe', 'jal sub_2411A5 after sub_261FA8 (front-end set-up done)'),
+ (0x2620D2, 'e400abc0', 'm_prep', 'jal sub_2676B2 after the boot panel preparation'),
  (0x2620F9, 'c14008a1', 'm_loop', 'movhi r10,0x45 before the main loop'),
  (0x2459C0, 'c8600426', 'm_bl', 'sub_245919 backlight-on step'),
- (0x238FD5, 'c1c008a1', 'mb_in', 'mailbox_query: movhi r14,0x45 after the argument moves (payload capture)'),
-] + [(a, S.encode('bg.jal', {'/': t}, a).hex(), 'c_%x' % a, 'jal sub_%X: time stamp after it returns' % t) for a, t in CALLS]
-L.update(BL)
-edits = [{'addr': '0x%06X' % STUB, 'old': '00' * len(scode), 'new': scode.hex(),
-          'asm': 'diag-log hook stubs (linker padding 0x203A9C)'},
-         {'addr': '0x%06X' % ISR, 'old': '00' * len(icode), 'new': icode.hex(),
-          'asm': 'diag-log 1 ms ISR stub (linker padding 0x203CE0)'},
-         {'addr': '0x%06X' % LOGC, 'old': '00' * len(lcode), 'new': lcode.hex(),
-          'asm': 'diag-log log routine (linker padding 0x203B08); data at 0x203968-0x2039EF'},
-         {'addr': '0x%06X' % BOOT, 'old': '00' * len(bcode), 'new': bcode.hex(),
-          'asm': 'diag-log start-up milestone stubs (linker padding 0x203BA3)'},
-         {'addr': '0x%06X' % CHK, 'old': '00' * len(ccode), 'new': ccode.hex(),
-          'asm': 'diag-log mailbox payload capture: entry, start check, header (linker padding 0x2038AA); state 0x2039F4'},
-         {'addr': '0x%06X' % MBIN, 'old': '00' * len(mcode), 'new': mcode.hex(),
-          'asm': 'diag-log mailbox payload capture: data loop (linker padding 0x203FB8)'},
-         {'addr': '0x%06X' % ST2, 'old': '00' * len(tcode), 'new': tcode.hex(),
-          'asm': 'diag-log mailbox payload capture: end check (linker padding 0x203D9A)'}]
+ (0x245860, '9c3c0d2100', 'h_off', 'sub_245860 entry (panel off)'),
+ (0x24591E, '0d4100c14008a1', 'h_on', 'sub_245919+5 (panel on)'),
+ (0x258AB1, '9c380d2104', 'h_sig', 'sub_258AB1 entry (OSD timer end)'),
+ (0x26A7C5, '9c380d2104', 'h_st4', 'sub_26A7C5 entry (OSD state 4 entry)'),
+ (0x2613A0, 'e7fffeb2', 'h_gate', 'jal standby_gate_query in the power-save entry'),
+ (0x22F300, 'd4e6003a18eb00', 'h_port', 'sub_22F2C7 port state change check (beq + sb)'),
+ (0x238FD5, 'c1c008a1', 'h_mb', 'mailbox_query: movhi r14,0x45 after the argument moves'),
+ (0x262105, 'e7fff5fe', 'h_loop', 'main-loop head: jal sub_261C04'),
+]
+edits = [{'addr': '0x%06X' % CODE, 'old': '00' * len(blob), 'new': blob.hex(),
+          'asm': 'diag-log code and watch table (image head zero area 0x201400); data at 0x%06X' % DATA}]
 for a, old, lab, what in hooks:
     assert cur(a, len(old) // 2).hex() == old, (hex(a), cur(a, len(old) // 2).hex())
     nb = S.encode('bg.j', {'/': L[lab]}, a)
@@ -265,20 +225,19 @@ for a, old, lab, what in hooks:
 
 patch = {
  'name': 'diag-log',
- 'summary': 'DIAGNOSTIC: RAM event log (ms time stamps) of panel on/off callers, OSD timer expiry, the standby gate and start-up milestones; read with diag-poke + tools/logread.py',
- 'status': 'diagnostic, hardware test pending',
+ 'summary': 'DIAGNOSTIC: timing log in RAM (ms time stamps, 64 events): start-up milestones, mailbox commands, port states, watched bytes, panel/backlight; read with diag-poke + tools/logread.py',
+ 'status': 'diagnostic, hardware test pending (first use of the image head area)',
  'requires': ['diag-poke'],
  'edits': edits,
  'tags': {k: '0x%02X' % v for k, v in TAGS.items()},
- 'keep_first': KEEP_FIRST,
- 'data': {'ms': '0x%06X' % DATA, 'count': '0x%06X' % (DATA + 4), 'ring': '0x%06X' % (DATA + 8), 'entries': 16},
- 'calls': {'c_%x' % a: '0x%06X' % t for a, t in CALLS},
- 'payload_capture': 'first 0x20 sub 12 begin..end update after the main-loop start',
- 'notes': ("Log at 0x203968 (ms counter), 0x20396C (event count), 0x203970 (16 x 8-byte ring: ms, tag<<24 | value). "
-           "tools/logread.py maps the tags (see 'tags') to F (panel off), N (panel on), S (OSD timer expiry), E (state 4 entry), G (gate result), "
-           "M (main loop start), B (backlight on), C (after a start-up call, c_<call address>), "
-           "Q header (cmd << 16 | sub << 8 | length) and Q data (3 bytes per entry) of the first PM-side configuration update after the main-loop start. "
-           "The log is in RAM and starts empty at every firmware start. Generated by tools/patches_src_diag_log.py."),
+ 'keep_first': True,
+ 'q_format': 'cmd_sub_data0',
+ 'data': {'ms': '0x%06X' % DATA, 'count': '0x%06X' % (DATA + 4), 'ring': '0x%06X' % (DATA + 8), 'entries': N},
+ 'watch': {'0x%04X' % ((wtab + 8 * i) & 0xFFFF): {'addr': '0x%06X' % a, 'what': w} for i, (a, w) in enumerate(WATCH)},
+ 'notes': ("Code in the uncompressed image head (0x201400, zero in the stock image, copied to RAM by the boot loader, "
+           "not referenced by the firmware); data at 0x%06X (needs the diag-poke version that reads pages 0x2022xx-0x2024xx). "
+           "Does not use the 0x203800 linker padding, so it combines with all regular patches. "
+           "Generated by tools/patches_src_diag_log.py." % DATA),
 }
 out = os.environ.get('OUT', 'diag-log.json')
 json.dump(patch, open(out, 'w'), indent=2)

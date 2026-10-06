@@ -5,7 +5,9 @@
 
 Prints the events oldest first: time (s since the firmware start), time since
 the previous event, event, value. Read-only. The log lives in RAM: it starts
-empty at every firmware start and holds the last 16 events.
+empty at every firmware start; the number of entries and whether the first or
+the last ones are kept come from patches/diag-log.json. Only the entries in
+use are read.
 """
 import json, os, re, subprocess, sys
 
@@ -19,10 +21,11 @@ NAMES = {'h_off': 'F panel off      caller', 'h_on': 'N panel on       caller',
          'h_gate': 'G standby gate   result (1 = refused)',
          'm_init': 'I main init start', 'm_dev': 'D init done (EEPROM, scaler)',
          'm_loop': 'M main loop start', 'm_bl': 'B backlight on   caller',
+         'm_fe': 'X front-end set-up done (sub_261FA8)', 'm_prep': 'R panel preparation returned',
          'h_mb': 'Q mailbox slow  ', 'h_port': 'P port state     ', 'h_path': 'Y input path     '}
 CALLS = P.get('calls', {})
 WATCH = P.get('watch', {})
-MILESTONES = ('m_init', 'm_dev', 'm_loop')
+MILESTONES = ('m_init', 'm_dev', 'm_loop', 'm_fe', 'm_prep')
 BASE = int(P['data']['ms'], 16)
 N = P['data']['entries']
 
@@ -64,9 +67,13 @@ def read_bytes(addr, n):
     return bytes(out)
 
 
-raw = read_bytes(BASE, 8 + 8 * N)
+raw = read_bytes(BASE, 8)
 u32 = lambda o: int.from_bytes(raw[o:o + 4], 'little')
 now, count = u32(0), u32(4)
+used = min(count, N)
+raw += read_bytes(BASE + 8, 8 * used) if used else b''
+if not P.get('keep_first', False) and count > N:      # ring: wrapped, read it whole
+    raw = raw[:8] + read_bytes(BASE + 8, 8 * N)
 print('firmware running for %.3f s, %d events logged' % (now / 1000, count))
 keep_first = P.get('keep_first', False)
 first = 0 if keep_first else max(0, count - N)
@@ -87,6 +94,9 @@ for i in range(first, min(count, first + N)):
     dt = '' if prev is None else '+%.3f' % ((t - prev) / 1000)
     if t_name == 'h_gate':
         shown = '%d' % val
+    elif t_name == 'h_mb' and P.get('q_format') == 'cmd_sub_data0':
+        name = 'Q mailbox cmd   '
+        shown = '0x%02X sub %2d  data[0] 0x%02X' % (val >> 16, (val >> 8) & 0xFF, val & 0xFF)
     elif t_name == 'h_mb':
         if 'mailbox_window_ms' in P:
             name = 'Q mailbox cmd   '
@@ -99,7 +109,7 @@ for i in range(first, min(count, first + N)):
     elif t_name == 'q_dat':
         name = '    data         '
         shown = '%02X %02X %02X' % (val >> 16, (val >> 8) & 0xFF, val & 0xFF)
-    elif t_name == 'w_lp':
+    elif t_name in ('w_lp', 'w_run'):
         w = WATCH.get('0x%04X' % (val >> 8), {})
         name = 'W %-16s' % w.get('addr', '?')
         shown = '= 0x%02X   (%s)' % (val & 0xFF, w.get('what', 'entry 0x%04X' % (val >> 8)))

@@ -781,3 +781,27 @@ runs, not comparable in detail). The gain on the wake (~2.5 s) is larger than
 the two changes explain on their own (1.0 s + up to 0.55 s); not verified
 without a timing log. Power-off by key works only ~3 s after a start (same with
 the stock firmware).
+
+## 18. Space for patch code (2026-10-07)
+
+- **Flash** is not the limit: the patched deflate stream must end before
+  `0x124D0B` (size word, then a mostly empty TEL entry and `SECU_R2`); current
+  builds compress ~5.5 KB smaller than stock.
+- **RAM** is: the runtime image fills `0x200000`–`0x453E78`, and the start-up
+  code clears the BSS from `0x453E80`. Code appended to the image would be
+  cleared or overlap variables; relinking is not possible.
+- Usable areas inside the image: the linker padding `0x203800`–`0x203FFF`
+  (regular patches; nearly full) and two zero areas of the uncompressed head,
+  `0x201214`–`0x201FFF` and `0x202087`–`0x2037FF` (~9.5 KB). The boot loader
+  copies the whole `0x3800`-byte head to `0x200000`; the only code
+  references with these values are register offsets added to the RIU base
+  (`0x201D00`, `0x203034`) and the TEL table read at `0x202000`–`0x202086`.
+  `diag-log` and the `diag-poke` tables are the first users (diagnostic
+  builds); regular patches stay in the padding until this is hardware-proven.
+- **Dead code:** recursive descent from the entry points, interrupt vectors and
+  code pointers in data reaches 87.6 % of `0x203800`–`0x2AE000`; ~85 KB in 103
+  runs ≥ 64 bytes are not reached. They look like code (few zero bytes, some
+  with prologues): either unused SDK code or code reached through tables the
+  analysis does not resolve. Not used for patches: proving a block unreachable
+  needs a reference check per block, and a wrong guess fails only when the
+  rare path runs.

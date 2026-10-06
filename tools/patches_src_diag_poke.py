@@ -22,10 +22,13 @@ Safety:
   clock or factory-data access is possible. Every write is lost at power-off.
 - Reads only from the pages in READ_PAGES (PM 0x03xx/0x04xx, PM PWM 0x05xx,
   chip-top pad configuration 0x101Exx, scaler bank 0x102Fxx with any sub-bank,
-  PWM unit 0x103Cxx/0x103Dxx, RAM 0x2039xx for diag-log); no data-port or controller registers whose read
-  could have side effects.
-- Page 0x2039xx is RAM (diag-log data at 0x203968) and is read with a plain
+  PWM unit 0x103Cxx/0x103Dxx, RAM 0x2022xx-0x2024xx for the diag-log data and
+  RAM 0x2039xx for older diag-log versions); no data-port or controller registers
+  whose read could have side effects.
+- Addresses 0x20xxxx are RAM (the firmware image) and are read with a plain
   byte load.
+- The two allowlist tables are in the zero area of the image head (TABLES,
+  0x201F00), so the code cave 0x203DC0 ends before wake-no-replug (0x203FB8).
 - A read runs with interrupts masked (SR IEE/TEE, as the firmware's own
   critical sections at 0x2A74EA do) and is done three times; if the three
   values differ, 0xFFFE (unstable) is returned instead of a value. This stops
@@ -54,7 +57,8 @@ REG_WRITE_MASK = 0x23DADB                 # (reg, set?, mask) read-modify-write 
 WRITE_OK = [0x00000422, 0x00000426, 0x00000428, 0x00000434, 0x00000436, 0x0000043A, 0x0000043B,
             0x0000044A, 0x0000044B, 0x0000044C, 0x0000044D,
             0x2E902F4A, 0x2E902F4B]
-READ_PAGES = [0x000300, 0x000400, 0x000500, 0x101E00, 0x102F00, 0x103C00, 0x103D00, 0x203900]  # (addr & 0x7FFF00); top byte only for 0x102F00
+READ_PAGES = [0x000300, 0x000400, 0x000500, 0x101E00, 0x102F00, 0x103C00, 0x103D00, 0x202200, 0x202300, 0x202400, 0x203900]
+TABLES = 0x201F00                       # allowlist tables in the image head zero area (diag-log code ends ~0x201610)  # (addr & 0x7FFF00); top byte only for 0x102F00
 
 R0, R1, R3, R4, R5, R6, R7, R8, R9, R23 = 0, 1, 3, 4, 5, 6, 7, 8, 9, 23
 ori = lambda rd, ra, v: ('bg.ori', {'D': rd, 'A': ra, 't': v})
@@ -142,19 +146,19 @@ def build(wtab, rtab):
             out.append(it)
     return S.assemble(out, CAVE)
 
-code, L = build(0, 0)
-wtab = (CAVE + len(code) + 3) & ~3
+wtab = TABLES
 tables = b''.join(a.to_bytes(4, 'little') for a in WRITE_OK + [0])
 rtab = wtab + len(tables)
 tables += b''.join(a.to_bytes(4, 'little') for a in READ_PAGES + [0])
 code, L = build(wtab, rtab)
 assert (wtab >> 16) == 0x20 and (rtab >> 16) == 0x20
-blob = code + b'\0' * (wtab - CAVE - len(code)) + tables
+blob = code
+assert TABLES + len(tables) <= 0x202000 and cur(TABLES, len(tables)) == b'\0' * len(tables)
 for a, b, x in A.disasm(code, CAVE, CAVE + len(code), CAVE):
     lab = [k for k, v in L.items() if v == a]
     print(('%-10s' % (lab[0] + ':' if lab else '')) + '%08x: %-12s %-9s %s' % (a, b.hex(' '), x['mnem'], x['ops']))
 print('tables at %#x / %#x, end %#x' % (wtab, rtab, CAVE + len(blob)))
-assert CAVE + len(blob) <= 0x203FF0             # panel-prepower flags at 0x203FF0/1, address variable at 0x203FF4
+assert CAVE + len(blob) <= 0x203FB8             # wake-no-replug from 0x203FB8; panel-prepower flags at 0x203FF0/1, address variable at 0x203FF4
 assert cur(CAVE, len(blob)) == b'\0' * len(blob)
 assert cur(0x200000 + ADDR_VAR, 4) == b'\0' * 4
 assert cur(GET_HOOK, 4).hex() == 'c2e00901'                # b.movhi r23,0x48
@@ -164,7 +168,7 @@ assert cur(SET_HOOK, 4).hex() == 'c0e00901'                # b.movhi r7,0x48
 # ---------------- stable read in its own cave (r3 = address already allowed) ----------------
 rd_prog = [
  'rd_cave:',
- mh(R7, 0x20), lwz(R3, ADDR_VAR, R7), srli(R6, R3, 8), ori(R5, R0, 0x2039), beq(R6, R5, 'rd_ram'),
+ mh(R7, 0x20), lwz(R3, ADDR_VAR, R7), srli(R6, R3, 16), ori(R5, R0, 0x20), beq(R6, R5, 'rd_ram'),
  ori(R7, R0, 0x11), ('bg.mfspr', {'D': R8, 'A': R7, '|': 0}),       # r8 = SR
  ('bt.movi', {'D': R5, 'I': -7}), andr(R6, R8, R5), ('bg.mtspr', {'A': R7, 'B': R6, '|': 0}),   # IEE/TEE off
  mh(R7, 0x20), lwz(R3, ADDR_VAR, R7), jal(RIU_RD), ('bn.or', {'D': R4, 'A': R3, 'B': R0}),
@@ -172,7 +176,7 @@ rd_prog = [
  mh(R7, 0x20), lwz(R3, ADDR_VAR, R7), jal(RIU_RD), bne(R3, R4, 'rd_uns'),
  ori(R7, R0, 0x11), ('bg.mtspr', {'A': R7, 'B': R8, '|': 0}),       # SR restored
  ori(R7, R0, 0xFF), andr(R4, R4, R7), j(L['g_ret']),
- 'rd_ram:',                                                           # RAM page 0x2039xx (diag-log data): plain byte load
+ 'rd_ram:',                                                           # RAM 0x20xxxx (diag-log data): plain byte load
  ('bg.lbz', {'?': R4, 'A': R3, '!': 0}), j(L['g_ret']),
  'rd_uns:',
  ori(R7, R0, 0x11), ('bg.mtspr', {'A': R7, 'B': R8, '|': 0}),
@@ -187,7 +191,9 @@ assert cur(RD_CAVE, len(rd_code)) == b'\0' * len(rd_code)
 
 edits = [
  {'addr': '0x%06X' % CAVE, 'old': '00' * len(blob), 'new': blob.hex(),
-  'asm': 'diag-poke handlers, allowlist checks and tables (linker padding 0x203DC0); address variable at 0x203FF4'},
+  'asm': 'diag-poke handlers and allowlist checks (linker padding 0x203DC0); address variable at 0x203FF4'},
+ {'addr': '0x%06X' % TABLES, 'old': '00' * len(tables), 'new': tables.hex(),
+  'asm': 'diag-poke allowlist tables (image head zero area 0x201F00)'},
  {'addr': '0x%06X' % RD_CAVE, 'old': '00' * len(rd_code), 'new': rd_code.hex(),
   'asm': 'diag-poke stable read (linker padding 0x203C60): interrupts masked, three reads, 0xFFFE if they differ'},
  {'addr': '0x%06X' % GET_HOOK, 'old': cur(GET_HOOK, 4).hex(), 'new': S.encode('bg.j', {'/': L['get_hook']}, GET_HOOK).hex(),
@@ -202,7 +208,7 @@ patch = {
  'edits': edits,
  'notes': ("VCP 0xEA/0xEB set the register address (high/low 16 bits), VCP 0xEC reads (GET) or writes (SET, value <= 0xFF) "
            "one byte through the firmware's register helpers. Writes are limited to: %s. Reads are limited to the pages "
-           "0x0003xx, 0x0004xx, 0x0005xx, 0x101Exx, 0x103Cxx, 0x103Dxx, RAM 0x2039xx (plain load) and the scaler bank 0x102Fxx (any sub-bank), with interrupts masked and three agreeing reads; blocked reads return 0xFFFF, unstable reads (three reads differ) 0xFFFE. "
+           "0x0003xx, 0x0004xx, 0x0005xx, 0x101Exx, 0x103Cxx, 0x103Dxx, RAM 0x2022xx-0x2024xx and 0x2039xx (plain load) and the scaler bank 0x102Fxx (any sub-bank), with interrupts masked and three agreeing reads; blocked reads return 0xFFFF, unstable reads (three reads differ) 0xFFFE. "
            "No EEPROM, flash, PM51 or factory-data access; all writes are volatile (power-cycle to undo). "
            "Generated by tools/patches_src_diag_poke.py." % ', '.join('0x%08X' % a for a in WRITE_OK)),
 }
