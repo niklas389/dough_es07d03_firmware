@@ -845,3 +845,36 @@ standby entry calls it with 0 or 1, the wake path `0x745A` with 1). The 9
 transactions before the port enable cost ~0.55 s more than at mains speed.
 Check: compare PM registers `0x0300`–`0x04FF` after a mains start and after a
 wake (`tools/regdump.sh`).
+
+**PM register comparison** (`regdump.sh` 0x300–0x3FF, 0x400–0x45F, picture
+on; mains start = fast mailbox, deep-standby wake = slow; 2026-10-07). Equal
+in both: the `sub_7E4C` fields (`0x0391` 0x80, `0x0372` 0, `0x03B8` 0), so that
+candidate is out. Different (mains → wake):
+
+| Reg | Mains | Wake | Writer / note |
+|---|---|---|---|
+| `0x0387`/`0x0388` | `AA 55` | `00 00` | PM51 `0x96D5`–`0x96F7` |
+| `0x038A` | `40` | `C0` | bit 7: PM51 `sub_88EB` (wake transition); `sub_9864` writes `40` |
+| `0x0393` | `00` | `01` | `sub_88EB` writes `01`, `sub_9864` (standby side) `11` |
+| `0x039D` | `64` | `24` | bit 6: main CPU at standby entry, cleared by `sub_9864` |
+| `0x03A4` | `E1` | `00` | ? |
+| `0x03AA` | `00` | `04` | wake status (known) |
+| `0x03BF`, `0x03C0` | `00`, `03` | `10`, `01` | ? |
+| `0x03C3`, `0x03C5` | `4D`, `43` | `00`, `00` | ? |
+| `0x03E3`/`E5`/`E7`, `0x03ED`, `0x03EF` | `2D`/`0E`/`0D`, `86`, `00` | `00`…, `00`, `80` | ? |
+| `0x03FF` | `00` | `02` | PM51 `0x952C`: bits 1:0 cycle 0–2, period from `0x5E5D` |
+| `0x0416` | `10` | `1D` | PM51 `0x6622` writes `ED` |
+| `0x0432` | `70` | `F3` | ? |
+| `0x044A`/`0x044C` | `00`/`FF` | `C6`/`39` | pins: bits 7/6/2/1 driven only after a wake |
+
+`sub_88EB` (called by the PM51 power state machine `0x3EB4` on the wake
+transition, and by `0x980D`) also writes `0x101ED0` = `0x0030`, `0x101F09` =
+`0x1C` and `0x100FB4` = 0. The meaning of `0x0393` is unknown.
+
+**The PM51 forwards mailbox commands:** `0x64A4` builds a message
+(XDATA `0x5F86`…), sends it byte by byte through `0x9A3F` (non-standard
+SFRs `0x9A`–`0x9C`, i.e. a second serial port; interrupt flag `0x20.5`) and
+waits for the answer (`0x565A`, buffer `0x5CE4`, time-out `0x5E59`). The
+other end is most likely the MSB3300 front-end. So the 66 ms can come from
+the PM51 (clock/baud) or from the other chip's response time after its own
+standby; not decided.
