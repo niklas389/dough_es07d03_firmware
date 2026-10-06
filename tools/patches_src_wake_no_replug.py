@@ -1,29 +1,33 @@
 #!/usr/bin/env python3
 """Source of patches/wake-no-replug.json. Run in an unpacked work dir (RT=runtime_0x200000.bin).
 
-EXPERIMENTAL: on a wake from deep standby, do not re-send the unchanged port
-configuration to the input front-end, so it does not emulate an unplug.
+EXPERIMENTAL: on a wake from deep standby, re-enable the input port without
+the emulated unplug (long HPD low pulse).
 
-Background (diag-log, kernel log through the MST dock, 2026-10-07): on every
-start the firmware sends the full port configuration in sub_2398F9 (mailbox
-0x20 sub 12 begin, 0x20 sub 14, 0x60 sub 2, 0x20 sub 0 with the 9-byte port
-configuration, 0x20 sub 12 end). The payload is byte-identical after a
-deep-standby wake and after a power-key start. About 0.2-0.4 s later the
-monitor drops HPD for ~0.2 s: the PC removes and re-adds it (other monitors
-blank, desktop reconfigured, ~1 s extra set-up). The input front-end keeps
-its power in deep standby (the dock reports no disconnect at standby entry),
-so the configuration it holds is the one sent before standby. DisplayPort
-expects no hot-plug event when the sink's capabilities did not change.
+Background (diag-log and kernel log through the MST dock, 2026-10-07):
+- On every start the firmware sends the port configuration to the input
+  front-end (sub_2398F9 -> sub_239618): mailbox 0x20 sub 12 begin, 0x20 sub 14
+  (port 8, 0, 0), 0x20 sub 14 (port 8, 1, 650), 0x60 sub 2 (8, 1), 0x20 sub 0
+  (9 bytes, enable = 1), 0x20 sub 12 end. Byte-identical after a deep-standby
+  wake and a power-key start.
+- About 0.2-0.4 s later the monitor drops HPD for ~0.2 s; the PC removes and
+  re-adds it (other monitors blank, ~1 s of PC-side set-up).
+- Skipping the whole update after a deep-standby wake (first version of this
+  patch) removed the disconnect, but the port stayed without signal: the
+  enable part is needed after deep standby.
+- The 0x20 sub 14 pair comes from sub_23EE83(port, duration) -> sub_239479:
+  for front-end ports (port flags 0x20000) it sends (id, 0, 0) and (id, 1,
+  duration); for the scaler's own ports the same function drives HPD low
+  with a timer through sub_20EDCC. It is the deliberate hot-plug pulse.
+- DisplayPort: no hot-plug event when the capabilities did not change; a
+  link that has to be retrained is signalled with IRQ_HPD.
 
-Patch: sub_2398F9 @0x239996 (start of the per-port send: movi r3,1; jal
-sub_2393BD). If PM register 0x3AA bits 4:2 == 1 (wake from standby; 3 =
-power key from soft-off, 0 = mains power-up, read 2026-10-07) and the
-seconds counter 0x4551A3 is below 5, the port's configuration is recorded as
-applied (memcpy to the applied copy, as the vendor code does after sending)
-without the mailbox transaction, and the port's dirty flag is cleared (the
-vendor's 0x239970 stores r14, which another port's multi-pass path may have
-set to 1). Otherwise the vendor path runs unchanged. Later
-configuration changes (OSD, input switch) are sent as before.
+Patch: sub_239479 (0x20 sub 14 sender) entry. On a deep-standby wake (PM
+0x3AA bits 4:2 == 1, read 2026-10-07: 3 = power key, 0 = mains) within the
+first 5 s (seconds counter 0x4551A3 < 5), the command is not sent (returns
+1, callers ignore the result). The port configuration and enable commands
+are sent as before. Power-key and mains starts and later changes take the
+vendor path.
 """
 import sys, json, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aeon'))
@@ -33,25 +37,23 @@ d = open(os.environ.get('RT', 'runtime_0x200000.bin'), 'rb').read()
 def cur(a, n): return d[a - 0x200000:a - 0x200000 + n]
 
 CAVE = 0x203FB8                     # after diag-poke (0x203DC0-0x203FB7), before the panel-prepower flags (0x203FF0)
-HOOK = 0x239996                     # movi r3,1 ; jal sub_2393BD (begin)
-R0, R3, R4, R5, R7, R11, R13 = 0, 3, 4, 5, 7, 11, 13
+HOOK = 0x239479                     # sub_239479 entry: addi r1,r1,-0xc ; sw 8(r1),r9
+R1, R3, R7, R9 = 1, 3, 7, 9
 mh = lambda r, v: ('bg.movhi', {'D': r, 'U': v})
-j = lambda t: ('bg.j', {'/': t})
-jal = lambda t: ('bg.jal', {'/': t})
 
 prog = [
  'wnr:',
  mh(R7, 0x45), ('bg.lbz', {'?': R7, 'A': R7, '!': 0x51A3}),         # seconds since start
  ('bg.bgtui', {'A': R7, 'I': 4, ';': 'w_send'}),
- ('bg.ori', {'D': R3, 'A': R0, 't': 0x3AA}), jal(0x23D972),          # PM wake status
- ('bn.andi', {'D': R3, 'A': R3, 'N': 0x1C}),
- ('bg.bnei', {'A': R3, 'I': 4, ';': 'w_send'}),                     # bits 4:2 != 1: not a standby wake
- ('bt.mov', {'D': R3, 'A': R13}), ('bt.mov', {'D': R4, 'A': R11}),
- ('bn.ori', {'D': R5, 'A': R0, 'N': 0x18}), jal(0x26F791),          # applied copy <- requested (as at 0x2399AF)
- ('bn.sb', {'z': 0, 'A': R11, 'B': R0}),                            # clear this port's dirty flag (r14 may be 1)
- j(0x239973),                                                       # vendor: next port
+ mh(R7, 0x45), ('bg.lwz', {'D': R7, 'A': R7, 'W': 0x3CA8}),          # RIU base (as sub_23D972)
+ ('bg.lbz', {'?': R7, 'A': R7, '!': 0x3AA * 2}),                     # PM 0x3AA: wake status
+ ('bn.andi', {'D': R7, 'A': R7, 'N': 0x1C}),
+ ('bg.bnei', {'A': R7, 'I': 4, ';': 'w_send'}),                     # bits 4:2 != 1: not a standby wake
+ ('bt.movi', {'D': R3, 'I': 1}), ('bt.jr', {'A': R9}),              # deep-standby wake: no hot-plug pulse
  'w_send:',
- ('bt.movi', {'D': R3, 'I': 1}), jal(0x2393BD), j(0x23999C),         # replaced: begin update, continue
+ ('bn.addi', {'D': R1, 'A': R1, 'O': -0xC}),
+ ('bn.sw', {':': 8, 'A': R1, 'B': R9}),                             # replaced prologue
+ ('bg.j', {'/': HOOK + 5}),
 ]
 code, L = S.assemble(prog, CAVE)
 for a, b, x in A.disasm(code, CAVE, CAVE + len(code), CAVE):
@@ -60,21 +62,20 @@ for a, b, x in A.disasm(code, CAVE, CAVE + len(code), CAVE):
 print('cave %#x-%#x (%d bytes)' % (CAVE, CAVE + len(code), len(code)))
 assert CAVE + len(code) <= 0x203FF0
 assert cur(CAVE, len(code)) == b'\0' * len(code)
-assert cur(HOOK, 6).hex() == '9861e7fff44a', cur(HOOK, 6).hex()
-assert cur(0x2399A8, 11).hex() == '886d888b50a018e406bbc4', cur(0x2399A8, 11).hex()   # vendor memcpy call
+assert cur(HOOK, 5).hex() == '9c340d2108', cur(HOOK, 5).hex()
 nb = S.encode('bg.j', {'/': L['wnr']}, HOOK)
 patch = {
  'name': 'wake-no-replug',
- 'summary': 'EXPERIMENTAL: after a deep-standby wake, do not re-send the unchanged port configuration to the input front-end (avoids the emulated unplug: HPD drop, PC re-detects the monitor, other monitors blank)',
- 'status': 'experimental, hardware test pending',
+ 'summary': 'EXPERIMENTAL: after a deep-standby wake, re-enable the input port without the hot-plug pulse (emulated unplug: PC re-detects the monitor, other monitors blank)',
+ 'status': 'experimental, hardware test pending (v1, which skipped the whole port update, removed the disconnect but left the port without signal)',
  'edits': [
   {'addr': '0x%06X' % CAVE, 'old': '00' * len(code), 'new': code.hex(),
    'asm': 'wake-no-replug code (linker padding 0x203FB8)'},
   {'addr': '0x%06X' % HOOK, 'old': cur(HOOK, 4).hex(), 'new': nb.hex(),
-   'asm': 'sub_2398F9 movi r3,1 + first half of jal sub_2393BD -> j wnr (0x23999A-0x23999B unused)'},
+   'asm': 'sub_239479 entry (addi r1,-0xc + first byte of sw 8(r1),r9) -> j wnr (0x23947D unused)'},
  ],
- 'notes': ("Deep-standby wake (PM 0x3AA bits 4:2 == 1) within the first 5 s: the per-port configuration is recorded as applied "
-           "without the mailbox update (0x20 sub 12/14/0, 0x60 sub 2) that made the input front-end drop HPD for ~0.2 s. "
+ 'notes': ("Deep-standby wake (PM 0x3AA bits 4:2 == 1) within the first 5 s: mailbox 0x20 sub 14 (hot-plug pulse request, "
+           "sub_239479 via sub_23EE83) is not sent; the port configuration and enable (0x60 sub 2, 0x20 sub 0) are. "
            "Power-key and mains starts, and later changes, take the vendor path. Uses the cave 0x203FB8 that the current "
            "diag-log also uses: build it without diag-log. Generated by tools/patches_src_wake_no_replug.py."),
 }

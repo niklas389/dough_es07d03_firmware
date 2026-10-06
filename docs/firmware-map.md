@@ -639,3 +639,15 @@ on every start (case (a): fixable in the main firmware).
 `0x04`, power key from soft-off `0x0C`, mains power-up `0x00` (bits 4:2 =
 PM51 state at wake: 1 standby, 3 soft-off, 0 cold). Used by `wake-no-replug`.
 
+**`wake-no-replug` results** (2026-10-07):
+- v1 (skip the whole port update after a deep-standby wake): no disconnect in
+  the kernel log, but the port stayed without signal ("No signal", then
+  standby). A menu key later ran the vendor update: picture back, other
+  monitor blanked. So the enable part of the update is needed after deep
+  standby.
+- The `0x20` sub 14 pair is the hot-plug pulse: `sub_23EE83(port, duration)`
+  sends (id, 0, 0) and (id, 1, duration) to the front-end for ports with flag
+  `0x20000`; for the scaler's own ports it drives HPD low with a timer via
+  `sub_20EDCC`. v2 suppresses only `sub_239479` (sub 14) after a deep-standby
+  wake.
+
