@@ -44,7 +44,7 @@ patch = {
  'name': 'port-accept',
  'summary': 'Accept a stable signal on input ports 0 and 1 (type 0x20; port 1 = DP input) after %d x 20 ms = %.1f s instead of 1.6 s'
             % (ACCEPT, ACCEPT * 0.02),
- 'status': 'untested',
+ 'status': 'hardware-tested 2026-10-07: deep-standby wakes, power-key and mains starts without issues',
  'edits': [
   {'addr': '0x%06X' % ADDR, 'old': cur(ADDR, 3).hex(), 'new': new.hex(),
    'asm': 'sub_260E0E ori r4,r0,0x50 -> ori r4,r0,%#x (port +0x18 accept threshold for type 0x20)' % ACCEPT},

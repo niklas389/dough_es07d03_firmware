@@ -1,7 +1,7 @@
 {
   "name": "port-accept",
   "summary": "Accept a stable signal on input ports 0 and 1 (type 0x20; port 1 = DP input) after 30 x 20 ms = 0.6 s instead of 1.6 s",
-  "status": "untested",
+  "status": "hardware-tested 2026-10-07: deep-standby wakes, power-key and mains starts without issues",
   "edits": [
     {
       "addr": "0x260EDE",

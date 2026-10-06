@@ -175,7 +175,7 @@ for a, op, lab, old, c in hooks:
 patch = {
  'name': 'panel-prepower',
  'summary': 'Power the panel up (backlight off) during start-up; the 550 ms panel wait runs as a timer in the main loop instead of blocking the start',
- 'status': 'experimental, hardware test pending (v2; v1 = panel-prepower-v1)',
+ 'status': 'hardware-tested 2026-10-07 (v2): deep-standby wake 6.7-6.9 s (3 runs, with port-accept), power-key start 6.6 s, mains ~11.9 s; power-off right after a start and No signal -> deep standby -> wake OK',
  'requires': ['standby-lhs'],
  'edits': edits,
  'notes': ("Boot (0x2620CC): vendor panel-on up to the link training, then a 550 ms countdown (1 ms ISR timer slot 8, "

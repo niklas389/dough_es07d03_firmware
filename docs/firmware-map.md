@@ -772,3 +772,12 @@ order). A panel-on before the countdown ends waits for the rest, so training
 → backlight stays ≥ 550 ms; a panel-off during the countdown runs normally.
 Whether this shortens the wake depends on the port enable being on the
 critical path (not measured yet).
+
+**Results** (2026-10-07, stopwatch; build: final list + `port-accept` +
+`panel-prepower` v2): deep-standby wake (`kscreen-doctor` enable → picture)
+6.8 / 6.9 / 6.7 s (with `wake-no-replug` alone 9.3 s); power-key start 6.6 s
+(before 8.4 s); mains start ~11.9 s (an earlier mains start: 11.0 s; single
+runs, not comparable in detail). The gain on the wake (~2.5 s) is larger than
+the two changes explain on their own (1.0 s + up to 0.55 s); not verified
+without a timing log. Power-off by key works only ~3 s after a start (same with
+the stock firmware).
