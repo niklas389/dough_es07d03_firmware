@@ -59,11 +59,10 @@ the OSD timer expiry handler (`sub_258AB1`: re-enters "No signal", ends the
 logo or a popup), the OSD state-4 entry handler
 (`sub_26A7C5`, arms the 255 s countdown), the standby gate result in the
 power-save entry (`0x2613A0`), main loop start (`M`), backlight on (`B`, with
-the caller of `sub_245919`; `0x23AED9` = relight on valid video), every port
-state change seen by the input state machine `sub_22F2C7` (`P`, port → new
-state) and every main-CPU → PM51 mailbox command between 2.1 and 4.0 s (`Q`:
-command, sub-command, first data byte), to find the command that drops HPD
-during a wake. A 1 ms ISR hook keeps the time base. Data:
+the caller of `sub_245919`; `0x23AED9` = relight on valid video) and the full
+payload of the first port-configuration update after the main-loop start
+(`Q`: mailbox command `0x20` sub 12 data 1 … data 0, each command with header
+and data bytes), to find out what the update before the HPD drop changes. A 1 ms ISR hook keeps the time base. Data:
 `0x203968` (ms), `0x20396C` (event count), `0x203970` (ring, 8 bytes per
 entry). The current build keeps the **first** 16 events (start-up analysis) and only
 counts later ones (`KEEP_FIRST` in the generator); `logread.py` says which. Read with `tools/logread.py`. The log starts empty at every firmware
@@ -81,4 +80,5 @@ controller wake, boot loader, image unpacking).
 | `diag-log` (`c5f9fd5`) | not kept | `c5f9fd5` | v1 + I, D, M, B, C (inside `sub_261FA8`), Q ≥ 20 ms |
 | `diag-log` (`d9e1508`) | not kept | `d9e1508` | v1 + I, D, M, B, Q ≥ 100 ms, P, Y |
 | `diag-log` (`bdbf388`) | not kept | `bdbf388` | v1 + I, D, M, B, P, W (main-loop variable watcher) |
-| `diag-log` (current) | `patches/diag-log.json` | see git log | v1 + M, B, P, Q (all mailbox commands 2.1–4.0 s; 1.5–4.5 s in `91d16fc`) |
+| `diag-log` (`c55fd42`) | not kept | `c55fd42` | v1 + M, B, P, Q (all mailbox commands 2.1–4.0 s; 1.5–4.5 s in `91d16fc`) |
+| `diag-log` (current) | `patches/diag-log.json` | see git log | v1 + M, B, Q (payload of the first configuration update after the main-loop start) |

@@ -610,3 +610,21 @@ third wake the firmware start is ≈ command + 2.65–2.95 s, which puts the doc
 disconnect at ≈ 2.4–2.7 s on the firmware clock; the earlier slow-transaction
 log showed `0x20` sub 12 / 14 / 3 commands at 2.2–2.55 s.
 
+**Configuration updates and the HPD drop** (wake 5, 2026-10-07; mailbox
+commands 2.1–4.0 s): 2.14 `0x20` sub 3 (8); 2.21 `0x20` sub 12 (1);
+2.28 / 2.28 `0x20` sub 14 (8, 8); 2.29 `0x60` sub 2 (8); 2.29 `0x20` sub 0
+(data[0] 1); 2.30 `0x20` sub 12 (0); 2.30–2.46 `0x20` sub 3 (7, 8, `0x0B`,
+`0x0C`, 0, 0).
+- `0x20` sub 12 data 1 / 0 (`sub_2393BD`) bracket a configuration update in
+  `sub_2398F9` (per port of the table `0x3B4288`, 6 × `0x18`; the applied copy
+  is kept at `0x3B4318`); it is not the HPD control itself.
+- `0x20` sub 0 (`sub_23959E`, 9 bytes) is the port configuration sent by
+  `sub_239618`; data[0] is the constant 1, data[1] the port type (`+4` of the
+  table).
+- The PM51 also writes the mailbox registers (`0x4D0B`–`0x4E53`), so the
+  partner that executes these commands is a third processor, most likely the
+  input front-end MSB3300 (own R2 firmware; V108's `010F` on this monitor).
+- DP-correct behaviour on wake: no hot-plug event when the capabilities are
+  unchanged (IRQ_HPD for a link retrain only); a long pulse only when they
+  change. Next step: capture the update's payload (current `diag-log`).
+

@@ -93,6 +93,12 @@ for i in range(first, min(count, first + N)):
             shown = '0x%02X sub %2d  data[0] 0x%02X' % (val >> 16, (val >> 12) & 0xF, (val >> 4) & 0xFF)
         else:
             shown = 'cmd 0x%02X sub %d took %d ms' % (val >> 16, (val >> 12) & 0xF, (val & 0xFFF) * 2)
+    elif t_name == 'q_hdr':
+        name = 'Q cmd            '
+        shown = '0x%02X sub %2d  length %d' % (val >> 16, (val >> 8) & 0xFF, val & 0xFF)
+    elif t_name == 'q_dat':
+        name = '    data         '
+        shown = '%02X %02X %02X' % (val >> 16, (val >> 8) & 0xFF, val & 0xFF)
     elif t_name == 'w_lp':
         w = WATCH.get('0x%04X' % (val >> 8), {})
         name = 'W %-16s' % w.get('addr', '?')
