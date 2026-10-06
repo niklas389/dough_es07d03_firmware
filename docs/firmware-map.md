@@ -650,4 +650,10 @@ PM51 state at wake: 1 standby, 3 soft-off, 0 cold). Used by `wake-no-replug`.
   `0x20000`; for the scaler's own ports it drives HPD low with a timer via
   `sub_20EDCC`. v2 suppresses only `sub_239479` (sub 14) after a deep-standby
   wake.
+- v2 (drop only `0x20` sub 14 after a deep-standby wake): after two mains
+  starts with this build the PC fell back to 640x480-style modes (EDID not
+  read); a power-key restart (vendor path with the hot-plug pulse) fixed it.
+  Hypothesis: during the first seconds after a mains start `0x3AA` still holds
+  an older value, so the check suppresses the pulse on a cold start too. The
+  patch now stores the value it reads at `0x2039F8` (diag-poke readable).
 

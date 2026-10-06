@@ -26,7 +26,10 @@ Patch: sub_239479 (0x20 sub 14 sender) entry. On a deep-standby wake (PM
 0x3AA bits 4:2 == 1, read 2026-10-07: 3 = power key, 0 = mains) within the
 first 5 s (seconds counter 0x4551A3 < 5), the command is not sent (returns
 1, callers ignore the result). The port configuration and enable commands
-are sent as before. Power-key and mains starts and later changes take the
+are sent as before. Diagnostic: the 0x3AA value read by the check is stored
+at 0x2039F8 (readable with diag-poke) - two mains starts with this patch
+ended with the PC on fallback modes (EDID not read), which would fit a stale
+0x3AA during the first seconds after a mains start. Power-key and mains starts and later changes take the
 vendor path.
 """
 import sys, json, os
@@ -38,7 +41,8 @@ def cur(a, n): return d[a - 0x200000:a - 0x200000 + n]
 
 CAVE = 0x203FB8                     # after diag-poke (0x203DC0-0x203FB7), before the panel-prepower flags (0x203FF0)
 HOOK = 0x239479                     # sub_239479 entry: addi r1,r1,-0xc ; sw 8(r1),r9
-R1, R3, R7, R9 = 1, 3, 7, 9
+R1, R3, R6, R7, R9 = 1, 3, 6, 7, 9
+SEEN = 0x2039F8 - 0x200000          # last 0x3AA value read by the check (r6/r7/r8 are free at sub_239479 entry)
 mh = lambda r, v: ('bg.movhi', {'D': r, 'U': v})
 
 prog = [
@@ -47,6 +51,7 @@ prog = [
  ('bg.bgtui', {'A': R7, 'I': 4, ';': 'w_send'}),
  mh(R7, 0x45), ('bg.lwz', {'D': R7, 'A': R7, 'W': 0x3CA8}),          # RIU base (as sub_23D972)
  ('bg.lbz', {'?': R7, 'A': R7, '!': 0x3AA * 2}),                     # PM 0x3AA: wake status
+ mh(R6, 0x20), ('bg.sb', {'Y': SEEN, 'A': R6, 'B': R7}),            # diagnostic: value seen (diag-poke page 0x2039xx)
  ('bn.andi', {'D': R7, 'A': R7, 'N': 0x1C}),
  ('bg.bnei', {'A': R7, 'I': 4, ';': 'w_send'}),                     # bits 4:2 != 1: not a standby wake
  ('bt.movi', {'D': R3, 'I': 1}), ('bt.jr', {'A': R9}),              # deep-standby wake: no hot-plug pulse
@@ -63,6 +68,7 @@ print('cave %#x-%#x (%d bytes)' % (CAVE, CAVE + len(code), len(code)))
 assert CAVE + len(code) <= 0x203FF0
 assert cur(CAVE, len(code)) == b'\0' * len(code)
 assert cur(HOOK, 5).hex() == '9c340d2108', cur(HOOK, 5).hex()
+assert cur(0x200000 + SEEN, 1) == b'\0'
 nb = S.encode('bg.j', {'/': L['wnr']}, HOOK)
 patch = {
  'name': 'wake-no-replug',
