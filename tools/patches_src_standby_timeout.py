@@ -45,7 +45,7 @@ assert A.decode(cur(CMP, 4), 0, CMP)['mnem'] == A.decode(new_cmp, 0, CMP)['mnem'
 patch = {
  'name': 'standby-timeout',
  'summary': '"No signal" -> power-save after %d s instead of 255 s (panel still dark after 5 s)' % SECONDS,
- 'status': 'analysis-verified, hardware test pending',
+ 'status': 'hardware-tested 2026-10-07 (30 s: link-held or deep standby about 30 s after the source stops)',
  'edits': [
   {'addr': '0x%06X' % CAVE, 'old': '00' * len(code), 'new': code.hex(),
    'asm': 'standby-timeout: cnt = %d (linker padding 0x203932)' % SECONDS},

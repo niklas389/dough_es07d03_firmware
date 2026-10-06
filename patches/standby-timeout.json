@@ -1,7 +1,7 @@
 {
   "name": "standby-timeout",
   "summary": "\"No signal\" -> power-save after 30 s instead of 255 s (panel still dark after 5 s)",
-  "status": "analysis-verified, hardware test pending",
+  "status": "hardware-tested 2026-10-07 (30 s: link-held or deep standby about 30 s after the source stops)",
   "edits": [
     {
       "addr": "0x203932",

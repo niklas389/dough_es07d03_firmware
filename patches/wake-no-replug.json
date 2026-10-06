@@ -1,12 +1,12 @@
 {
   "name": "wake-no-replug",
-  "summary": "EXPERIMENTAL: after a deep-standby wake, re-enable the input port without the hot-plug pulse (emulated unplug: PC re-detects the monitor, other monitors blank)",
-  "status": "experimental, hardware test pending (v1, which skipped the whole port update, removed the disconnect but left the port without signal)",
+  "summary": "After a deep-standby wake, re-enable the input port without the hot-plug pulse (emulated unplug: PC re-detects the monitor, other monitors blank)",
+  "status": "hardware-tested 2026-10-07: three deep-standby wakes without disconnect, picture after ~9.3 s (v1, which skipped the whole port update, left the port without signal)",
   "edits": [
     {
       "addr": "0x203FB8",
-      "old": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-      "new": "c0e008a1f0e751a3d0e4011dc0e008a1ece73caaf0e70754c0c00401f8e639f854e71cd0e40046986185291c21f40d2108e406a92b",
+      "old": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "new": "c0e008a1f0e751a3d0e400ddc0e008a1ece73caaf0e7075454e71cd0e40046986185291c21f40d2108e406a93b",
       "asm": "wake-no-replug code (linker padding 0x203FB8)"
     },
     {
