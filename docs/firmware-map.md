@@ -878,3 +878,13 @@ waits for the answer (`0x565A`, buffer `0x5CE4`, time-out `0x5E59`). The
 other end is most likely the MSB3300 front-end. So the 66 ms can come from
 the PM51 (clock/baud) or from the other chip's response time after its own
 standby; not decided.
+
+**Mailbox log over a longer run** (`diag-log-mb`, 2026-10-07): from ~160 s
+to ~530 s after a deep-standby wake the only transactions are `0x20` sub 18,
+posted every ~8.4 s (sometimes twice within 0.05–0.3 s) by `sub_239302`
+(called from the main-loop task `sub_20D134`, two data bytes) with r8 = 0,
+i.e. without waiting for an answer (`mailbox_query` returns at `0x239147`
+right after writing the request), so their "0 ms" says nothing about the
+transfer speed. A `kscreen-doctor` disable/enable without standby produced no
+other transaction. The log changed while it was read (~6 min for 512 bytes),
+so its order is mixed. `diag-log-mb` now skips posted messages.

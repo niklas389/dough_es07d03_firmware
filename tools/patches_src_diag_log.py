@@ -34,7 +34,9 @@ Events (tools/logread.py names):
 MODE=mb (patches/diag-log-mb.json, a separate diagnostic; same areas, so use
 one of the two): no watcher; the log keeps the LAST 64 events; Q is logged at
 the end of every mailbox transaction (common epilogue 0x239002) for the whole
-run, value = cmd << 16 | sub << 8 | duration in ms (capped at 255). Used to
+run, value = cmd << 16 | sub << 8 | duration in ms (capped at 255); messages
+posted without waiting for an answer (r8 = 0, e.g. the periodic 0x20 sub 18
+from sub_20D134 every ~8 s) are not logged. Used to
 see whether the transactions stay slow (~66 ms) long after a deep-standby
 wake or become fast (~5 ms, as after a mains start).
 """
@@ -136,6 +138,7 @@ def program(pad):
      # ---- mailbox command (replaces movhi r14,0x45 at 0x238FD5; r12 cmd, r13 sub, r11 length, r17 data) ----
      *P('h_mb'),
      *([mh(R7, 0x20), sb(MBC, R7, R12), sb(MBC + 1, R7, R13),                 # mb mode: remember cmd/sub/start
+        sb(QOFF, R7, 19),                                                     # and r19 = wait-for-answer flag (0: posted)
         lwz(R6, LOGT, R7), sw(MBT, R7, R6), j('mb_x')] if MB else []),
      mh(R7, 0x20), lbz(R6, QOFF, R7), ('bg.bnei', {'A': R6, 'I': 0, ';': 'mb_x'}),
      movi(R4, 0), ('bg.beqi', {'A': R11, 'I': 0, ';': 'mb_v'}), ('bn.lbz', {'?': R4, 'A': R17, 'z': 0}),
@@ -146,14 +149,15 @@ def program(pad):
      'mb_x:', mh(R14, 0x45), j(0x238FD9),
      # ---- mb mode: mailbox_query epilogue 0x239002 (replaces lwz r19,0(r1); lwz r18,4(r1); r3 = result, r4-r8 free) ----
      *([*P('h_mbx'), nlw(19, 0, R1), nlw(18, 4, R1),
-     mh(R7, 0x20), lwz(R6, LOGT, R7), lwz(R5, MBT, R7), ('bn.sub', {'D': R6, 'A': R6, 'B': R5}),
+     mh(R7, 0x20), lbz(R6, QOFF, R7), ('bg.beqi', {'A': R6, 'I': 0, ';': 'mbx_x'}),   # posted (no answer awaited): not logged
+     lwz(R6, LOGT, R7), lwz(R5, MBT, R7), ('bn.sub', {'D': R6, 'A': R6, 'B': R5}),
      ('bg.sfgtui', {'A': R6, 'Y': 255}), ('bg.bnf', {"'": 'mbx_v'}), ('bg.ori', {'D': R6, 'A': R0, 't': 255}),
      'mbx_v:',
      lbz(R5, MBC, R7), ('bn.slli', {'D': R5, 'A': R5, 'H': 16}), ('bn.or', {'D': R6, 'A': R6, 'B': R5}),
      lbz(R5, MBC + 1, R7), ('bn.slli', {'D': R5, 'A': R5, 'H': 8}), ('bn.or', {'D': R6, 'A': R6, 'B': R5}),
      ('bn.or', {'D': R8, 'A': R3, 'B': R0}), ('bn.or', {'D': R3, 'A': R6, 'B': R0}),
      jal('log_r3'), ('bn.or', {'D': R3, 'A': R8, 'B': R0}),
-     j(0x239008)] if MB else []),
+     'mbx_x:', j(0x239008)] if MB else []),
 
      # ---- main-loop watcher (replaces jal sub_261C04 at 0x262105; r3-r8 free there) ----
      'h_loop:', jal('w_run'), jal(0x261C04), j(0x262109),
