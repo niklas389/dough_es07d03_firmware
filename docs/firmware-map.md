@@ -472,7 +472,7 @@ Packages supplied by the owner (not committed):
 | `ES07D03_Beta03_rev1169-E771_USB_update.bin` (base of this project) | Jul 29 2024 | version string `V108T` |
 | `BD_EVE_4K_Release_20211126_V105_rev957_USB update.bin` | Nov 26 2021 | oldest public ES07D03 package; same layout, contains `010F` (MSB3300 firmware) like V106/V108 |
 | `dough_es07e91_v1.0.19_USB-update.bin` (Spectrum Black, OLED) | 2025 | Realtek **RTD2739** scaler, panel LW315AQQ; different architecture, nothing transferable at code level |
-| LG 28MQ780 `28MQ780_MSTAR_MST9W00V4_V3.3.0` (raw scaler flash image) | Mar 17 2022 | MStar **MST9W00** (other scaler generation), same packaging style (`TEL` table at `0x33080`, deflate main image at `0x34880`, 3.2 MB inflated); TV-SDK style code with debug strings (`msAPI_*`, `MDrv_*`, `HDCPHandler_*`, EDID variant names, `HPD : %d`, `Check Signal : %d`); different code base, nothing transferable at code level |
+| LG 28MQ780 `28MQ780_MSTAR_MST9W00V4_V3.3.0` (raw scaler flash image) | Mar 17 2022 | file name says MST9W00, but the code is the same MStar **MST9U** SDK (strings `./cpu/risc32/MST9U/interrupt.c`, `MST9U4_Panel…`; same AEON start-up). Image header at `0x11000`, runtime = `0x31080`–`0x3487F` + inflate of the deflate stream at `0x34880` (load `0x200000`, end `0x537940`, entry `0x271520`). Debug strings (`msAPI_*`, `MDrv_*`, `HDCPHandler_*`, EDID variant names, `HPD : %d`, `Check Signal : %d`). About 1600 of our 2753 functions have a counterpart; the input-port layer is the same code with other structure sizes; see §17 |
 
 - PM51 standby controller, second 8051 image and `sboot` are byte-identical in
   V106, V108 and Beta03. Only the main runtime and `secu_r2` differ.
@@ -664,3 +664,68 @@ PM51 state at wake: 1 standby, 3 soft-off, 0 cold). Used by `wake-no-replug`.
   (stopwatch; 10.2–13.1 s with the vendor pulse). The mains-start EDID
   fallback was not caused by the patch (check read `0x00`, so it did not act).
 
+
+## 17. LG 28MQ780 comparison and signal acceptance (2026-10-07)
+
+**Method.** Function discovery on the LG runtime (`tools/aeon/funcs.py`, 4052
+functions), then matching against ours: exact instruction signatures (980
+pairs), call-graph propagation (1393) and a similarity pass between matched
+neighbours (1600 of our 2753 functions). Matched: most of the driver layer
+(`0x207000`–`0x252000`: scaler, PQ, HDR/CFD, GOP, HDCP mailbox, port and path
+handling), `0x270000`–`0x292000`, `0x2A7000`–`0x2AD000`. Not matched: the
+application layer (`0x253000`–`0x26A000`, `0x293000`–`0x2A1000`: OSD, power
+and standby states, countdown) and the front-end mailbox (`0x238000`–`0x23A000`;
+the LG image has no `0x1033C0` mailbox, its DP receiver is driven by the
+scaler alone).
+
+Name transfers from LG strings are mostly PQ/HDR/GOP functions (e.g.
+`sub_235422` = `HDCPMBX_SetCommonCmd`). Pairs used below:
+
+| Ours | LG | Role |
+|---|---|---|
+| `sub_22F2C7` | `sub_230177` | path/port task (90 % identical) |
+| `sub_23B068` | `sub_24588E` | port monitor |
+| `sub_23A7CB` | `sub_24512D` | timing-change check (same logic) |
+| `sub_260E0E` | `sub_25E480` | per-port thresholds |
+| `sub_23E5C5` | `sub_247F4E` | store thresholds (`+0x18`, `+0x1A`) |
+| `0x3B4950`, `0xB0` per port | `0x3FFF40`, `0xB8` per port | port table |
+
+**Signal acceptance** (the fixed ~1.6 s found in the wake logs, §16):
+- `sub_22F2C7` runs `sub_23B068` for each port every 20 ms (byte `+0x14`:
+  reloaded with 20, reduced by 10 on each 10 ms tick in the same task). Same
+  in the LG image.
+- `sub_23B068` counts `+0x16` up by one per pass while the port reports a
+  signal. A timing change found by `sub_23A7CB` sets status `+0x20` bits
+  `0x0C` and flag `+0x1C` bit 0, which sends the port back to state 1. At `+0x18`
+  passes the signal is accepted (`sub_23E64A(port, 3)`, port state 3); at
+  `+0x1A` passes without a signal the port is declared "no signal" (state 2,
+  flags `+0x1C` `|= 6`).
+- `sub_260E0E` sets the thresholds by port type (word `+4`):
+
+| Type bits | Dough | LG 28MQ780 |
+|---|---|---|
+| bit 0 | 10 / 20 | 10 / 20 |
+| bit 1 or 2 | 20 / 60 | 20 / 20 |
+| bit 3, 4 or `0x400` | 50 / 500 (50 / 200)* | 20 / 100 |
+| other (`0x20`: our ports 0 and 1) | **80 / 400** (50 / 200)* | **30 / 100** |
+
+  (accept / no-signal passes of 20 ms; * when settings `+0x48` bit 2 or `flg`
+  `0x4551AE` bit 0 is set; `flg` bit 0 is set by `nvram_init` only when the
+  EEPROM magic `0x55AA` is missing.)
+- Port 1 (type `0x20`) therefore needs 80 × 20 ms = 1.6 s, which matches the
+  measured 1.60 s in two wakes. The LG firmware uses 30 (0.6 s) for the same
+  port class.
+- `port-accept` sets the type-`0x20` accept threshold to 30 (`0x260EDE`,
+  one immediate). The no-signal threshold and the other types are unchanged.
+- LG's `sub_24588E` has an additional, optional second threshold (global at
+  LG `0x538EA4`, used when the retry counter `0x538F65` is set); not present in ours.
+
+**Other comparisons:**
+- Delay calls (`sub_241523` / `sub_241505` = LG `sub_24A325` / `sub_24A307`)
+  are the same in all matched functions apart from three LG-only short
+  delays; the Dough driver layer has no extra fixed waits.
+- `sub_22F2C7`, transition path → state 2: ours `sub_21C8C1(0x20, 2)`, LG
+  `(0x28, 0x14)`; LG also retries the path set-up up to 3 times. Meaning of the
+  arguments not analysed.
+- Most other differing immediates in matched functions are board-specific
+  (register addresses, resolution limits 1920 vs 1280, structure sizes).
