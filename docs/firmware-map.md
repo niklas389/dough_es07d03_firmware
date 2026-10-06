@@ -729,3 +729,32 @@ Name transfers from LG strings are mostly PQ/HDR/GOP functions (e.g.
   arguments not analysed.
 - Most other differing immediates in matched functions are board-specific
   (register addresses, resolution limits 1920 vs 1280, structure sizes).
+
+**Order and parallelism** (LG vs ours, 2026-10-07):
+- Low-level start-up (entry `0x26F528` / LG `0x271520`): same calls in the
+  same order.
+- Application main (`sub_261FDE` / LG `sub_25EDCE`): LG has no front-end
+  set-up (our `sub_261FA8` and the mailbox transactions, ~0.9 s after a
+  power-key start, 4.6 s after a mains start) and no logo path. Main loop: in
+  both, a 10 ms tick handler plus one pass of all tasks; the port task runs
+  every pass.
+- Panel power: LG runs it as a separate, non-blocking state machine in the
+  main loop (`0x2B57BA`, state byte `0x544078`, timestamps from `0x2AA914`),
+  started before the loop. Its steps are dispatched by `0x284C62(step)`:
+  - step 1 `0x24F973`: output mode 2 and VLCD (`0x44B` bit 5) on, then a
+    short wait (panel-table value);
+  - step 2 `0x24FA39`: eDP on, 10 ms, HPD poll and training (`sub_210765` =
+    our `sub_21177B`), then a 550 ms timer;
+  - state 3 waits non-blocking for a panel-table time, then step 3
+    `0x24F8AC` (output mode 0, panel-ready flag `0x538FA0`).
+
+  Input detection keeps running during the panel waits. Ours does the same
+  steps blocking in `sub_245919` (25 + 10 ms + training + 550 ms busy-wait). With
+  `panel-prepower` this happens at `0x2620CC`, before the main loop: in the
+  deep-standby wake log the prepower started at 0.93 s and the first mailbox
+  command followed at 1.68 s, so the front-end port enable (`0x20` sub 0,
+  2.29 s) comes ~0.75 s later than it could. Whether the port enable is on
+  the critical path after a wake with `wake-no-replug` is not measured yet.
+- LG panel-off `0x24F8C8`: backlight off, 100 ms (ours 320 ms), mode 2
+  (ours 1), 80 ms, mode 0, eDP off, 10 ms (ours 20), VLCD off, 1200 ms off
+  timer (`0x538FAA`); otherwise the same order as our `sub_245860`.
