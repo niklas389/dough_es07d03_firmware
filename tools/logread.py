@@ -2,6 +2,7 @@
 """logread.py - read and decode the diag-log event log over DDC (needs diag-poke + diag-log).
 
     MON=1 SPECCTL=./specctl tools/logread.py
+    LOG=diag-log-mb MON=1 SPECCTL=./specctl tools/logread.py   (for a diag-log-mb build)
 
 Prints the events oldest first: time (s since the firmware start), time since
 the previous event, event, value. Read-only. The log lives in RAM: it starts
@@ -14,7 +15,7 @@ import json, os, re, subprocess, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 SPECCTL = os.environ.get('SPECCTL', 'specctl')
 MON = os.environ.get('MON', '0')
-P = json.load(open(os.path.join(HERE, '..', 'patches', 'diag-log.json')))
+P = json.load(open(os.path.join(HERE, '..', 'patches', os.environ.get('LOG', 'diag-log') + '.json')))
 TAGS = {int(v, 16): k for k, v in P['tags'].items()}
 NAMES = {'h_off': 'F panel off      caller', 'h_on': 'N panel on       caller',
          'h_sig': 'S OSD timer end  caller', 'h_st4': 'E state-4 entry  caller',
@@ -72,8 +73,6 @@ u32 = lambda o: int.from_bytes(raw[o:o + 4], 'little')
 now, count = u32(0), u32(4)
 used = min(count, N)
 raw += read_bytes(BASE + 8, 8 * used) if used else b''
-if not P.get('keep_first', False) and count > N:      # ring: wrapped, read it whole
-    raw = raw[:8] + read_bytes(BASE + 8, 8 * N)
 print('firmware running for %.3f s, %d events logged' % (now / 1000, count))
 keep_first = P.get('keep_first', False)
 first = 0 if keep_first else max(0, count - N)
@@ -94,6 +93,10 @@ for i in range(first, min(count, first + N)):
     dt = '' if prev is None else '+%.3f' % ((t - prev) / 1000)
     if t_name == 'h_gate':
         shown = '%d' % val
+    elif t_name == 'h_mb' and P.get('q_format') == 'cmd_sub_dur':
+        name = 'Q mailbox done  '
+        d = val & 0xFF
+        shown = '0x%02X sub %2d  took %s ms' % (val >> 16, (val >> 8) & 0xFF, '>=255' if d == 255 else d)
     elif t_name == 'h_mb' and P.get('q_format') == 'cmd_sub_data0':
         name = 'Q mailbox cmd   '
         shown = '0x%02X sub %2d  data[0] 0x%02X' % (val >> 16, (val >> 8) & 0xFF, val & 0xFF)

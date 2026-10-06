@@ -30,6 +30,13 @@ Events (tools/logread.py names):
   N  sub_245919+5 panel on (pnl = 0)        F sub_245860 panel off (pnl = 1)
   B  0x2459C0  backlight on                 S sub_258AB1 OSD timer end
   E  sub_26A7C5 state 4 ("No signal")       G 0x2613A0 standby gate result
+
+MODE=mb (patches/diag-log-mb.json, a separate diagnostic; same areas, so use
+one of the two): no watcher; the log keeps the LAST 64 events; Q is logged at
+the end of every mailbox transaction (common epilogue 0x239002) for the whole
+run, value = cmd << 16 | sub << 8 | duration in ms (capped at 255). Used to
+see whether the transactions stay slow (~66 ms) long after a deep-standby
+wake or become fast (~5 ms, as after a mains start).
 """
 import sys, json, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aeon'))
@@ -38,12 +45,17 @@ import aeondis as A, aeonasm as S
 d = open(os.environ.get('RT', 'runtime_0x200000.bin'), 'rb').read()
 def cur(a, n): return d[a - 0x200000:a - 0x200000 + n]
 
+MODE = os.environ.get('MODE', 'timing')   # 'timing' (diag-log) or 'mb' (diag-log-mb: mailbox durations, last 64 events)
+MB = MODE == 'mb'
+assert MODE in ('timing', 'mb')
 CODE = 0x201400                     # head zero area 0x201214-0x201FFF
 DATA = 0x202200                     # head zero area 0x202087-0x2037FF (after the TEL key table)
 N = 64
 LOGT, IDX, BUF = DATA - 0x200000, DATA + 4 - 0x200000, DATA + 8 - 0x200000
 QOFF = DATA + 8 + 8 * N - 0x200000  # mailbox logging off flag (set by the backlight stub)
 WFLAG = QOFF + 1                    # watcher: first pass done
+MBC = QOFF + 2                      # mb mode: cmd, sub of the running mailbox transaction
+MBT = (QOFF + 4 + 3) & ~3           # mb mode: u32 start time of the running transaction
 WATCH = [(0x3B4970, 'port 0 +0x20 status'), (0x3B4A20, 'port 1 +0x20 status'),
          (0x3B4A1C, 'port 1 +0x1C flags'), (0x457854, 'OSD state'),
          (0x203FF0, 'panel-prepower state (1 waiting, 2 ready)')]
@@ -73,8 +85,10 @@ def program(pad):
      'log_r3:', *SAVE, ('bn.or', {'D': R4, 'A': R3, 'B': R0}),
      'log_c:',
      mh(R7, 0x20), lwz(R5, IDX, R7),
-     ('bg.sfgtui', {'A': R5, 'Y': N - 1}), ('bg.bf', {"'": 'log_cnt'}),   # full: count only
-     ('bn.slli', {'D': R6, 'A': R5, 'H': 3}), ('bn.add', {'D': R6, 'A': R6, 'B': R7}),
+     *([('bn.andi', {'D': R6, 'A': R5, 'N': N - 1}), ('bn.slli', {'D': R6, 'A': R6, 'H': 3})] if MB else   # ring: last N
+       [('bg.sfgtui', {'A': R5, 'Y': N - 1}), ('bg.bf', {"'": 'log_cnt'}),                               # full: count only
+        ('bn.slli', {'D': R6, 'A': R5, 'H': 3})]),
+     ('bn.add', {'D': R6, 'A': R6, 'B': R7}),
      lwz(R8, LOGT, R7), sw(BUF, R6, R8),
      mh(R8, 0xFF), ('bg.ori', {'D': R8, 'A': R8, 't': 0xFFFF}), ('bn.and', {'D': R4, 'A': R4, 'B': R8}),
      ('bn.slli', {'D': R8, 'A': R9, 'H': 24}), ('bn.or', {'D': R4, 'A': R4, 'B': R8}),
@@ -121,6 +135,8 @@ def program(pad):
 
      # ---- mailbox command (replaces movhi r14,0x45 at 0x238FD5; r12 cmd, r13 sub, r11 length, r17 data) ----
      *P('h_mb'),
+     *([mh(R7, 0x20), sb(MBC, R7, R12), sb(MBC + 1, R7, R13),                 # mb mode: remember cmd/sub/start
+        lwz(R6, LOGT, R7), sw(MBT, R7, R6), j('mb_x')] if MB else []),
      mh(R7, 0x20), lbz(R6, QOFF, R7), ('bg.bnei', {'A': R6, 'I': 0, ';': 'mb_x'}),
      movi(R4, 0), ('bg.beqi', {'A': R11, 'I': 0, ';': 'mb_v'}), ('bn.lbz', {'?': R4, 'A': R17, 'z': 0}),
      'mb_v:',
@@ -128,6 +144,16 @@ def program(pad):
      ('bn.or', {'D': R3, 'A': R3, 'B': R5}), ('bn.or', {'D': R3, 'A': R3, 'B': R4}),
      jal('log_r3'),
      'mb_x:', mh(R14, 0x45), j(0x238FD9),
+     # ---- mb mode: mailbox_query epilogue 0x239002 (replaces lwz r19,0(r1); lwz r18,4(r1); r3 = result, r4-r8 free) ----
+     *([*P('h_mbx'), nlw(19, 0, R1), nlw(18, 4, R1),
+     mh(R7, 0x20), lwz(R6, LOGT, R7), lwz(R5, MBT, R7), ('bn.sub', {'D': R6, 'A': R6, 'B': R5}),
+     ('bg.sfgtui', {'A': R6, 'Y': 255}), ('bg.bnf', {"'": 'mbx_v'}), ('bg.ori', {'D': R6, 'A': R0, 't': 255}),
+     'mbx_v:',
+     lbz(R5, MBC, R7), ('bn.slli', {'D': R5, 'A': R5, 'H': 16}), ('bn.or', {'D': R6, 'A': R6, 'B': R5}),
+     lbz(R5, MBC + 1, R7), ('bn.slli', {'D': R5, 'A': R5, 'H': 8}), ('bn.or', {'D': R6, 'A': R6, 'B': R5}),
+     ('bn.or', {'D': R8, 'A': R3, 'B': R0}), ('bn.or', {'D': R3, 'A': R6, 'B': R0}),
+     jal('log_r3'), ('bn.or', {'D': R3, 'A': R8, 'B': R0}),
+     j(0x239008)] if MB else []),
 
      # ---- main-loop watcher (replaces jal sub_261C04 at 0x262105; r3-r8 free there) ----
      'h_loop:', jal('w_run'), jal(0x261C04), j(0x262109),
@@ -165,6 +191,7 @@ def tags_of(code, L):
     for a, b, x in A.disasm(code, CODE, CODE + len(code), CODE):
         if x['mnem'] == 'b.jal' and x['target'] in [L[k] for k in LOGS]:
             owner = max((v, k) for k, v in L.items() if v <= a and k not in LOGS and not k.endswith(('_go', '_x', '_v', '_nx', '_lp')))[1]
+            owner = 'h_mb' if owner == 'h_mbx' else owner
             t[owner] = (a + x['len']) & 0xFF
     return t
 
@@ -192,9 +219,9 @@ for a, b, x in A.disasm(code, CODE, CODE + len(code), CODE):
 print('code %#x-%#x, watch table %#x, data %#x-%#x' % (CODE, CODE + len(code), wtab, DATA, 0x200000 + WFLAG + 1))
 print('tags', {k: '%02X' % v for k, v in TAGS.items()})
 assert CODE + len(blob) <= 0x202000
-assert 0x200000 + WFLAG < 0x202500
+assert 0x200000 + MBT + 4 <= 0x202500
 assert cur(CODE, len(blob)) == b'\0' * len(blob)
-assert cur(DATA, WFLAG + 1 - LOGT) == b'\0' * (WFLAG + 1 - LOGT)
+assert cur(DATA, MBT + 4 - LOGT) == b'\0' * (MBT + 4 - LOGT)
 assert cur(0x201200, 0x14) != b'\0' * 0x14 and cur(0x201214, 0x201400 - 0x201214) == b'\0' * (0x201400 - 0x201214)
 assert cur(0x202087, DATA - 0x202087) == b'\0' * (DATA - 0x202087)
 
@@ -215,6 +242,8 @@ hooks = [  # addr, expected original bytes, label, what
  (0x238FD5, 'c1c008a1', 'h_mb', 'mailbox_query: movhi r14,0x45 after the argument moves'),
  (0x262105, 'e7fff5fe', 'h_loop', 'main-loop head: jal sub_261C04'),
 ]
+if MB:   # no watcher (saves ring entries); mailbox duration at the common epilogue
+    hooks = [h for h in hooks if h[2] != 'h_loop'] + [(0x239002, '0e61020e4106', 'h_mbx', 'mailbox_query epilogue: log cmd, sub, duration')]
 edits = [{'addr': '0x%06X' % CODE, 'old': '00' * len(blob), 'new': blob.hex(),
           'asm': 'diag-log code and watch table (image head zero area 0x201400); data at 0x%06X' % DATA}]
 for a, old, lab, what in hooks:
@@ -224,21 +253,22 @@ for a, old, lab, what in hooks:
                   'asm': '%s -> j %s (%s)' % (A.decode(cur(a, 4), 0, a)['mnem'], lab, what)})
 
 patch = {
- 'name': 'diag-log',
- 'summary': 'DIAGNOSTIC: timing log in RAM (ms time stamps, 64 events): start-up milestones, mailbox commands, port states, watched bytes, panel/backlight; read with diag-poke + tools/logread.py',
+ 'name': 'diag-log-mb' if MB else 'diag-log',
+ 'summary': ('DIAGNOSTIC: mailbox log in RAM (last 64 events): every mailbox command with its duration for the whole run, start-up milestones, port states, panel/backlight; read with diag-poke + LOG=diag-log-mb tools/logread.py' if MB else
+             'DIAGNOSTIC: timing log in RAM (ms time stamps, 64 events): start-up milestones, mailbox commands, port states, watched bytes, panel/backlight; read with diag-poke + tools/logread.py'),
  'status': 'diagnostic, hardware test pending (first use of the image head area)',
  'requires': ['diag-poke'],
  'edits': edits,
  'tags': {k: '0x%02X' % v for k, v in TAGS.items()},
- 'keep_first': True,
- 'q_format': 'cmd_sub_data0',
+ 'keep_first': not MB,
+ 'q_format': 'cmd_sub_dur' if MB else 'cmd_sub_data0',
  'data': {'ms': '0x%06X' % DATA, 'count': '0x%06X' % (DATA + 4), 'ring': '0x%06X' % (DATA + 8), 'entries': N},
- 'watch': {'0x%04X' % ((wtab + 8 * i) & 0xFFFF): {'addr': '0x%06X' % a, 'what': w} for i, (a, w) in enumerate(WATCH)},
+ 'watch': {} if MB else {'0x%04X' % ((wtab + 8 * i) & 0xFFFF): {'addr': '0x%06X' % a, 'what': w} for i, (a, w) in enumerate(WATCH)},
  'notes': ("Code in the uncompressed image head (0x201400, zero in the stock image, copied to RAM by the boot loader, "
            "not referenced by the firmware); data at 0x%06X (needs the diag-poke version that reads pages 0x2022xx-0x2024xx). "
            "Does not use the 0x203800 linker padding, so it combines with all regular patches. "
            "Generated by tools/patches_src_diag_log.py." % DATA),
 }
-out = os.environ.get('OUT', 'diag-log.json')
+out = os.environ.get('OUT', 'diag-log-mb.json' if MB else 'diag-log.json')
 json.dump(patch, open(out, 'w'), indent=2)
 open(out, 'a').write('\n')

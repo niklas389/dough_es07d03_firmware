@@ -1,0 +1,132 @@
+{
+  "name": "diag-log-mb",
+  "summary": "DIAGNOSTIC: mailbox log in RAM (last 64 events): every mailbox command with its duration for the whole run, start-up milestones, port states, panel/backlight; read with diag-poke + LOG=diag-log-mb tools/logread.py",
+  "status": "diagnostic, hardware test pending (first use of the image head area)",
+  "requires": [
+    "diag-poke"
+  ],
+  "edits": [
+    {
+      "addr": "0x201400",
+      "old": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "new": "1c21e80c61000c81040ca1080cc10c0ce1100d01140c811ae40000711c21e80c61000c81040ca1080cc10c0ce1100d01140c811ee40000391c21e80c61000c81040ca1080cc10c0ce1100d0114448305c0e00401eca7220654c53f4cc61840c63ced072202ed062208c1001fe1c908ffff4484444d09c0448445ec86220c9ca1eca722040c61020c81060ca10a0cc10e0ce1120d01161c211885299c380d2104c0e00401ecc722029cc1ecc72200e407ef59e7fffe9cc860042ce40c1675e7fffe84e407d4cce40c1795e7fffe6ce407f9aee40c179de7fffe54e40cc3b0e40c17f1e7fffe3cc14008a1e40c1827e7fffe5c98c1c0e00401f8c72408c8600426e40889899c3c0d2100c0e008a1f0e751a8d0e00042e7fffdd6e40886990d4100c14008a1f0ea51a8d0e00046e7fffde0e40887eb9c380d2104e7fffdc6e40aeaf39c380d2104e7fffdace40d2501e40bfb56e7fffdcce40bfc9dd4e600ea18eb001c21fc0c61004c6a4044633de7fffd960c61021c2104e405bb21c0e00401f987240af9a7240becc72202ecc7240ce4000053c0e00401f0c72408d0c000ee9880d160003a1091004c6c804cad4044632d446325e7fffd08c1c008a1e406f43b0e61020e4106c0e00401ecc72202eca7240e40c62dc0c01feed4000047c8c000fff0a7240a4ca58044c62df0a7240b4ca54044c62d450305446605e7fffc7a446805e406f40de4000018e40c0bf4e40c15f7450905c0e00401f0c72409c8e716600ca702108500106704d46400aa188704d0c000724c6740446325e7fffbfa1ce708c0600401c86316885ce30dd7fffea398c1c0e00401f8c72409850900000070493b0000000000204a3b00000000001c4a3b00000000005478450000000000f03f200000000000",
+      "asm": "diag-log code and watch table (image head zero area 0x201400); data at 0x202200"
+    },
+    {
+      "addr": "0x240C55",
+      "old": "9c380d21",
+      "new": "e7f8108d",
+      "asm": "b.addi -> j isr (1 ms ISR entry: ms counter)"
+    },
+    {
+      "addr": "0x261FF0",
+      "old": "c860042c",
+      "new": "e7f3e985",
+      "asm": "b.ori -> j m_init (sub_261FDE after the prologue (main init start))"
+    },
+    {
+      "addr": "0x26208C",
+      "old": "e7fbbd38",
+      "new": "e7f3e865",
+      "asm": "b.jal -> j m_dev (jal sub_23FF28 after sub_23D3EB (init done))"
+    },
+    {
+      "addr": "0x26209C",
+      "old": "e7fbe212",
+      "new": "e7f3e85d",
+      "asm": "b.jal -> j m_fe (jal sub_2411A5 after sub_261FA8 (front-end set-up done))"
+    },
+    {
+      "addr": "0x2620D2",
+      "old": "e400abc0",
+      "new": "e7f3e809",
+      "asm": "b.jal -> j m_prep (jal sub_2676B2 after the boot panel preparation)"
+    },
+    {
+      "addr": "0x2620F9",
+      "old": "c14008a1",
+      "new": "e7f3e7d3",
+      "asm": "b.movhi -> j m_loop (movhi r10,0x45 before the main loop)"
+    },
+    {
+      "addr": "0x2459C0",
+      "old": "c8600426",
+      "new": "e7f7765d",
+      "asm": "b.ori -> j m_bl (sub_245919 backlight-on step)"
+    },
+    {
+      "addr": "0x245860",
+      "old": "9c3c0d21",
+      "new": "e7f77949",
+      "asm": "b.addi -> j h_off (sub_245860 entry (panel off))"
+    },
+    {
+      "addr": "0x24591E",
+      "old": "0d4100c1",
+      "new": "e7f777ff",
+      "asm": "b.sw -> j h_on (sub_245919+5 (panel on))"
+    },
+    {
+      "addr": "0x258AB1",
+      "old": "9c380d21",
+      "new": "e7f51507",
+      "asm": "b.addi -> j h_sig (sub_258AB1 entry (OSD timer end))"
+    },
+    {
+      "addr": "0x26A7C5",
+      "old": "9c380d21",
+      "new": "e7f2daf9",
+      "asm": "b.addi -> j h_st4 (sub_26A7C5 entry (OSD state 4 entry))"
+    },
+    {
+      "addr": "0x2613A0",
+      "old": "e7fffeb2",
+      "new": "e7f4035d",
+      "asm": "b.jal -> j h_gate (jal standby_gate_query in the power-save entry)"
+    },
+    {
+      "addr": "0x22F300",
+      "old": "d4e6003a",
+      "new": "e7fa44b5",
+      "asm": "b.beq -> j h_port (sub_22F2C7 port state change check (beq + sb))"
+    },
+    {
+      "addr": "0x238FD5",
+      "old": "c1c008a1",
+      "new": "e7f90b4d",
+      "asm": "b.movhi -> j h_mb (mailbox_query: movhi r14,0x45 after the argument moves)"
+    },
+    {
+      "addr": "0x239002",
+      "old": "0e61020e",
+      "new": "e7f90b7d",
+      "asm": "b.lwz -> j h_mbx (mailbox_query epilogue: log cmd, sub, duration)"
+    }
+  ],
+  "tags": {
+    "m_init": "0xB6",
+    "m_dev": "0xC2",
+    "m_fe": "0xCE",
+    "m_prep": "0xDA",
+    "m_loop": "0xE6",
+    "m_bl": "0xF2",
+    "h_off": "0x19",
+    "h_on": "0x30",
+    "h_sig": "0x3D",
+    "h_st4": "0x4A",
+    "h_gate": "0x56",
+    "h_port": "0x71",
+    "h_mb": "0xFF",
+    "w_run": "0x3F"
+  },
+  "keep_first": false,
+  "q_format": "cmd_sub_dur",
+  "data": {
+    "ms": "0x202200",
+    "count": "0x202204",
+    "ring": "0x202208",
+    "entries": 64
+  },
+  "watch": {},
+  "notes": "Code in the uncompressed image head (0x201400, zero in the stock image, copied to RAM by the boot loader, not referenced by the firmware); data at 0x202200 (needs the diag-poke version that reads pages 0x2022xx-0x2024xx). Does not use the 0x203800 linker padding, so it combines with all regular patches. Generated by tools/patches_src_diag_log.py."
+}

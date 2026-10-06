@@ -93,3 +93,4 @@ controller wake, boot loader, image unpacking).
 | `diag-log` (`c55fd42`) | not kept | `c55fd42` | v1 + M, B, P, Q (all mailbox commands 2.1–4.0 s; 1.5–4.5 s in `91d16fc`) |
 | `diag-log` (`9e14e7a`) | not kept | `9e14e7a` | v1 + M, B, Q (payload of the first configuration update after the main-loop start) |
 | `diag-log` (current) | `patches/diag-log.json` | see git log | v1 + I, D, X, R, M, B, Q (all commands until the backlight), P, W; 64 entries; image head area |
+| `diag-log-mb` | `patches/diag-log-mb.json` | see git log (`MODE=mb`) | v1 + I, D, X, R, M, B, P, Q (every transaction with its duration, whole run); last 64 entries; no W |
