@@ -6,7 +6,8 @@ tools/logread.py. Records who switches the panel on/off, the standby
 decisions and the start-up milestones, with a millisecond time stamp, to find
 what wakes the panel in link-held standby and where wake/start-up time goes.
 
-Data (linker padding, zero at every start, lost on deep standby/restart):
+Data (linker padding, zero at every start, lost on deep standby/restart;
+with KEEP_FIRST the ring keeps the first 16 events and only counts later ones):
   0x203968 u32  ms counter, incremented by the 1 ms timer ISR (sub_240C55)
   0x20396C u32  number of events written so far
   0x203970      16 entries x 8 bytes, ring (entry = count & 15):
@@ -59,7 +60,8 @@ DATA = 0x203968                     # after bl-supply-off (0x203940-0x203967), b
 STUB = 0x203A99                     # right after panel-prepower (0x203A00-0x203A98)
 ISR = 0x203CE0                      # after diag-poke's stable-read cave (0x203C60-0x203CDD)
 LOGC = 0x203B08                     # after eeprom-fast-read's cave (0x203B00-0x203B05, not used in builds)
-BOOT = 0x203BA3                     # after the log routine, before popup-flat (0x203C00)
+KEEP_FIRST = True                   # keep the first 16 events (start-up analysis) instead of the last 16
+BOOT = None                         # directly after the log routine (set below), before popup-flat (0x203C00)
 CHK = 0x2038AA                      # after standby-lhs (0x203800-0x2038A9), before panel-t12 (0x203900)
 MBIN = 0x203FB8                     # after diag-poke (0x203DC0-0x203FB7), before the panel-prepower flags (0x203FF0)
 MBT, MBC = 0x2039F0 - 0x200000, 0x2039F4 - 0x200000   # mailbox scratch, after the log ring
@@ -95,17 +97,21 @@ log_prog = [
  'log_s4:', *SAVE, nlw(R4, 28, R1), j('log_c'),
  'log_r3:', *SAVE, ('bn.or', {'D': R4, 'A': R3, 'B': R0}),
  'log_c:',
- mh(R7, 0x20), lwz(R5, IDX, R7), ('bn.andi', {'D': R6, 'A': R5, 'N': 0x0F}),
+ mh(R7, 0x20), lwz(R5, IDX, R7),
+ *([('bg.sfgtui', {'A': R5, 'Y': 15}), ('bg.bf', {"'": 'log_cnt'})] if KEEP_FIRST else []),   # ring full: count only
+ ('bn.andi', {'D': R6, 'A': R5, 'N': 0x0F}),
  ('bn.slli', {'D': R6, 'A': R6, 'H': 3}), ('bn.add', {'D': R6, 'A': R6, 'B': R7}),    # r6 = 0x200000 + 8*slot
  lwz(R8, LOGT, R7), sw(BUF, R6, R8),
  mh(R8, 0xFF), ('bg.ori', {'D': R8, 'A': R8, 't': 0xFFFF}),
  ('bn.and', {'D': R4, 'A': R4, 'B': R8}),                                          # value & 0xFFFFFF
  ('bn.slli', {'D': R8, 'A': R9, 'H': 24}), ('bn.or', {'D': R4, 'A': R4, 'B': R8}),   # | tag << 24
  sw(BUF + 4, R6, R4),
+ 'log_cnt:',
  ('bt.addi', {'D': R5, 'I': 1}), sw(IDX, R7, R5),
  *REST, ('bt.jr', {'A': R9}),
 ]
 lcode, LL = S.assemble(log_prog, LOGC)
+BOOT = LOGC + len(lcode)
 stub_prog = [
  'h_off:',                          # replaces sub_245860: addi r1,-4; sw 0(r1),r9
  ('bt.addi', {'D': R1, 'I': -4}), nsw(0, R1, R9),
@@ -250,6 +256,7 @@ patch = {
  'requires': ['diag-poke'],
  'edits': edits,
  'tags': {k: '0x%02X' % v for k, v in TAGS.items()},
+ 'keep_first': KEEP_FIRST,
  'data': {'ms': '0x%06X' % DATA, 'count': '0x%06X' % (DATA + 4), 'ring': '0x%06X' % (DATA + 8), 'entries': 16},
  'calls': {'c_%x' % a: '0x%06X' % t for a, t in CALLS},
  'watch': {'0x%04X' % ((MBIN + 8 * i) & 0xFFFF): {'addr': '0x%06X' % a, 'what': w} for i, (a, w) in enumerate(WATCH)},

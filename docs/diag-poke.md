@@ -67,7 +67,8 @@ watched variables, checked once per main-loop pass (`W`: re-evaluation timer
 `0x4551B5`, `0x453C70` flag bytes, port 1 `+0x1C`/`+0x20`, OSD state, input path 1
 state; the list is in `patches/diag-log.json`, key `watch`). A 1 ms ISR hook keeps the time base. Data:
 `0x203968` (ms), `0x20396C` (event count), `0x203970` (ring, 8 bytes per
-entry). Read with `tools/logread.py`. The log starts empty at every firmware
+entry). The current build keeps the **first** 16 events (start-up analysis) and only
+counts later ones (`KEEP_FIRST` in the generator); `logread.py` says which. Read with `tools/logread.py`. The log starts empty at every firmware
 start; a deep-standby wake clears it.
 
 The time base starts when the 1 ms timer runs, i.e. after the boot loader has

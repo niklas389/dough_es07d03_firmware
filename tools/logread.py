@@ -68,9 +68,12 @@ raw = read_bytes(BASE, 8 + 8 * N)
 u32 = lambda o: int.from_bytes(raw[o:o + 4], 'little')
 now, count = u32(0), u32(4)
 print('firmware running for %.3f s, %d events logged' % (now / 1000, count))
-first = max(0, count - N)
+keep_first = P.get('keep_first', False)
+first = 0 if keep_first else max(0, count - N)
+if count > N:
+    print('(%s %d of %d events shown)' % ('first' if keep_first else 'last', N, count))
 prev = None
-for i in range(first, count):
+for i in range(first, min(count, first + N)):
     o = 8 + 8 * (i % N)
     t, w = u32(o), u32(o + 4)
     tag, val = w >> 24, w & 0xFFFFFF

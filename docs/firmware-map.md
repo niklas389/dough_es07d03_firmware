@@ -578,5 +578,8 @@ firmware start ≈ command + 2.6 s):
 - Video is detected at 7.703 s in two separate wakes (identical to the ms)
   although the PC timing differed: the remaining wait is timed by the
   firmware, ~3.6 s after the source is sending again. Power-key start: port 1
-  state 1 at 2.10 s → 3/4 at 5.69 s.
+  state 1 at 2.10 s → 3/4 at 5.69 s. A third wake detected video at 6.756 s,
+  with ports 0 and 1 switching to state 3 in the same main-loop pass (port 1
+  `+0x1C` = `0x2E`, `+0x20` = `0x43` at that moment), which points to a common
+  gate rather than per-port signal timing.
 
