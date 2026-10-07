@@ -34,7 +34,9 @@ Events (tools/logread.py names):
 MODE=ring (patches/diag-log-ring.json): as diag-log, but the log keeps the
 LAST 64 events (for loops long after the start) and also watches the current
 port, the No-signal restart flags (0x453C70 bits 15/14) and the states of
-ports 0 and 1, and (v3) every input selection sub_2678D9 with its caller.
+ports 0 and 1, and (v3) every input selection sub_2678D9 with its caller,
+and (v4) every mailbox transaction that fails (mailbox_query returns 0: the
+PM51 / front-end did not take or answer it within 10 s per phase).
 Since 2026-10-07 (v2) it logs mailbox commands for the whole
 run (to see the hot-plug and port configuration commands of an input
 switch), skips the periodic posted 0x20 sub 18 (every ~8.4 s), and carries
@@ -169,6 +171,7 @@ def program(pad):
      *([mh(R7, 0x20), sb(MBC, R7, R12), sb(MBC + 1, R7, R13),                 # mb mode: remember cmd/sub/start
         sb(QOFF, R7, 19),                                                     # and r19 = wait-for-answer flag (0: posted)
         lwz(R6, LOGT, R7), sw(MBT, R7, R6), j('mb_x')] if MB else []),
+     *([mh(R7, 0x20), sb(MBC, R7, R12), sb(MBC + 1, R7, R13)] if QALL else []),   # ring: cmd/sub for h_mbf
      mh(R7, 0x20), lbz(R6, QOFF, R7), ('bg.bnei', {'A': R6, 'I': 0, ';': 'mb_x'}),
      *([('bg.ori', {'D': R6, 'A': R0, 't': 0x20}), ('bg.bne', {'A': R12, 'B': R6, ';': 'mb_go'}),   # ring: skip the
         ('bg.ori', {'D': R6, 'A': R0, 't': 18}),
@@ -194,6 +197,16 @@ def program(pad):
      ('bn.or', {'D': R8, 'A': R3, 'B': R0}), ('bn.or', {'D': R3, 'A': R6, 'B': R0}),
      jal('log_r3'), ('bn.or', {'D': R3, 'A': R8, 'B': R0}),
      'mbx_x:', j(0x239008)] if MB else []),
+
+     # ---- ring: failed mailbox transaction (epilogue 0x239002, r3 = result 0; r4-r8 free) ----
+     *([*P('h_mbf'), nlw(19, 0, R1), nlw(18, 4, R1),
+        ('bg.bnei', {'A': R3, 'I': 0, ';': 'mbf_x'}),
+        ('bn.or', {'D': R8, 'A': R3, 'B': R0}),
+        mh(R7, 0x20), lbz(R5, MBC, R7), ('bn.slli', {'D': R5, 'A': R5, 'H': 16}),
+        lbz(R6, MBC + 1, R7), ('bn.slli', {'D': R6, 'A': R6, 'H': 8}),
+        ('bn.or', {'D': R3, 'A': R5, 'B': R6}),
+        jal('log_r3'), ('bn.or', {'D': R3, 'A': R8, 'B': R0}),
+        'mbf_x:', j(0x239008)] if QALL else []),
 
      # ---- main-loop watcher (replaces jal sub_261C04 at 0x262105; r3-r8 free there) ----
      'h_loop:', jal('w_run'), jal(0x261C04), j(0x262109),
@@ -284,6 +297,7 @@ hooks = [  # addr, expected original bytes, label, what
 ]
 if QALL:  # ring: who selects an input (value = path << 20 | input << 16 | low 16 bits of the return address)
     hooks.append((0x2678D9, '1c21ec0d2110', 'h_sel', 'sub_2678D9 entry (input selection)'))
+    hooks.append((0x239002, '0e61020e4106', 'h_mbf', 'mailbox_query epilogue: log failed transactions'))
 if MB:   # no watcher (saves ring entries); mailbox duration at the common epilogue
     hooks = [h for h in hooks if h[2] != 'h_loop'] + [(0x239002, '0e61020e4106', 'h_mbx', 'mailbox_query epilogue: log cmd, sub, duration')]
 edits = [{'addr': '0x%06X' % CODE, 'old': '00' * len(blob), 'new': blob.hex(),

@@ -1592,3 +1592,27 @@ the menu timer `0x4551A4` (set from settings `+0x7F`, counted down by
 Both observed cases were 4.2 s after the menu action, when the input still
 had no picture. With pulse B the PC needs longer than that, so every menu
 switch to DP / USB-C was done twice.
+
+## 30. Incident: dead state after a deep-standby wake (2026-10-08)
+
+Build: the regular list + `select-no-replug`, `diag-poke`, `diag-log-ring` v3,
+`diag-fe` v2; input fixed to DP; DisplayPort Mode 1.4.
+- After a wake from deep standby: backlight on, black picture, no "No
+  signal" message. Keys and the OSD menu reacted without delay (main loop
+  running). DDC/CI failed (`poke.sh`: no answer to GET `0xEA`, `0xEB` read
+  back 0), so no log could be read. The PC kept listing the monitor.
+- Opening and closing the menu brought "No signal", then standby. From then
+  on: no reaction to keys (including power), to source changes or to DDC;
+  8.5 W after unplugging the USB-C laptop (link-held standby 13 W, deep
+  standby 1.2 W). A mains cycle restored normal operation (DP picture).
+- Reading (inference, not proven): the input front-end was not working
+  after the wake. DDC/CI to the PC and the picture both pass through it, the
+  scaler side worked. The standby entry, which the PM51 performs together
+  with the front-end, then did not complete, and the PM51 no longer
+  handled keys.
+- Changes in this build that touch the wake: `select-no-replug` removes the
+  selection's HPD command for DP at start-up (with `wake-no-replug` that
+  was a single "HPD high, duration 0"). Not excluded as a trigger.
+- `diag-log-ring` v4 logs failed mailbox transactions ("K MAILBOX FAILED"),
+  and `poke.sh` / `logread.py` take `TRIES=` for a DDC/CI that answers
+  only now and then.

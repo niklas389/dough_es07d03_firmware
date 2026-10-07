@@ -23,7 +23,7 @@ NAMES = {'h_off': 'F panel off      caller', 'h_on': 'N panel on       caller',
          'm_init': 'I main init start', 'm_dev': 'D init done (EEPROM, scaler)',
          'm_loop': 'M main loop start', 'm_bl': 'B backlight on   caller',
          'm_fe': 'X front-end set-up done (sub_261FA8)', 'm_prep': 'R panel preparation returned',
-         'h_mb': 'Q mailbox slow  ', 'h_sel': 'U input select   ', 'h_port': 'P port state     ', 'h_path': 'Y input path     '}
+         'h_mb': 'Q mailbox slow  ', 'h_sel': 'U input select   ', 'h_mbf': 'K MAILBOX FAILED ', 'h_port': 'P port state     ', 'h_path': 'Y input path     '}
 # front-end commands (docs/firmware-map.md sections 19, 24, 26); ids: 7 USB-C, 8 DP, 0x0B HDMI 1, 0x0C HDMI 2, 0 unused
 FEID = {7: 'USB-C', 8: 'DP', 0x0B: 'HDMI 1', 0x0C: 'HDMI 2', 0: 'unused port'}
 fe = lambda i: FEID.get(i, 'id 0x%02X' % i)
@@ -43,6 +43,7 @@ WATCH = P.get('watch', {})
 MILESTONES = ('m_init', 'm_dev', 'm_loop', 'm_fe', 'm_prep')
 BASE = int(P['data']['ms'], 16)
 N = P['data']['entries']
+TRIES = int(os.environ.get('TRIES', '4'))   # raise when DDC/CI answers only now and then
 
 
 def vcp(op, code, val=None):
@@ -57,7 +58,7 @@ def vcp(op, code, val=None):
 
 def read_bytes(addr, n):
     hi = (addr >> 16) & 0xFFFF
-    for _ in range(4):
+    for _ in range(TRIES):
         vcp('set', 0xEA, hi)
         if vcp('get', 0xEA) == hi:
             break
@@ -66,7 +67,7 @@ def read_bytes(addr, n):
     out = []
     for a in range(addr, addr + n):
         lo, v = a & 0xFFFF, None
-        for _ in range(4):
+        for _ in range(TRIES):
             vcp('set', 0xEB, lo)
             if vcp('get', 0xEB) != lo:
                 continue
@@ -153,6 +154,8 @@ for i in range(first, min(count, first + N)):
     elif t_name == 'q_dat':
         name = '    data         '
         shown = '%02X %02X %02X' % (val >> 16, (val >> 8) & 0xFF, val & 0xFF)
+    elif t_name == 'h_mbf':
+        shown = '0x%02X sub %2d  (no answer from the PM51 / front-end within the 10 s budget)' % (val >> 16, (val >> 8) & 0xFF)
     elif t_name == 'h_sel':
         c = val & 0xFFFF
         shown = 'path %d  +0x4F = %d (%s)  by %s' % (val >> 20 & 0xF, val >> 16 & 0xF,
