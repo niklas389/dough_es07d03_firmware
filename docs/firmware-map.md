@@ -1195,3 +1195,68 @@ repository and must never be flashed onto this monitor.
     `0x60` sub 9.
   - Ours only: `0x80` sub 1, 2 and 4, `0x60` sub 0 and `0x10`.
   - Meanings not traced.
+
+## 24. Front-end commands and the automatic input scan
+
+**GP27U-only commands are all posted** (no answer awaited, r8 = 0):
+
+| Command | Wrapper (GP27U) | Data sent | Callers |
+|---|---|---|---|
+| `0x10` sub 2 | `0x23BEAC` | 2 bytes (r3, r4) | `0x23C13A`, `0x23C68C`, `0x23C9E9`, `0x279A36` |
+| `0x10` sub 7 | `0x23BE82` | 1 byte | `0x23C13A`, `0x23C68C`, `0x279A36` |
+| `0x20` sub `0x14` | `0x23BD03` | 4 bytes (u32) | `0x249C5A` |
+| `0x50` sub 7 | `0x23BDF8` | 2 bytes | `0x23C13A` |
+| `0x60` sub 9 | `0x23BF68` | 4 bytes | `0x23C13A`, `0x23C68C` |
+
+None of them is a status query; meanings not traced.
+
+**Front-end queries in ours** (answer awaited):
+- `0x30` sub 7 (`sub_23956D`): sends a connector id (1 byte) and gets 1
+  byte back, apparently the front-end's own index for that connector.
+  `sub_268453` maps ids 1–9 this way at start-up.
+- `0x60` sub `0xB`: sends that index and gets 1 byte back. Used only by the
+  standby gate `sub_2612F9`:
+  - only for the current port, when the port type has bits `0x20000` and
+    `0x20` (DP class: DP, USB-C);
+  - takes the id from `0x3B427B[port]`, maps it with `0x30`/7, then queries
+    `0x60`/`0xB`;
+  - a non-zero answer refuses standby ("link held by the source", §11).
+  - GP27U has the same pair (`0x23C08F`, gate `0x26BAD6`).
+- `0x70` (`sub_2399DD`): answers 4 bytes, read as two u16.
+- `0x80` (`sub_239A84`): answers 1 byte.
+- DDC/CI is handled in the main loop (`sub_26AD19` ← `0x20CF68` ←
+  `sub_20D134` ← main), the same context as all other front-end commands.
+
+**Automatic input scan (ours).**
+- `sub_25FE39` (called through a pointer, with a tick counter) handles the
+  case settings `+0x4F` = 0 at `0x260012`.
+- A per-call counter must exceed 8 (4 in the flag case) while the current
+  port shows no signal (`+0x20 & 0x0C`). Then `sub_2653EA(port)` gives the
+  next port and `sub_23F836(0, next)` switches path 0; for some port types
+  `sub_23EE83(port, 600)` runs first.
+- `sub_2653EA`:
+  - Normally a fixed rotation 0 → 1 → 2 → 3 → 0 (USB-C → DP → HDMI 1 →
+    HDMI 2). The next port's status gets `|= 0x0C`, so it starts as
+    "no signal".
+  - With `0x4551AC` bit 5 set, it picks the port from SAR ADC channels 6
+    and 8 (`sub_23DCE4`) compared with fixed levels. These look like the
+    key ladder, so input selection by key (inference).
+- GP27U (`0x26AEEA`): next port = (port + 1) mod 6 (`0x270180`), skipping
+  ports with type bit `0x1000` without `0x800`.
+- Neither firmware asks the front-end which inputs are active during the
+  scan. The only per-input status query (`0x60`/`0xB`) is used for the
+  standby gate.
+
+**Possible improvement (not built).** In automatic mode, `sub_2653EA` could
+query `0x30`/7 + `0x60`/`0xB` for the candidate inputs and go to the first
+one whose link is active, falling back to the rotation.
+
+Open questions:
+- Does `0x60`/`0xB` answer for HDMI connectors? The vendor queries only the
+  DP class.
+- What does it report for a DP link held without video (e.g. output
+  disabled with `kscreen-doctor`)? The standby gate suggests 1, which would
+  make the scan stop on such a port.
+
+A diagnostic DDC command that runs the two queries for a given id would
+answer both on hardware.
