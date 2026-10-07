@@ -1448,3 +1448,30 @@ PC, input automatic, DP output disabled; log 586–608 s):
 - Two time stamps in that log were wrong (byte 2 read as 0: 4.316 s for
   594.140 s, 5.389 s for 595.213 s), a DDC read error; `tools/logread.py`
   now reads out-of-order entries again and marks them if they stay wrong.
+
+**Second PC on USB-C** (DP from the main PC, USB-C from a second PC, input
+automatic; 2026-10-07):
+- The `0x30`/7 answer is not a fixed code → index map: it was `0x07` for
+  both codes 7 and 8 while USB-C was the selected input, and `0x08` for both
+  in all earlier runs, where DP was selected. So it reports the front-end id
+  of the selected DP-class connector (USB-C 7, DP 8; two states observed).
+  This fits one DP receiver in the front-end that is switched between the
+  two connectors (inference). `diag-fe` v2 has a raw mode (value
+  `0x100 | id`) that sends `0x60`/`0xB` for a given id without the mapping,
+  to see whether the front-end reports the link of the connector that is not
+  selected (`tools/fequery.sh r7 r8`).
+- Link 0 for all codes with both PCs active.
+- Automatic input stays on the current input when another one becomes
+  active (DP re-enabled while USB-C was shown). That is the vendor design:
+  the scan (`sub_25FE39`) only moves on when the current input has no
+  signal; GP27U does the same.
+- USB-C output disabled → DP shown after 11.9 s: 8.0 s until the USB-C
+  no-signal decision (DP-class threshold 400 passes, vendor value; v3 of
+  `port-nosignal` changes only HDMI), 3.1 s until DP reported a signal after
+  being selected (2938.2 → 2941.4 s), 0.6 s acceptance. The 8 s can only be
+  shortened after the state-4 restart loop (§24) is fixed.
+- Ports 0 and 1 reported a signal (status `0x03`) within 30–40 ms of each
+  other after each switch in this and the earlier logs; not explained.
+- The USB-C 640×480 fallback went away when another input was selected and
+  then USB-C again, i.e. a one-time EDID read failure on the PC side; whether
+  the monitor caused it is still open.
