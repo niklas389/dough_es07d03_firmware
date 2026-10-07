@@ -1180,6 +1180,7 @@ repository and must never be flashed onto this monitor.
 |---|---|---|---|---|
 | Tempest GP27U (GP27-FUS, 4K) | `MERGE.bin` v1.45, build May 6 2024, 2,162,524 B | MST9U, **same package layout** as ours (`es07fw.py info` parses it; checksums OK) | yes: offset `0x157F48`, size `0x0B8008`; front-end build Aug 29 2023 (V108's: Nov 17 2022), same debug strings (HDMI 2.1 FRL, DSC, MST) | very likely the same MSB3300-class front-end |
 | KTC M27T20 | `MERGE.bin` v3.0.4A, build Apr 12 2023, 1,361,364 B | MST9U, **same package layout** as ours | no; no front-end mailbox (`0x1033C0`) use and no serial front-end path in its PM51 | inputs most likely direct to the scaler (like LG); not the MSB3300 combination |
+| KTC M27P20P (Euro, v2.0.3A) | `M27P20P_Ger 2.0.3A-6E82.bin`, build Apr 10 2023, 1,989,724 B | MST9U, same package layout | **yes**: `0x12DC48`, size `0x0B8008`, front-end build Feb 6 2023 (GP27U: Aug 29 2023, same size; V108: Nov 17 2022) | **same chip combination as ours** (PM51 serial front-end path and LG-style event-2 check as GP27U; same port table: ports 0/1 type `0x20` with front-end ids 7/8, ports 2–5 ids `0x0B`–`0x0E`). GP27U and M27P20P are sister firmwares (identical front-end command set) |
 | ASUS PA279CRV (MCM107) | `ASUS_PA279CRV_MCM107_20260424_ISP_E547.bin`, 1,395,804 B | MST9U ("MST9U5" string), TEL table at `0x22080` (different head layout) | no | USB-C role handling strings; USB hub GL3523; no front-end chip |
 
 **GP27U compared with ours (first pass):**
@@ -1321,3 +1322,50 @@ which was not compared.
 **Automatic input scan:** GP27U `0x26AEEA`: next port = (port + 1) mod 6
 (`0x270180`), skipping ports whose type has `0x1000` without `0x800`; no
 front-end query (§24).
+
+## 26. M27P20P: front-end commands, HPD and the port configuration
+
+**Front-end command inventory** (all mailbox call sites; `xcmp/mbinv.py`):
+- GP27U and M27P20P use the identical set.
+- Ours additionally uses the `0x80` family (sub 1, 2, 4 posted; sub 3 with
+  an answer) and `0x60` sub 0 and `0x10`.
+- KTC additionally uses `0x10` sub 2 and 7, `0x20` sub `0x14`, `0x50` sub 7,
+  `0x60` sub 9 and `0x70` (r5 `0x10`, posted).
+- All share the HPD command (`0x20` sub `0xE`: id, level, duration), the
+  queries `0x30`/7, `0x60`/`0xB` and `0x70`, and the port enable `0x20` sub 0.
+- KTC's `0x20` sub `0x14` brackets a large routine (`0x24A25B`, ours
+  `0x243757`): sent with `0xFFFFFFFF` at the start and 0 at the end when a
+  flag is set; purpose unknown.
+
+**HPD (`0x20` sub `0xE`):**
+- M27P20P sends it only through `0x2445F8` (= ours `sub_23EE83`):
+  (id, 0, 0) then (id, 1, duration).
+- The input-select routine `0x2707CB` pulses HPD (600) only for ports
+  without type bit `0x20`, i.e. never for DP / USB-C.
+- Durations used: KTC 650, 600, 300; ours 700, 650, 600.
+- Ours also sends HPD directly from `sub_268668` (start-up: all ids low, then
+  high after 650) and from `sub_239618` (the per-port configuration).
+
+**Per-port configuration** (ours `sub_239618`, KTC `0x23CAB2`), for
+DP-class inputs (front-end ids 7–9):
+- **Ours:** plain enable unless the entry's +0x0E flag is set; with the
+  flag and settings `+0x59` = 0: HPD 650, `0x60`/2, enable.
+- **KTC:** first reads the wake event (`0x242C4C` = ours `sub_23D51C`,
+  stored at `0x44B1E0`).
+  - +0x0C set: HPD 650.
+  - +0x0E clear: plain enable.
+  - +0x0E set: clear bit `0x4000` of `0x44B1D2`, HPD 650, `0x60`/2, enable.
+- The +0x0E flags are set by `sub_264633` (KTC `0x26DEDC`, identical logic)
+  from a mode value: 0 none, 1 all, 2 entry 0 (USB-C), 3 entry 1 (DP),
+  4 entries 0–3. It acts when the mode differs from a cached copy, which is
+  in BSS (0 after every start) in both firmwares.
+- Ours calls it at start-up in `sub_268453` with settings `+0xA5`.
+  `sub_26535A` (via `sub_268BB0`, the Dough-only `0x60` sub 0 command) also
+  reads and clears `+0xA5` and pulses HPD (650).
+- So the HPD pulse seen at every start (§20 `wake-no-replug`) is most likely
+  `+0xA5` ≠ 0 being treated as a change at every start (inference; the
+  value of `+0xA5` on the test monitor is unknown). KTC calls the flag
+  routine from its setting handlers (`0x272683`, `0x272D79`).
+
+**PM51 power-up:** M27P20P is the same as GP27U (no 5 ms wait, 50 ms after
+the `0x9C` poll; ours 5 + 100 ms).
