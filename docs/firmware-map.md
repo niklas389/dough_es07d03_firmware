@@ -1113,3 +1113,17 @@ was not found as an LG-matched function. Ours calls application code
   the package length is erased), but nothing is known to use it as a fallback.
 - Whether the MSB3300 has its own flash, a boot ROM recovery, or a second
   firmware copy is unknown. Why the OSD turned yellow is unknown.
+
+**`pm51-input-filter`** (untested): the event-9 path's call of `0x69B3`
+(`0x5D05`) goes to a filter at PM51 `0xA140`.
+- Only for event 9 with a non-zero mask: it sets bit 7 on the front-end ids
+  (XDATA `0x6202+port`) of the ports in the suppress list, calls `0x69B3`,
+  then clears bit 7 on all six ids again.
+- If no unsuppressed port matched (result 5 with port 5 suppressed), the event
+  is dropped: `0x5E89`, `0x6208` and `0x61E9` are cleared and the code
+  continues at the classifier tail `0x5D1F`, which reports no event.
+- With "Select Automatically" the suppress list is empty and the result is
+  the stock one.
+- The selected input in settings `+0x4F` is the port index + 1:
+  `sub_2678D9` calls `sub_23F836(path, +0x4F − 1)`, which sets the path's
+  port (`+0x28`).

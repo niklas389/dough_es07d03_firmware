@@ -20,7 +20,7 @@ from the usual public sources. Flashing is done with `specflash` from
 | `tools/aeon/funcs.py`, `xrefs.py`, `fdis.py` | Function discovery, xref database, annotated listings |
 | `tools/aeon/names.txt` | Identified functions |
 | `tools/aeon/aeonasm.py` | Minimal assembler used for code-cave patches |
-| `tools/patches_src_*.py` | Sources that generate the code-cave patches (`standby-lhs`, `panel-t12`, `panel-prepower`, `audio-off`, `eeprom-fast-read`, `popup-flat`, `popup-round`, `diag-poke`, `bl-supply-off`, `diag-log`, `wake-no-replug`, `standby-timeout`, `port-accept`, `pm51-wake-window`, `port-nosignal`) |
+| `tools/patches_src_*.py` | Sources that generate the code-cave patches (`standby-lhs`, `panel-t12`, `panel-prepower`, `audio-off`, `eeprom-fast-read`, `popup-flat`, `popup-round`, `diag-poke`, `bl-supply-off`, `diag-log`, `wake-no-replug`, `standby-timeout`, `port-accept`, `pm51-wake-window`, `port-nosignal`, `pm51-input-filter`) |
 | `tools/poke.sh`, `tools/glowtest.sh`, `tools/regdump.sh`, `tools/watch.sh`, `tools/logread.py`, `tools/lhspower.sh` | Live register read/write on a `diag-poke` build; guided backlight-glow test (`0x434` bit 7, then bit 6 driven low and restored, pausing for observation); register range dump for before/after diffs; periodic power-state log; `diag-log` reader; guided link-held standby power test (`0x44A` bits 7/6/2/1 driven low one at a time and restored) |
 
 ## Quick start
@@ -56,6 +56,7 @@ output before writing it.
 | `no-logo` | **experimental** | Skips the 2–3 s power-on logo and the forced input re-detection plus panel off/on that follow it; power-on then takes the standby-wake path |
 | `pm51-wake-recheck` | **superseded** by `pm51-wake-window` (2026-10-07: a USB-C source behind a dock did not wake the monitor; the 200 ms re-read loses one-shot wake events) | PM51 standby controller: port activity wakes the monitor only if it is still present 200 ms later (the vendor check is a stub that always wakes); keys unaffected |
 | `pm51-wake-window` | untested | PM51: port activity wakes the monitor as in stock, except during the first 5 s after standby entry (the AUX burst caused by the entry itself); as in stock, any port wakes regardless of the selected input (the stock port mask only changes the reported port; `docs/firmware-map.md` §21). `WAKE_WINDOW=n` in `tools/patches_src_pm51_wake_window.py`. Do not combine with `pm51-wake-recheck` |
+| `pm51-input-filter` | untested | PM51: with a fixed input, a source wake reported by the MSB3300 (event 9, connector mask) wakes the monitor only if the selected input is active; with "Select Automatically" nothing changes (LG 28MQ780 behaviour). Uses the stock suppress list the main firmware sends at standby entry. Combines with `pm51-wake-window` |
 | `wake-no-replug` | v3 untested (v2 **hardware-tested** 2026-10-07: no disconnect, picture after ~9.3 s; one later slow wake of ~20 s, cause unknown) | After a deep-standby wake (PM `0x3AA` bits 4:2 = 1), the DP port (front-end id 8) is re-enabled without its HPD-low step `(8, 0, 0)` in the first 5 s, so the PC does not see an unplug (other monitors do not blank). v3: `(8, 1, 650)` and the other ports' (USB-C, HDMI) stock pulses are sent; v2 suppressed all of them |
 | `standby-timeout` | **hardware-tested** (2026-10-07) | "No signal" → power-save after 30 s instead of 255 s (panel and backlight still off after 5 s); other values with `STANDBY_S=n` in `tools/patches_src_standby_timeout.py` |
 | `port-accept` | **hardware-tested** (2026-10-07) | Signal on input ports 0 and 1 (type `0x20`; port 1 = DP input) accepted after 30 × 20 ms = 0.6 s instead of 80 × 20 ms = 1.6 s (LG 28MQ780 firmware, same SDK, uses 30); other values with `ACCEPT=n` in `tools/patches_src_port_accept.py`. See `docs/firmware-map.md` §17 |
@@ -89,7 +90,9 @@ the bootloader falls back to the factory image at SPI `0x0`.
   command, shorten the mailbox wait (10 s per phase) until a command succeeds
   again, so a monitor with a dead MSB3300 starts in seconds and stays
   reachable for reflashing (`docs/firmware-map.md` §22).
-- Input filter for wakes on the front-end's connector mask (event 9).
+- `pm51-wake-window` acts only on event 2; source wakes so far were event 9,
+  so its effect is unproven. Check the event (`0x453C74`) the next time a
+  re-wake right after standby entry happens.
 
 ## Exploring
 
