@@ -1134,11 +1134,39 @@ was not found as an LG-matched function. Ours calls application code
   repeats, and the monitor never reaches standby.
 - Automatic input: standby after the longer scan, then a wake shortly after,
   with event 9 and port 1 (DP).
-- v2 gave ports 0 and 1 different no-signal thresholds (8 s / 4 s). Ports 0
-  and 1 already changed state in the same main-loop pass in an earlier log
-  (§16), so they are probably judged together. `port-nosignal` v3 therefore
-  keeps both at the vendor value and shortens only ports 2–5. The cause is
-  not traced.
+- v2 gave ports 0 and 1 different no-signal thresholds (8 s / 4 s).
+  `port-nosignal` v3 keeps both at the vendor value and shortens only ports
+  2–5. Traced afterwards: the two ports are separate receivers, and a
+  detached port is not monitored, so the coupling assumed here is not
+  supported; the cause is open (see "Ports, receivers and input paths").
 - `0x453C74`/`0x453C78` are copied only at firmware start (`sub_20E254`). A
   key press in link-held standby does not restart the firmware, so the values
   read after it are those of the last start.
+
+**Ports, receivers and input paths (traced).**
+- Port table `0x3B4950` (6 × `0xB0`), receiver id at +0, type at +4.
+  `sub_20E73A` maps receiver id → scaler receiver index (jump table
+  `0x2ADF30`: id 0 → 7, 1 → 0, 2 → 1, 3 → 2, 4 → 3, 5 → 4, 6 → 5, 7 → 6).
+  Port 0 (USB-C, id 5 → receiver 4) and port 1 (DP, id 6 → receiver 5) are
+  separate receivers with their own counters, thresholds and status;
+  `sub_23B068` reads each through its own receiver id.
+- Input paths: record `0x4821AC + path × 0xA8`, +0x28 = port
+  (`sub_2227E2`). `sub_23F836(path, port)` switches a path: the old port is
+  detached (`sub_22DDA4` → `sub_22ACFC`: +0x12 path mask bit cleared; when
+  no path is left, +0x10 = 4, +0x12 = 0, port state +0x0C = 0), the new one
+  attached (`sub_225F48` → `sub_227024`: +0x12 |= 1 << path, +0x10 = path).
+  `sub_2678D9` selects the port settings `+0x4F` − 1 for the main path
+  (settings `+0x5A`).
+- `sub_22F2C7` runs the port monitor only for ports in state 1 or 2, so a
+  detached port (state 0) is not monitored. A port's state change is passed to
+  every path in its +0x12 mask (`sub_23E64A`: no signal → path state 5,
+  accepted → path state 1/2).
+- In `sub_23B068`, a port whose receiver reports nothing (`sub_23EDA4` → 0)
+  has its counter set to the no-signal threshold after 50 passes (1 s; 5 in
+  the flag case), so it gives up after about 1 s whatever +0x1A says. Only
+  ports with activity wait the full +0x1A.
+- Consequence for `port-nosignal` v2: with the input fixed to DP, port 0
+  should be detached and idle, so its threshold should not matter. The "same
+  main-loop pass" observation (§16) does not prove a coupling (both inputs
+  carried the same PC's output in that test). The cause of the v2 loop is
+  therefore open; `diag-log-ring` is meant to capture it.

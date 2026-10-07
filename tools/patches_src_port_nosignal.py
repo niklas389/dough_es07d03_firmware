@@ -25,11 +25,12 @@ History:
   on the type-0x20 sub_23E5C5 call. With the input fixed to DP, "No signal"
   then flickered about 4-5 s after it appeared (about when port 0 gave up)
   and the monitor never reached standby; with automatic input it did reach
-  standby. Ports 0 and 1 seem to be judged together (they already changed
-  state in the same main-loop pass in an earlier log: common gate), so they
-  must not get different thresholds. Not traced further.
+  standby. Assumed first: ports 0 and 1 are judged together. Traced
+  afterwards: they are separate receivers and a detached port is not
+  monitored, so that assumption is not supported; the cause is open
+  (docs/firmware-map.md, "Ports, receivers and input paths").
 - v3 (this): only the HDMI-class ports 2-5 get NOSIG; ports 0 and 1 keep the
-  vendor values (400 / 200), so they stay equal.
+  vendor values (400 / 200), i.e. DP and USB-C behave as stock.
 Default NOSIG 200 (4 s), the vendor's own flag-case value.
 """
 import sys, json, os

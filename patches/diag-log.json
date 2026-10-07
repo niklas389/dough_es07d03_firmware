@@ -5,6 +5,10 @@
   "requires": [
     "diag-poke"
   ],
+  "conflicts": [
+    "diag-log-mb",
+    "diag-log-ring"
+  ],
   "edits": [
     {
       "addr": "0x201400",
