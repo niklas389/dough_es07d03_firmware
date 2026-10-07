@@ -1260,3 +1260,22 @@ Open questions:
 
 A diagnostic DDC command that runs the two queries for a given id would
 answer both on hardware.
+
+**Cause of the `port-nosignal` v1/v2 loop** (`diag-log-ring`, input fixed
+to DP, output disabled):
+- "No signal" (state-4 entry, caller `0x2575C6`) repeated every 4.07 s with
+  no port state change in between (port 1 stayed in state 2 after its
+  no-signal decision at +4.0 s).
+- A port in state 2 keeps being monitored. Its counter restarts, and after
+  +0x1A passes it repeats the no-signal decision. Each repeat re-enters
+  state 4, and the state-4 entry restarts the countdown, whose pre-standby
+  comes 5 s after the entry (vendor and `standby-timeout`).
+- With 200 passes (4.07 s) the repeat always comes before the 5 s, so
+  standby is never reached. The vendor's 400 / 500 passes (8 / 10 s) leave
+  room.
+- `port-nosignal` v3 shortens only ports 2–5, to 300 passes (6 s), and the
+  generator refuses values below 275. The vendor's own flag case (200 for
+  all ports when settings `+0x48` bit 2 or flg bit 0 is set) would have the
+  same loop.
+- `diag-fe` (VCP 0xED) runs the link query of §24 for any connector code;
+  `tools/fequery.sh` queries all four inputs.
