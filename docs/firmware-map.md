@@ -1369,3 +1369,82 @@ DP-class inputs (front-end ids 7–9):
 
 **PM51 power-up:** M27P20P is the same as GP27U (no 5 ms wait, 50 ms after
 the `0x9C` poll; ours 5 + 100 ms).
+
+## 27. Link query results, mailbox speed and hot-plug at start-up (2026-10-07)
+
+**Front-end link query on hardware** (`diag-fe`, `tools/fequery.sh`):
+
+| Situation | USB-C (code 8) | DP (code 7) | HDMI 1 / 2 (codes 1 / 3) |
+|---|---|---|---|
+| index (`0x30`/7), every run | `0x08` | `0x08` | `0x00` |
+| link: mains start; deep-standby wake; picture on DP + USB-C | 0 | 0 | 0 |
+| link: input fixed to DP, DP output disabled, "No signal" → link-held standby, USB-C active | 1 | (not run) | 0 |
+
+- DP and USB-C map to the same index, so `0x60`/`0xB` cannot tell the two
+  connectors apart. HDMI codes give index 0, which the start-up loop in
+  `sub_268453` treats as "no front-end index" (it configures only indexes
+  1–16), so the query does not cover HDMI.
+- Link 1 was seen only while the DP output was disabled and the monitor
+  went from "No signal" to link-held standby; it reached deep standby right
+  after. That fits the standby gate's meaning (link held by the source
+  without video), but it is one observation.
+- Consequence: automatic input selection by link status (§24, "possible
+  improvement") is not possible with this query.
+
+**Mailbox speed (correction to §19 and §25):**
+- The two queries take 2–6 ms after a mains start and after a deep-standby
+  wake. Writing PM `0x0393` = 0 changed nothing. The PM51 serial path is not
+  slow after a wake; the `0x0393` hypothesis is dropped.
+- The slow transactions in the start logs are posted `0x20` sub 3 commands,
+  sent by `sub_2394DC` (called from `sub_239A35` in the main loop) for every
+  bit of the pending mask `0x45504E`, with id `0x3B4281[i]` (7, 8, `0x0B`,
+  `0x0C`, 0, 0) and level bit `i` of `0x455050`.
+  - The mask is filled by `sub_20EDCC(receiver, level)` for ports with type
+    bit `0x20000` (front-end ports). Its callers are the HPD routine
+    `sub_23EE83`, `0x23EF7E`, `sub_20F8D9` and the 1 ms timer ISR, so
+    `0x20` sub 3 is most likely the hot-plug level of a front-end port
+    (inference).
+  - Wake log of this day: after the port enable (`0x20` sub 0 at 1.927 s),
+    ids 7 → 8 took 5 ms, then 125, 70, 69 and 126 ms for 8, `0x0B`, `0x0C`
+    and the first id 0 (time to the next command; posted commands wait for
+    the previous one). So the front-end answers slowly while it is busy
+    right after the enable, not after every wake.
+  - Two of the six commands go to ports 4 and 5, which do not exist on this
+    monitor (id 0). Together they block the main loop for ~0.2 s at every
+    start (speed candidate; whether the picture comes earlier is not proven).
+
+**Hot-plug at start-up and settings `+0xA5`:**
+- Measured `+0xA5` = 1 (`0x482575`), input `+0x4F` = 0 (automatic).
+- `+0xA5` is derived from settings `+0xCB` (saved per mode in the profile
+  block `+0x659`; OSD action `0x268C20` through the pointer at `0x3B88C4`;
+  factory default from `0x26A378`). `sub_268BB0` calls
+  `sub_26535A(port, +0xCB == 2)` for ports 1 and 0: `+0xA5` = that value,
+  HPD pulse 650 ms (`sub_23EE83`), port configuration from the applied copy,
+  `0x60` sub 2 (id, value), then `sub_264633(+0xA5)`; afterwards `0x60`
+  sub 0 with (`0x3B42A4`, 1 if `+0xCB` = 0, else 3). So `+0xA5` = 1 means
+  `+0xCB` = 2 (inference). Which OSD option `+0xCB` is: not identified.
+- `sub_268BB0` runs at start-up only when the wake event is 0 (mains start;
+  `0x2620D6`), and from the OSD action. After a deep-standby wake,
+  `sub_268453` calls `sub_264633(+0xA5)` instead.
+- `sub_264633(mode)` (cache `0x455061` in BSS, so mode 1 is a "change" at
+  every start): mode 1 sets the `+0x0E` flag of all six entries of
+  `0x3B4288` and marks the entry of path 0's port for an update. Nothing
+  clears `+0x0E` later.
+- With `+0x0E` set and `+0x59` = 0, every configuration update of a DP-class
+  entry (`sub_239618`, ids 7–9) sends an HPD pulse of 650 ms (emulated
+  unplug), `0x60` sub 2 and the configuration with the `0x3B43A8` data.
+- Open: whether an input switch triggers such an update. `diag-log-ring` v2
+  logs mailbox commands for the whole run to show it.
+
+**USB-C at 640×480 after an automatic switch** (DP and USB-C from the same
+PC, input automatic, DP output disabled; log 586–608 s):
+- 586.0 s DP lost; 594.1 s DP no-signal decision; scan HDMI 1 (594.2),
+  HDMI 2 (595.2), USB-C (596.3); USB-C accepted at 602.5 s, i.e. 16.5 s
+  after the DP output was disabled.
+- The PC showed the USB-C output with 640×480 only, which is what a source
+  uses when it cannot read the EDID. If the switch sends the 650 ms HPD
+  pulse to USB-C (open, see above), the PC re-reads the EDID at that moment.
+  Not decided; the same code is in the stock firmware.
+- Two time stamps in that log were wrong (byte 2 read as 0: 4.316 s for
+  594.140 s, 5.389 s for 595.213 s), a DDC read error; `tools/logread.py`
+  now reads out-of-order entries again and marks them if they stay wrong.

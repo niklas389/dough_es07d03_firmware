@@ -24,6 +24,14 @@ NAMES = {'h_off': 'F panel off      caller', 'h_on': 'N panel on       caller',
          'm_loop': 'M main loop start', 'm_bl': 'B backlight on   caller',
          'm_fe': 'X front-end set-up done (sub_261FA8)', 'm_prep': 'R panel preparation returned',
          'h_mb': 'Q mailbox slow  ', 'h_port': 'P port state     ', 'h_path': 'Y input path     '}
+# front-end commands (docs/firmware-map.md sections 19, 24, 26); ids: 7 USB-C, 8 DP, 0x0B HDMI 1, 0x0C HDMI 2, 0 unused
+FEID = {7: 'USB-C', 8: 'DP', 0x0B: 'HDMI 1', 0x0C: 'HDMI 2', 0: 'unused port'}
+fe = lambda i: FEID.get(i, 'id 0x%02X' % i)
+MBNAMES = {(0x20, 14): lambda a, b: 'HPD %s %s' % (fe(a), 'low' if b == 0 else 'high'),
+           (0x20, 3): lambda a, b: 'HPD level %s = %d' % (fe(a), b),
+           (0x20, 0): lambda a, b: 'port configuration / enable',
+           (0x20, 12): lambda a, b: 'configuration update %s' % ('begin' if a else 'end'),
+           (0x60, 2): lambda a, b: 'port setting %s = %d' % (fe(a), b)}
 CALLS = P.get('calls', {})
 WATCH = P.get('watch', {})
 MILESTONES = ('m_init', 'm_dev', 'm_loop', 'm_fe', 'm_prep')
@@ -73,6 +81,24 @@ u32 = lambda o: int.from_bytes(raw[o:o + 4], 'little')
 now, count = u32(0), u32(4)
 used = min(count, N)
 raw += read_bytes(BASE + 8, 8 * used) if used else b''
+
+# A DDC read now and then returns a wrong byte (seen: one time stamp byte read as 0).
+# Entries are written in time order, so an entry whose time is out of order is read again.
+def order(first, last):
+    ts = [u32(8 + 8 * (i % N)) for i in range(first, last)]
+    return [k for k in range(len(ts)) if (k > 0 and ts[k] < ts[k - 1]) or (k + 1 < len(ts) and ts[k] > ts[k + 1])]
+first0 = 0 if P.get('keep_first', False) else max(0, count - N)
+last0 = min(count, first0 + N)
+for _ in range(2):
+    bad = order(first0, last0)
+    if not bad or len(bad) > 8:
+        break
+    raw = bytearray(raw)
+    for k in bad:
+        o = 8 + 8 * ((first0 + k) % N)
+        raw[o:o + 8] = read_bytes(BASE + o, 8)
+    raw = bytes(raw)
+SUSPECT = set(first0 + k for k in order(first0, last0))
 print('firmware running for %.3f s, %d events logged' % (now / 1000, count))
 keep_first = P.get('keep_first', False)
 first = 0 if keep_first else max(0, count - N)
@@ -100,6 +126,13 @@ for i in range(first, min(count, first + N)):
     elif t_name == 'h_mb' and P.get('q_format') == 'cmd_sub_data0':
         name = 'Q mailbox cmd   '
         shown = '0x%02X sub %2d  data[0] 0x%02X' % (val >> 16, (val >> 8) & 0xFF, val & 0xFF)
+    elif t_name == 'h_mb' and P.get('q_format') == 'cmd_d1_sub_data0':
+        name = 'Q mailbox cmd   '
+        c, sb, d0, d1 = (val >> 16) & 0xF0, (val >> 8) & 0xFF, val & 0xFF, (val >> 16) & 0x0F
+        shown = '0x%02X sub %2d  data 0x%02X %X' % (c, sb, d0, d1)
+        what = MBNAMES.get((c, sb))
+        if what:
+            shown += '   (%s)' % what(d0, d1)
     elif t_name == 'h_mb':
         if 'mailbox_window_ms' in P:
             name = 'Q mailbox cmd   '
@@ -122,5 +155,7 @@ for i in range(first, min(count, first + N)):
         shown = ''
     else:
         shown = '0x%06X' % val
+    if i in SUSPECT:
+        shown += '   [time out of order: read error, or the log changed while it was read]'
     print('%10.3f s %10s  %s %s' % (t / 1000, dt, name, shown))
     prev = t

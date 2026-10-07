@@ -26,7 +26,7 @@ Events (tools/logread.py names):
   P  0x22F300  port state change            value = port << 8 | state
   W  0x262105  watched byte changed (table WATCH; checked every main-loop pass)
   Q  0x238FD5  mailbox command sent         value = cmd << 16 | sub << 8 | data[0]
-               (until the backlight is on, so the log is not filled later)
+               (until the backlight is on, so the log is not filled later; ring: see below)
   N  sub_245919+5 panel on (pnl = 0)        F sub_245860 panel off (pnl = 1)
   B  0x2459C0  backlight on                 S sub_258AB1 OSD timer end
   E  sub_26A7C5 state 4 ("No signal")       G 0x2613A0 standby gate result
@@ -34,7 +34,11 @@ Events (tools/logread.py names):
 MODE=ring (patches/diag-log-ring.json): as diag-log, but the log keeps the
 LAST 64 events (for loops long after the start) and also watches the current
 port, the No-signal restart flags (0x453C70 bits 15/14) and the states of
-ports 0 and 1.
+ports 0 and 1. Since 2026-10-07 (v2) it logs mailbox commands for the whole
+run (to see the hot-plug and port configuration commands of an input
+switch), skips the periodic posted 0x20 sub 18 (every ~8.4 s), and carries
+data[1] & 0xF in the low nibble of the command byte (all commands are 0xN0),
+e.g. the level of 0x20 sub 3 / sub 14 (id, level, ...).
 
 MODE=mb (patches/diag-log-mb.json, a separate diagnostic; same areas, so use
 only one diag-log variant): no watcher; the log keeps the LAST 64 events; Q is logged at
@@ -56,6 +60,8 @@ MODE = os.environ.get('MODE', 'timing')   # 'timing' (diag-log), 'mb' (diag-log-
                                           # or 'ring' (diag-log-ring: as timing, but the last 64 events)
 MB = MODE == 'mb'
 RING = MODE in ('mb', 'ring')
+QALL = MODE == 'ring'                     # ring: Q for the whole run (not only until the backlight), without the
+                                          # periodic 0x20 sub 18, with data[1] & 0xF in the low nibble of cmd
 assert MODE in ('timing', 'mb', 'ring')
 CODE = 0x201400                     # head zero area 0x201214-0x201FFF
 DATA = 0x202200                     # head zero area 0x202087-0x2037FF (after the TEL key table)
@@ -122,7 +128,7 @@ def program(pad):
      *P('m_prep'), jal('log_s0'), jal(0x2676B2), j(0x2620D6),                                 # jal sub_2676B2 (after the boot prep)
      *P('m_loop'), jal('log_s0'), mh(R10, 0x45), j(0x2620FD),                                 # movhi r10,0x45
      *P('m_bl'), jal('log_s4'),                                                               # backlight on; stop Q logging
-     movi(R6, 1), mh(R7, 0x20), sb(QOFF, R7, R6),
+     *([] if QALL else [movi(R6, 1), mh(R7, 0x20), sb(QOFF, R7, R6)]),                        # (ring: Q for the whole run)
      ('bg.ori', {'D': R3, 'A': R0, 't': 0x426}), j(0x2459C4),
 
      # ---- panel on / off, OSD timer, state 4, standby gate ----
@@ -152,9 +158,16 @@ def program(pad):
         sb(QOFF, R7, 19),                                                     # and r19 = wait-for-answer flag (0: posted)
         lwz(R6, LOGT, R7), sw(MBT, R7, R6), j('mb_x')] if MB else []),
      mh(R7, 0x20), lbz(R6, QOFF, R7), ('bg.bnei', {'A': R6, 'I': 0, ';': 'mb_x'}),
+     *([('bg.ori', {'D': R6, 'A': R0, 't': 0x20}), ('bg.bne', {'A': R12, 'B': R6, ';': 'mb_go'}),   # ring: skip the
+        ('bg.ori', {'D': R6, 'A': R0, 't': 18}),
+        ('bg.beq', {'A': R13, 'B': R6, ';': 'mb_x'}), 'mb_go:'] if QALL else []),               # periodic 0x20 sub 18
      movi(R4, 0), ('bg.beqi', {'A': R11, 'I': 0, ';': 'mb_v'}), ('bn.lbz', {'?': R4, 'A': R17, 'z': 0}),
      'mb_v:',
-     ('bn.slli', {'D': R3, 'A': R12, 'H': 16}), ('bn.slli', {'D': R5, 'A': R13, 'H': 8}),
+     *([movi(R5, 0), ('bg.bleui', {'A': R11, 'I': 1, ';': 'mb_d1_v'}),                               # ring: data[1] & 0xF
+        ('bn.lbz', {'?': R5, 'A': R17, 'z': 1}), ('bn.andi', {'D': R5, 'A': R5, 'N': 0xF}),     # in the low nibble of
+        'mb_d1_v:', ('bn.or', {'D': R5, 'A': R5, 'B': R12}), ('bn.slli', {'D': R3, 'A': R5, 'H': 16})]   # cmd (cmds are 0xN0)
+       if QALL else [('bn.slli', {'D': R3, 'A': R12, 'H': 16})]),
+     ('bn.slli', {'D': R5, 'A': R13, 'H': 8}),
      ('bn.or', {'D': R3, 'A': R3, 'B': R5}), ('bn.or', {'D': R3, 'A': R3, 'B': R4}),
      jal('log_r3'),
      'mb_x:', mh(R14, 0x45), j(0x238FD9),
@@ -278,7 +291,7 @@ patch = {
  'edits': edits,
  'tags': {k: '0x%02X' % v for k, v in TAGS.items()},
  'keep_first': not RING,
- 'q_format': 'cmd_sub_dur' if MB else 'cmd_sub_data0',
+ 'q_format': 'cmd_sub_dur' if MB else 'cmd_d1_sub_data0' if QALL else 'cmd_sub_data0',
  'data': {'ms': '0x%06X' % DATA, 'count': '0x%06X' % (DATA + 4), 'ring': '0x%06X' % (DATA + 8), 'entries': N},
  'watch': {} if MB else {'0x%04X' % ((wtab + 8 * i) & 0xFFFF): {'addr': '0x%06X' % a, 'what': w} for i, (a, w) in enumerate(WATCH)},
  'notes': ("Code in the uncompressed image head (0x201400, zero in the stock image, copied to RAM by the boot loader, "

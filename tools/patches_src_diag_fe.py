@@ -14,8 +14,8 @@ in RAM for tools/poke.sh.
   tools/poke.sh read 0x2024F5   duration of the 0x30/7 transaction in ms (capped 255)
   tools/poke.sh read 0x2024F6   duration of the 0x60/0xB transaction in ms (capped 255)
   (durations need a diag-log variant in the build: they use its 1 ms counter at 0x202200;
-   without it they read 0. After a mains start a transaction takes ~5 ms, after a deep-standby
-   wake ~66 ms; this measures it on demand.)
+   without it they read 0. Measured 2026-10-07: 2-6 ms after a mains start and after a
+   deep-standby wake, also after writing PM 0x0393 = 0.)
 
 Connector codes (table 0x3B427B, the values the vendor's standby gate uses):
 port 0 USB-C = 8, port 1 DP = 7, port 2 HDMI 1 = 1, port 3 HDMI 2 = 3
