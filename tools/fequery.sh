@@ -8,7 +8,7 @@
 #   SPECCTL=./specctl MON=1 ./fequery.sh
 #
 # Per code: VCP 0xED = code runs the vendor queries 0x30/7 (front-end index) and 0x60/0xB
-# (link status); the answers are read back from RAM 0x2024F0..F6 with poke.sh. The two
+# (0 = source active, 1 = no source; docs/firmware-map.md section 29); the answers are read back from RAM 0x2024F0..F6 with poke.sh. The two
 # durations need a diag-log variant in the build (0 otherwise): 2-6 ms per transaction after a
 # mains start and after a deep-standby wake (measured 2026-10-07).
 set -euo pipefail
@@ -36,7 +36,9 @@ for c in "${codes[@]}"; do
     if [ -z "$before" ] || [ -z "$after" ]; then echo "$(name "$c"): run counter not readable (DDC/CI error; repeat)"; continue; fi
     if [ "$before" = "$after" ]; then echo "$(name "$c"): query did not run after 3 tries (counter unchanged; is diag-fe in this build?)"; continue; fi
     [ "$try" = 1 ] || echo "($(name "$c"): SET needed $try tries)"
-    printf '%-9s code %-3s  index 0x%s  link 0x%s  completed %s  (echo 0x%s)  took %s + %s ms\n' \
-        "$(name "$c")" "$c" "$(sh_ 0x2024F0)" "$(sh_ 0x2024F1)" "$(sh_ 0x2024F2)" "$(sh_ 0x2024F3)" \
+    idx=$(sh_ 0x2024F0); lk=$(sh_ 0x2024F1)
+    case "$idx:$lk" in 00:*) what="no index";; *:00) what="source active";; *:01) what="no source";; *) what="?";; esac
+    printf '%-9s code %-3s  index 0x%s  link 0x%s = %-13s completed %s  (echo 0x%s)  took %s + %s ms\n' \
+        "$(name "$c")" "$c" "$idx" "$lk" "$what" "$(sh_ 0x2024F2)" "$(sh_ 0x2024F3)" \
         "$(ms 0x2024F5)" "$(ms 0x2024F6)"
 done

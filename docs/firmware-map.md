@@ -1222,7 +1222,9 @@ None of them is a status query; meanings not traced.
     `0x20` (DP class: DP, USB-C);
   - takes the id from `0x3B427B[port]`, maps it with `0x30`/7, then queries
     `0x60`/`0xB`;
-  - a non-zero answer refuses standby ("link held by the source", §11).
+  - correction (2026-10-08, §29): the gate returns 1 (refuse) when the
+    answer is **0**; answer 0 = a source is active on the connector,
+    1 = no source (standby allowed).
   - GP27U has the same pair (`0x23C08F`, gate `0x26BAD6`).
 - `0x70` (`sub_2399DD`): answers 4 bytes, read as two u16.
 - `0x80` (`sub_239A84`): answers 1 byte.
@@ -1386,10 +1388,9 @@ the `0x9C` poll; ours 5 + 100 ms).
   1–16), so the query does not cover HDMI.
 - Link 1 was seen only while the DP output was disabled and the monitor
   went from "No signal" to link-held standby; it reached deep standby right
-  after. That fits the standby gate's meaning (link held by the source
-  without video), but it is one observation.
-- Consequence: automatic input selection by link status (§24, "possible
-  improvement") is not possible with this query.
+  after. (Interpretation corrected in §29: 1 = no source, standby allowed.)
+- The conclusion that this query cannot drive automatic input selection is
+  withdrawn in §29 (raw mode asks each DP-class connector).
 
 **Mailbox speed (correction to §19 and §25):**
 - The two queries take 2–6 ms after a mains start and after a deep-standby
@@ -1485,11 +1486,9 @@ automatic; 2026-10-07):
 | output active | 0 | 0 |
 | output disabled | 0 | 1 |
 
-The front-end reports the link state of the connector that is not
-selected, and 1 means "link up without video" (output disabled while the
-link is kept). With video, and probably without any link, it reads 0. So
-it can tell an idle source, not an active one; it cannot drive automatic
-input selection.
+The front-end reports the state of the connector that is not selected.
+(First reading "1 = link up without video" corrected in §29: 1 = no active
+source, 0 = active source.)
 
 **Mailbox commands of a manual switch USB-C → DP** (`diag-log-ring` v2;
 "pulse" = `0x20` sub 14 (id, 0, 0) then (id, 1, duration), ~5 ms apart):
@@ -1536,3 +1535,60 @@ signal 9.6 s later.
   `sub_239618` is skipped; `0x60` sub 2 and the configuration stay. Risk:
   if `0x60` sub 2 changes what the connector reports to the source, the
   source is not asked to read it again.
+
+## 29. Link query polarity, DisplayPort mode and the menu re-apply (2026-10-08)
+
+**`0x60`/`0xB` answer, corrected.** Raw queries (`diag-fe` v2), DP selected
+with a picture:
+
+| USB-C (id 7) | answer |
+|---|---|
+| second PC, output active | 0 |
+| output disabled | 1 |
+| cable unplugged | 1 |
+
+With the earlier tables (§27, §28): **0 = a source is active on that
+connector, 1 = no active source.** The vendor gate agrees:
+`sub_2612F9` ends with `sfnei r7,0; cmovri r7,r0,1`, i.e. it returns 1
+(refuse standby, `0x2613A4` → refusal tail) when the answer is 0. The
+earlier statement "non-zero refuses standby" (§24) was the wrong way round.
+- Consequence: the query does tell, per DP-class connector, whether a source
+  is active, also for the connector that is not selected. Automatic input
+  selection for DP / USB-C could use it (raw ids 7 and 8). HDMI ids
+  (`0x0B`, `0x0C`) are untested.
+
+**Settings `+0xCB` = OSD "DisplayPort Mode"** (1.2 / 1.4 without DSC / 1.4;
+test monitor: 1.4). Three values, and 2 gives `+0xA5` = 1 (§27), so most
+likely 0 = 1.2, 1 = 1.4 without DSC, 2 = 1.4 (inference; to be confirmed by
+reading `0x48259B`). Then:
+- `+0xA5` = 1 means "DSC mode": `sub_264633(1)` marks all entries `+0x0E`.
+- In that mode the attach sends `0x60` sub 2 (id, 1) and the detach (id, 0):
+  probably DSC on for the selected DP-class connector and off for the other
+  one (inference). The connector's capabilities then change at every switch,
+  which is why the attach pulses HPD (650 ms): the source must read them
+  again. `0x60` sub 0 (`0x3B42A4`, 1 if `+0xCB` = 0, else 3) fits a
+  maximum-link-rate setting (inference).
+- So `attach-no-replug` has a concrete risk: a source that read the
+  capabilities while its connector was not selected (DSC off) is not told
+  that DSC is on after the switch.
+
+**PC side of a USB-C → DP switch** (main PC behind a Synaptics MST hub, drm
+debug log; build with `select-no-replug`):
+- Monitor 519.599 s pulse B (attach) ↔ PC 05:07:30.657 CSN `ddps 0`
+  (monitor gone); 05:07:31.352 CSN `ddps 1` (back, 0.70 s = the 650 ms pulse).
+- The PC re-creates the connector (DP-16 → new connector id), sets the mode
+  (31.86), the desktop sets it again with DSC (payload re-allocation
+  33.5–34.45). The monitor locks at 524.66 (≈ PC 35.7).
+- Pulse A is gone in this build: `0x60` sub 6 is sent without `0x20` sub 14.
+- The second sequence (523.14–523.38: disable, pulse B, enable) produced no
+  CSN on the PC side.
+
+**Second selection = vendor retry at menu close.** `diag-log-ring` v3:
+518.961 `sub_2678D9` by the OSD action `sub_267A7F`; 523.137 again by
+`sub_258E5D` (`0x2592C3`). That path runs when `0x453C70` bit 16 is set and
+the menu timer `0x4551A4` (set from settings `+0x7F`, counted down by
+`sub_261C04`) has run out, and the selected input's path record
+(`0x47FA5C + 0x7C × n`, `+0xF` bit 0) is set; it selects the input again.
+Both observed cases were 4.2 s after the menu action, when the input still
+had no picture. With pulse B the PC needs longer than that, so every menu
+switch to DP / USB-C was done twice.

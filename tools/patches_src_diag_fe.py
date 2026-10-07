@@ -9,7 +9,7 @@ in RAM for tools/poke.sh.
   specctl set 0xED <0x100|id>   raw mode (v2): skip 0x30/7 and send 0x60/0xB with index <id>
                                 directly (e.g. 0x107 = USB-C, 0x108 = DP); 0x2024F0 then echoes <id>
   tools/poke.sh read 0x2024F0   0x30/7 answer: the front-end's index for the code
-  tools/poke.sh read 0x2024F1   0x60/0xB answer: link status (vendor: != 0 = link held)
+  tools/poke.sh read 0x2024F1   0x60/0xB answer: 0 = source active, 1 = none (vendor gate: 0 refuses standby)
   tools/poke.sh read 0x2024F2   1 = the 0x60/0xB transaction completed, 0 = timeout/failed
   tools/poke.sh read 0x2024F3   the code that was queried
   tools/poke.sh read 0x2024F4   run counter (+1 per query, to see that it ran)
