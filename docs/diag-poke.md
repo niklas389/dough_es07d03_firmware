@@ -22,7 +22,7 @@ All versions use the same VCP codes and the same main code cave
 | `diag-poke-v3` | `patches/diag-poke-v3.json` | `1a9ebef` | as v2 | v1 + PM PWM `0x05xx`, PWM unit `0x103Cxx`/`0x103Dxx` | interrupts masked (SR IEE/TEE), three reads, `0xFFFE` (UNSTABLE) if they differ; extra code at `0x203C60` |
 | `diag-poke` (`9e14e7a`) | not kept | `9e14e7a` | as v2 | v3 + RAM page `0x2039xx` (the `diag-log` data) | as v3; the RAM page is read with a plain byte load |
 | `diag-poke` (previous) | not kept | `2a8d8e2` | as v2 | v3 + RAM `0x2022xx`–`0x2024xx` and `0x2039xx` | as v3; RAM `0x20xxxx` read with a plain byte load; allowlist tables in the image head (`0x201F00`) |
-| `diag-poke` (current) | `patches/diag-poke.json` | see git log | v2 + PM `0x0393` (slow-mailbox test; rewritten by the PM51 at every sleep/wake) | previous + RAM `0x453Cxx` (wake event `0x453C74`, wake port `0x453C78` reported by the PM51) | as previous; RAM `0x20xxxx`/`0x45xxxx` read with a plain byte load |
+| `diag-poke` (current) | `patches/diag-poke.json` | see git log | v2 + PM `0x0393` (slow-mailbox test; rewritten by the PM51 at every sleep/wake) | previous + RAM `0x453Cxx` (wake event `0x453C74`, wake port `0x453C78` reported by the PM51) and the settings mirror `0x4824xx`–`0x4825xx` (settings at `0x4824D0`: `+0x4F` input `0x48251F`, `+0xA5` `0x482575`) | as previous; RAM `0x20xxxx`/`0x45xxxx`/`0x48xxxx` read with a plain byte load |
 
 Wake source after a deep-standby wake (current version): `tools/poke.sh read
 0x453C74` gives the PM51 wake event (2 = port activity, `0x0A` = port
