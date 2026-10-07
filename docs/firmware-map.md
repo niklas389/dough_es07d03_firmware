@@ -1475,3 +1475,64 @@ automatic; 2026-10-07):
 - The USB-C 640×480 fallback went away when another input was selected and
   then USB-C again, i.e. a one-time EDID read failure on the PC side; whether
   the monitor caused it is still open.
+
+## 28. Hot-plug pulses at input switches (2026-10-07)
+
+**Link query per connector** (`diag-fe` v2 raw mode, USB-C selected):
+
+| DP from the main PC | `r7` USB-C (selected) | `r8` DP (not selected) |
+|---|---|---|
+| output active | 0 | 0 |
+| output disabled | 0 | 1 |
+
+The front-end reports the link state of the connector that is not
+selected, and 1 means "link up without video" (output disabled while the
+link is kept). With video, and probably without any link, it reads 0. So
+it can tell an idle source, not an active one; it cannot drive automatic
+input selection.
+
+**Mailbox commands of a manual switch USB-C → DP** (`diag-log-ring` v2;
+"pulse" = `0x20` sub 14 (id, 0, 0) then (id, 1, duration), ~5 ms apart):
+
+| Time | Commands | Origin |
+|---|---|---|
+| 738.74 | `0x20` sub 0 (0, 7), `0x60` sub 2 (7, 0) | detach USB-C: `sub_23979A`, `+0x0E` path (disable) |
+| 738.77 | `0x60` sub 6 (8, `+0x9C`), pulse DP, duration 0 | `sub_265A25(0, +0x9C, 0)` from `sub_2678D9` |
+| 739.32 | pulse DP (650), `0x60` sub 2 (8, 1), `0x20` sub 0 (1, 8) | attach DP: `sub_239618`, `+0x0E` path |
+| 742.49 | DP reports a signal (3.2 s after the attach) | |
+| 742.91–743.19 | the whole sequence again (disable DP, both pulses, enable) | a second `sub_2678D9` call |
+| 744.35 / 744.95 | DP signal / accepted | |
+
+The switch to USB-C (second PC) had the same two pulses; USB-C reported a
+signal 9.6 s later.
+
+- **Pulse A:** `sub_2678D9` (input selection from menu, keys, DDC/CI and
+  start-up) calls `sub_265A25(0, +0x9C, 0)`. For front-end ports this sends
+  `0x60` sub 6 and `sub_23EE83(port, 0)`. HPD stays low for about the
+  time between the two commands; anything over 2 ms is an unplug for a DP
+  source. The other callers of `sub_265A25` (`+0x9C` changed, profile
+  restore, factory reset) pass 600 or 650.
+- **Pulse B:** the `+0x0E` path of `sub_239618` (HPD 650), active because
+  `+0xA5` = 1 sets the flags at every start (§27). It also runs on every
+  automatic-scan step to DP / USB-C (`sub_25FE39` → `sub_23F836`) and after
+  a deep-standby wake. A real `+0xCB` change pulses on its own
+  (`sub_26535A`, 650).
+- The scan's own `sub_23EE83(port, 600)` (`0x260179`) is only for ports
+  without type bit `0x20` (HDMI).
+- M27P20P sends no pulse to DP-class inputs at input selection (§26); its
+  front-end firmware differs from ours (`010F` sections differ), so that is
+  evidence, not proof, that the pulses are not needed.
+- The second full selection at 742.9 s is not explained. Candidates:
+  `sub_258E5D` (`0x2592C3`, applies the OSD value `0x457857` when it
+  differs from `+0x4F` or the path's port is not 0) after the menu action.
+  `diag-log-ring` v3 logs every `sub_2678D9` call with its caller.
+- Switch cost besides the pulses: `sub_2678D9` → `sub_2676B2(1)` and the
+  next main-loop pass put 0.54 s between the selection and the attach.
+
+**Experimental patches** (`tools/patches_src_select_no_replug.py`, untested):
+- `select-no-replug` (pulse A): `sub_265A25`'s HPD call goes through a stub
+  that returns when the duration is 0. `0x60` sub 6 and the EDID loop stay.
+- `attach-no-replug` (pulse B): the HPD call in the `+0x0E` path of
+  `sub_239618` is skipped; `0x60` sub 2 and the configuration stay. Risk:
+  if `0x60` sub 2 changes what the connector reports to the source, the
+  source is not asked to read it again.

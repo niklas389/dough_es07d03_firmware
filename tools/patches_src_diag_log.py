@@ -34,7 +34,8 @@ Events (tools/logread.py names):
 MODE=ring (patches/diag-log-ring.json): as diag-log, but the log keeps the
 LAST 64 events (for loops long after the start) and also watches the current
 port, the No-signal restart flags (0x453C70 bits 15/14) and the states of
-ports 0 and 1. Since 2026-10-07 (v2) it logs mailbox commands for the whole
+ports 0 and 1, and (v3) every input selection sub_2678D9 with its caller.
+Since 2026-10-07 (v2) it logs mailbox commands for the whole
 run (to see the hot-plug and port configuration commands of an input
 switch), skips the periodic posted 0x20 sub 18 (every ~8.4 s), and carries
 data[1] & 0xF in the low nibble of the command byte (all commands are 0xN0),
@@ -143,6 +144,17 @@ def program(pad):
      *P('h_sig'), ('bt.addi', {'D': R1, 'I': -8}), nsw(4, R1, R9), jal('log_s4'), j(0x258AB6),
      *P('h_st4'), ('bt.addi', {'D': R1, 'I': -8}), nsw(4, R1, R9), jal('log_s4'), j(0x26A7CA),
      *P('h_gate'), jal(0x2612F9), jal('log_r3'), j(0x2613A4),
+
+     # ---- ring: input selection sub_2678D9(path, input) entry (replaces addi r1,r1,-0x14; sw 0x10(r1),r9) ----
+     *([*P('h_sel'), ('bn.addi', {'D': R1, 'A': R1, 'O': -0x14}), nsw(0x10, R1, R9),
+        ('bn.addi', {'D': R1, 'A': R1, 'O': -4}), nsw(0, R1, R3),
+        ('bn.andi', {'D': R5, 'A': R3, 'N': 0xF}), ('bn.slli', {'D': R5, 'A': R5, 'H': 20}),
+        ('bn.andi', {'D': R6, 'A': R4, 'N': 0xF}), ('bn.slli', {'D': R6, 'A': R6, 'H': 16}),
+        ('bn.or', {'D': R5, 'A': R5, 'B': R6}),
+        ('bg.andi', {'D': R6, 'A': R9, 't': 0xFFFF}), ('bn.or', {'D': R3, 'A': R5, 'B': R6}),   # path<<20|input<<16|caller
+        jal('log_r3'),
+        nlw(R3, 0, R1), ('bn.addi', {'D': R1, 'A': R1, 'O': 4}), nlw(R9, 0x10, R1),
+        j(0x2678DF)] if QALL else []),
 
      # ---- port state change in sub_22F2C7 (replaces beq r7,r6,0x22F307; sb 0(r11),r7) ----
      *P('h_port'),
@@ -270,6 +282,8 @@ hooks = [  # addr, expected original bytes, label, what
  (0x238FD5, 'c1c008a1', 'h_mb', 'mailbox_query: movhi r14,0x45 after the argument moves'),
  (0x262105, 'e7fff5fe', 'h_loop', 'main-loop head: jal sub_261C04'),
 ]
+if QALL:  # ring: who selects an input (value = path << 20 | input << 16 | low 16 bits of the return address)
+    hooks.append((0x2678D9, '1c21ec0d2110', 'h_sel', 'sub_2678D9 entry (input selection)'))
 if MB:   # no watcher (saves ring entries); mailbox duration at the common epilogue
     hooks = [h for h in hooks if h[2] != 'h_loop'] + [(0x239002, '0e61020e4106', 'h_mbx', 'mailbox_query epilogue: log cmd, sub, duration')]
 edits = [{'addr': '0x%06X' % CODE, 'old': '00' * len(blob), 'new': blob.hex(),

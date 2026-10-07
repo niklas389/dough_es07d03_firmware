@@ -23,7 +23,7 @@ NAMES = {'h_off': 'F panel off      caller', 'h_on': 'N panel on       caller',
          'm_init': 'I main init start', 'm_dev': 'D init done (EEPROM, scaler)',
          'm_loop': 'M main loop start', 'm_bl': 'B backlight on   caller',
          'm_fe': 'X front-end set-up done (sub_261FA8)', 'm_prep': 'R panel preparation returned',
-         'h_mb': 'Q mailbox slow  ', 'h_port': 'P port state     ', 'h_path': 'Y input path     '}
+         'h_mb': 'Q mailbox slow  ', 'h_sel': 'U input select   ', 'h_port': 'P port state     ', 'h_path': 'Y input path     '}
 # front-end commands (docs/firmware-map.md sections 19, 24, 26); ids: 7 USB-C, 8 DP, 0x0B HDMI 1, 0x0C HDMI 2, 0 unused
 FEID = {7: 'USB-C', 8: 'DP', 0x0B: 'HDMI 1', 0x0C: 'HDMI 2', 0: 'unused port'}
 fe = lambda i: FEID.get(i, 'id 0x%02X' % i)
@@ -32,6 +32,12 @@ MBNAMES = {(0x20, 14): lambda a, b: 'HPD %s %s' % (fe(a), 'low' if b == 0 else '
            (0x20, 0): lambda a, b: 'port configuration / enable',
            (0x20, 12): lambda a, b: 'configuration update %s' % ('begin' if a else 'end'),
            (0x60, 2): lambda a, b: 'port setting %s = %d' % (fe(a), b)}
+# input selection sub_2678D9: settings +0x4F value and the callers (low 16 bits of the return address)
+INPUTS = {0: 'automatic', 1: 'USB-C', 2: 'DP', 3: 'HDMI 1', 4: 'HDMI 2'}
+SELCALLERS = {0x92C7: 'sub_258E5D (OSD/key task, applies 0x457857)', 0x7A67: 'OSD action sub_267A36',
+              0x7AEC: 'OSD action sub_267A7F', 0x7C37: 'OSD action sub_267C06',
+              0x84CE: 'start-up sub_268453', 0x84E2: 'start-up sub_268453 (path 1)',
+              0x9CD5: 'profile restore sub_269AA4', 0xE437: 'sub_26E279'}
 CALLS = P.get('calls', {})
 WATCH = P.get('watch', {})
 MILESTONES = ('m_init', 'm_dev', 'm_loop', 'm_fe', 'm_prep')
@@ -145,6 +151,10 @@ for i in range(first, min(count, first + N)):
     elif t_name == 'q_dat':
         name = '    data         '
         shown = '%02X %02X %02X' % (val >> 16, (val >> 8) & 0xFF, val & 0xFF)
+    elif t_name == 'h_sel':
+        c = val & 0xFFFF
+        shown = 'path %d  +0x4F = %d (%s)  by %s' % (val >> 20 & 0xF, val >> 16 & 0xF,
+                 INPUTS.get(val >> 16 & 0xF, '?'), SELCALLERS.get(c, 'return address ..%04X' % c))
     elif t_name in ('w_lp', 'w_run'):
         w = WATCH.get('0x%04X' % (val >> 8), {})
         name = 'W %-16s' % w.get('addr', '?')
