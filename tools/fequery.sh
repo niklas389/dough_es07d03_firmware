@@ -6,7 +6,9 @@
 #   SPECCTL=./specctl MON=1 ./fequery.sh
 #
 # Per code: VCP 0xED = code runs the vendor queries 0x30/7 (front-end index) and 0x60/0xB
-# (link status); the answers are read back from RAM 0x2024F0..F4 with poke.sh.
+# (link status); the answers are read back from RAM 0x2024F0..F6 with poke.sh. The two
+# durations need a diag-log variant in the build (0 otherwise): ~5 ms per transaction after a
+# mains start, ~66 ms after a deep-standby wake.
 set -euo pipefail
 SPECCTL=${SPECCTL:-specctl}
 MON=${MON:-0}
@@ -20,6 +22,7 @@ for c in "${codes[@]}"; do
     sleep 0.5
     after=$(rd 0x2024F4)
     if [ "$before" = "$after" ]; then echo "$(name "$c"): query did not run (counter unchanged; is diag-fe in this build?)"; continue; fi
-    printf '%-6s code %-2s  index 0x%s  link 0x%s  completed %s  (echo 0x%s)\n' \
-        "$(name "$c")" "$c" "$(rd 0x2024F0)" "$(rd 0x2024F1)" "$(rd 0x2024F2)" "$(rd 0x2024F3)"
+    printf '%-6s code %-2s  index 0x%s  link 0x%s  completed %s  (echo 0x%s)  took %d + %d ms\n' \
+        "$(name "$c")" "$c" "$(rd 0x2024F0)" "$(rd 0x2024F1)" "$(rd 0x2024F2)" "$(rd 0x2024F3)" \
+        "0x$(rd 0x2024F5)" "0x$(rd 0x2024F6)"
 done

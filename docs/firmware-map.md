@@ -1179,6 +1179,7 @@ repository and must never be flashed onto this monitor.
 | Monitor | Package | Scaler | Front-end section `010F` | Notes |
 |---|---|---|---|---|
 | Tempest GP27U (GP27-FUS, 4K) | `MERGE.bin` v1.45, build May 6 2024, 2,162,524 B | MST9U, **same package layout** as ours (`es07fw.py info` parses it; checksums OK) | yes: offset `0x157F48`, size `0x0B8008`; front-end build Aug 29 2023 (V108's: Nov 17 2022), same debug strings (HDMI 2.1 FRL, DSC, MST) | very likely the same MSB3300-class front-end |
+| KTC M27T20 | `MERGE.bin` v3.0.4A, build Apr 12 2023, 1,361,364 B | MST9U, **same package layout** as ours | no; no front-end mailbox (`0x1033C0`) use and no serial front-end path in its PM51 | inputs most likely direct to the scaler (like LG); not the MSB3300 combination |
 | ASUS PA279CRV (MCM107) | `ASUS_PA279CRV_MCM107_20260424_ISP_E547.bin`, 1,395,804 B | MST9U ("MST9U5" string), TEL table at `0x22080` (different head layout) | no | USB-C role handling strings; USB hub GL3523; no front-end chip |
 
 **GP27U compared with ours (first pass):**
@@ -1279,3 +1280,44 @@ to DP, output disabled):
   same loop.
 - `diag-fe` (VCP 0xED) runs the link query of §24 for any connector code;
   `tools/fequery.sh` queries all four inputs.
+
+## 25. Cross-firmware comparison (GP27U, M27T20, LG)
+
+Function matching (`xmatch`, same method as for LG in §17):
+- 2025 of our 2753 functions have a GP27U counterpart and 2035 an M27T20
+  one. The library layers (input ports, mailbox, PM helpers) match; the
+  application layer (main, front-end set-up, panel power, OSD) is
+  vendor-specific and does not.
+- GP27U main is `0x26CAE0`; its init (`0x24230B`) matches ours (`sub_23D3EB`).
+
+**PM51 wake transition:**
+- `sub_88EB` (writes `0x101ED0`, `0x101F09`, `0x100FB4`, `0x0393` = 01,
+  `0x038A` bit 7) is byte-identical in GP27U (`0x955F`).
+- All three PM51s (ours, GP27U, LG) write `0x0393` = 01 at wake and 11 at
+  sleep entry, so the slow mailbox after a wake (66 ms vs 5 ms) is most
+  likely SDK behaviour, not a Dough change.
+- `diag-poke` now allows writing `0x0393`, and `diag-fe` measures its own
+  two mailbox transactions, so the `0x0393` hypothesis can be tested on
+  hardware: after a wake, write 00 and compare the times.
+- Power-up step in the PM51 state machine (`0x3EB4`): ours writes regs
+  `0x36`/`0x34`, waits 5 ms, polls `0x9C` bit 1 (up to 1 s), then waits
+  **100 ms**. GP27U (`0x54F0`ff): no 5 ms wait, then the same poll, then
+  **50 ms**.
+
+**Port thresholds** (accept / no-signal passes of 20 ms):
+
+| Port class | Ours (stock) | Ours (patched) | LG 28MQ780 | GP27U |
+|---|---|---|---|---|
+| type `0x20` (DP/USB-C here) | 80 / 400 (flag: 50 / 200) | 30 / 400 | 30 / 100 | 50 / 200 (60 / 300 with `0x400`) |
+| bit 3/4 + `0x400` (HDMI here) | 50 / 500 (flag: 50 / 200) | 50 / 300 | 20 / 100 | 60 / 300 |
+| bit 3/4 without `0x400` | as above | as above | 20 / 100 | 60 / 200 |
+| bit 1/2 | 20 / 60 | — | 20 / 20 | 50 / 150 |
+| bit 0 | 10 / 20 | — | 10 / 20 | 10 / 20 |
+
+GP27U has no flag-case variants. Whether GP27U's or LG's countdown has the
+"no-signal ≤ 5 s loops" problem (§24) depends on their state-4 handling,
+which was not compared.
+
+**Automatic input scan:** GP27U `0x26AEEA`: next port = (port + 1) mod 6
+(`0x270180`), skipping ports whose type has `0x1000` without `0x800`; no
+front-end query (§24).

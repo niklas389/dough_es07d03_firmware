@@ -17,7 +17,9 @@ shared with the PM51, scaler writes through sub_23D9E7): RIU byte address for PM
 scaler sub-bank form (e.g. 0x2E902F4B = sub-bank 0x2E, bank 0x102F, reg 0x4B).
 
 Safety:
-- Writes only to an exact allowlist of volatile pin/scaler registers (WRITE_OK).
+- Writes only to an exact allowlist of volatile pin/scaler registers (WRITE_OK),
+  plus PM 0x0393 (rewritten by the PM51 at every sleep and wake) for the
+  slow-mailbox test.
   No flash/SPI, EEPROM (incl. its write-protect pin 0x42C/0x42E), PM51,
   clock or factory-data access is possible. Every write is lost at power-off.
 - Reads only from the pages in READ_PAGES (PM 0x03xx/0x04xx, PM PWM 0x05xx,
@@ -56,7 +58,10 @@ REG_WRITE_MASK = 0x23DADB                 # (reg, set?, mask) read-modify-write 
 
 WRITE_OK = [0x00000422, 0x00000426, 0x00000428, 0x00000434, 0x00000436, 0x0000043A, 0x0000043B,
             0x0000044A, 0x0000044B, 0x0000044C, 0x0000044D,
-            0x2E902F4A, 0x2E902F4B]
+            0x2E902F4A, 0x2E902F4B,
+            0x00000393]                 # PM 0x0393: 00 after a mains start, 01 after a wake (PM51 sub_88EB), 11 at
+                                        # standby entry; written by the PM51 at every sleep/wake. Allowed for the
+                                        # slow-mailbox test (write the mains value 00 after a wake).
 READ_PAGES = [0x000300, 0x000400, 0x000500, 0x101E00, 0x102F00, 0x103C00, 0x103D00, 0x202200, 0x202300, 0x202400, 0x203900,
               0x453C00]                 # RAM 0x453C74-0x453C7B: wake info from the PM51 (event +0, port +4), copied at start by sub_20E254
 TABLES = 0x201F00                       # allowlist tables in the image head zero area (diag-log code ends ~0x201610)  # (addr & 0x7FFF00); top byte only for 0x102F00
