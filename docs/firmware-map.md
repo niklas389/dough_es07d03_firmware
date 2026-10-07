@@ -315,7 +315,7 @@ Disassembled with radare2 (`-a 8051`). Keil C51 style: XRAM variables at `0x5000
 | `0x0386` bit 7: main-firmware mailbox (`0x3EC2..0x3EF3`) | 5/6/7 (command 4 → 5, 5 → 6 power off, else 7) |
 | message channel `0x6E0A` (only if `0x5E6D` bit 1: `0x53EC` shifts right, then bit 0 is tested) | `0x0A` |
 | port activity `0x7D10` | 2, port index in `0x5E8A` |
-| software queue `0x61E9` (mailbox dispatcher `0x5F35`; commands → events 5/6/7) | that value |
+| software queue `0x61E9`, filled by the message dispatcher `0x5ED5` (jump table `0x5F35`) for serial frames with command `0xF0` from the front-end (`0x7EE5` → receive `0x565A` → `0x8A89`): message type 0 → event 9 (24-bit connector bit mask in `0x6208`, port via `0x69B3`); type 4 → events 5/6/7 | that value |
 | `0x5E87` | 4 |
 
 - Port activity is configured by the constant table at code `0x2928`, `0x23` bytes per port, 6 ports.
@@ -1061,3 +1061,55 @@ LG's classifier (`0x44EA`…`0x45B9`):
 was not found as an LG-matched function. Ours calls application code
 (`0x245785`/`0x245787`/`0x245919`, `sub_2676B2`, `0x23EC38`, `0x23AD3C`,
 `0x267D13`) from `sub_23ADAF`, which has no LG counterpart. Not traced further.
+
+## 22. Front-end wake messages and front-end failure handling
+
+**Source wakes are front-end messages (event 9), not PM port activity.**
+- Measured with `diag-poke` (RAM `0x453C74`): wake from deep standby via DP →
+  event `0x09`; via USB-C (dock) → `0x09`; first start after flashing → 0.
+- Event 9 path: `0x7EE5` receives a serial frame from the front-end
+  (`0x565A`). Command `0xF0` goes to `0x8A89` → dispatcher `0x5ED5`. Message
+  type 0 (`0x5F89`) sets `0x6332` bit 0 and stores 24 bits from the message in
+  `0x6208`.
+- The classifier (`0x5CED`) turns that into event 9. The port comes from
+  `0x69B3`: a bit mask in which bit 0 → front-end id 7, bit 1 → id 8,
+  bit 2 → 9, bit 3 → `0x0F`, … matched against the PM51 port table.
+- The wake decision `0x745A` wakes on event 9 unconditionally.
+- The front-end, which owns the connectors, therefore decides that a source
+  is active, as LG's PM51 does with its own receivers.
+- Consequences:
+  - `pm51-wake-window` and `pm51-wake-recheck` act only on event 2, so neither
+    affects these wakes.
+  - The USB-C no-wake reported with `pm51-wake-recheck` (§20) is therefore not
+    explained by that patch if those wakes were also event 9. The friend's
+    front-end firmware version at that time is unknown.
+  - An input filter belongs on the event-9 bit mask (front-end ids), not on
+    the PM bits.
+
+**Mailbox wait budget (main firmware).**
+- `mailbox_query` (`0x238FA5`) loads the shared counter `0x4551C8` with 10000
+  for each phase: PM51 idle (`0x1033C0` = 0), request data, answer. The 1 ms
+  ISR `0x240C55` counts it down, so each phase waits up to 10 s.
+- The function returns 0 on a timeout. The 22 call sites are thin wrappers
+  that pass the result on as a boolean; whether their callers react was not
+  traced.
+- No "front-end missing" state and no shorter retry budget were found.
+- The PM51 side retries a forwarded command up to 5 times with 100 ms pauses
+  (`0x8A5E`…`0x8A84`).
+- With a front-end that does not answer, every start-up command can
+  therefore cost seconds, which fits a start that hangs for minutes on the
+  logo (not measured).
+
+**Failed front-end update (owner's friend, V108).**
+- The second monitor hung on the logo after "Processing update...", also
+  after a mains cycle. At some point there were no USB devices and no
+  reaction to keys.
+- It later started with no working input and an all-yellow OSD.
+- Flashing V108 again (with "Processing update...") restored it.
+- Observations: the scaler-side update works while the front-end firmware is
+  broken. Neither the scaler's factory image (`0x000000`–`0x150000`, V107) nor
+  any package without `010F` contains front-end firmware. A copy of the
+  last-flashed `010F` stays in the scaler flash after a shorter package (only
+  the package length is erased), but nothing is known to use it as a fallback.
+- Whether the MSB3300 has its own flash, a boot ROM recovery, or a second
+  firmware copy is unknown. Why the OSD turned yellow is unknown.
