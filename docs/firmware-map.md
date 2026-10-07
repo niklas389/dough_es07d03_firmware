@@ -1170,3 +1170,28 @@ was not found as an LG-matched function. Ours calls application code
   main-loop pass" observation (§16) does not prove a coupling (both inputs
   carried the same PC's output in that test). The cause of the v2 loop is
   therefore open; `diag-log-ring` is meant to capture it.
+
+## 23. Other monitors with the same scaler (reference firmware, not in the repo)
+
+Packages supplied by the owner (2026-10-07). They are kept outside the
+repository and must never be flashed onto this monitor.
+
+| Monitor | Package | Scaler | Front-end section `010F` | Notes |
+|---|---|---|---|---|
+| Tempest GP27U (GP27-FUS, 4K) | `MERGE.bin` v1.45, build May 6 2024, 2,162,524 B | MST9U, **same package layout** as ours (`es07fw.py info` parses it; checksums OK) | yes: offset `0x157F48`, size `0x0B8008`; front-end build Aug 29 2023 (V108's: Nov 17 2022), same debug strings (HDMI 2.1 FRL, DSC, MST) | very likely the same MSB3300-class front-end |
+| ASUS PA279CRV (MCM107) | `ASUS_PA279CRV_MCM107_20260424_ISP_E547.bin`, 1,395,804 B | MST9U ("MST9U5" string), TEL table at `0x22080` (different head layout) | no | USB-C role handling strings; USB hub GL3523; no front-end chip |
+
+**GP27U compared with ours (first pass):**
+- PM51: the front-end message path is the same (dispatcher `0x627C`, queue
+  `0x5A59`, event 9 → wake unconditionally in the wake decision `0x855C`ff).
+  The classifier checks the queue first (ours last). Port activity (event 2)
+  uses the same finder without an input filter, but the wake decision calls
+  a real LG-style check (`0x425E`: port set-up, 30 ms, measurement) where
+  ours has the stub `0x9D54`.
+- Main firmware: `mailbox_query` (`0x23BA85`) is identical to ours (10 s per
+  phase, no failsafe).
+- Front-end commands (approximate constant scan of the 22 call sites each):
+  - GP27U only: `0x10` sub 2 and 7, `0x20` sub `0x14`, `0x50` sub 7,
+    `0x60` sub 9.
+  - Ours only: `0x80` sub 1, 2 and 4, `0x60` sub 0 and `0x10`.
+  - Meanings not traced.
