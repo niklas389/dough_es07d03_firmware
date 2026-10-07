@@ -953,8 +953,8 @@ timing (30 s+ over 3–4 ports), not traced.
 **Front-end port ids and the start-up HPD sequence:** the front-end port table
 `0x3B4288` (6 × `0x18`) holds the front-end id at +4 and a type at +8:
 id 7 (type 8), id 8 (7), `0x0B` (1), `0x0C` (3), 0 (4), 0 (2). Id 8 is the DP
-connector (the id in the update of a DP wake); id 7 is most likely USB-C (the
-other DP-class input; inference). `sub_268668` (start-up, flag set) sends
+connector (the id in the update of a DP wake); id 7 is USB-C (main-firmware
+port 0; confirmed by the PM51 wake port, §22). `sub_268668` (start-up, flag set) sends
 `(id, 0, 0)` (HPD low) for ids 7, 8, `0x0B`, `0x0C`, 0, then the port
 configuration (`sub_239223`; table entries 3 and 4 depend on settings
 `+0xC5`/`+0xC6`), then `(id, 1, 650)` for all. Whether `(id, 1, 650)` only

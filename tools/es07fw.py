@@ -237,6 +237,9 @@ def cmd_patch(pkg_path, out_path, names):
         missing = [r for r in allp[n].get('requires', []) if r not in names]
         if missing:
             sys.exit('patch %r requires %s in the same build' % (n, ', '.join(missing)))
+        clash = [c for c in allp[n].get('conflicts', []) if c in names]
+        if clash:
+            sys.exit('patch %r conflicts with %s (do not combine)' % (n, ', '.join(clash)))
     order = []                      # required patches first (some edit code their dependency added)
     def add(n):
         if n not in order:

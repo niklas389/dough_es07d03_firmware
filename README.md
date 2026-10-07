@@ -59,7 +59,8 @@ output before writing it.
 | `wake-no-replug` | v3 untested (v2 **hardware-tested** 2026-10-07: no disconnect, picture after ~9.3 s; one later slow wake of ~20 s, cause unknown) | After a deep-standby wake (PM `0x3AA` bits 4:2 = 1), the DP port (front-end id 8) is re-enabled without its HPD-low step `(8, 0, 0)` in the first 5 s, so the PC does not see an unplug (other monitors do not blank). v3: `(8, 1, 650)` and the other ports' (USB-C, HDMI) stock pulses are sent; v2 suppressed all of them |
 | `standby-timeout` | **hardware-tested** (2026-10-07) | "No signal" → power-save after 30 s instead of 255 s (panel and backlight still off after 5 s); other values with `STANDBY_S=n` in `tools/patches_src_standby_timeout.py` |
 | `port-accept` | **hardware-tested** (2026-10-07) | Signal on input ports 0 and 1 (type `0x20`; port 1 = DP input) accepted after 30 × 20 ms = 0.6 s instead of 80 × 20 ms = 1.6 s (LG 28MQ780 firmware, same SDK, uses 30); other values with `ACCEPT=n` in `tools/patches_src_port_accept.py`. See `docs/firmware-map.md` §17 |
-| `port-nosignal` | untested | An input port counts as "no signal" after 200 × 20 ms = 4 s instead of 8 s (ports 0/1) or 10 s (ports 2–5): faster automatic input scan (30 s+ over 3–4 ports before) and faster "No signal". 4 s is the vendor's own value for the same ports in one configuration; LG uses 2 s. `NOSIG=n` in `tools/patches_src_port_nosignal.py` |
+| `port-nosignal` | v2 untested | DP and HDMI ports count as "no signal" after 200 × 20 ms = 4 s instead of 8 s (DP) or 10 s (HDMI ports 2–5): faster automatic input scan and faster "No signal". USB-C (port 0) keeps the vendor 8 s, because a source behind a dock delivers its stream later. `NOSIG=n` in `tools/patches_src_port_nosignal.py` |
+| `port-nosignal-v1` | superseded | As v2 but also USB-C at 4 s: USB-C wakes through a dock showed "No signal" and returned to standby (2026-10-07). Do not combine with `port-nosignal` |
 | `panel-prepower` | **hardware-tested** (v2, 2026-10-07: deep-standby wake 6.7–6.9 s with `port-accept`, was 9.3 s; power-key start 6.6 s, was 8.4 s) | Powers the panel up (backlight off) during start-up, so only the backlight step is left when the input is ready; requires `standby-lhs`. v2: the 550 ms panel wait runs as a timer in the main loop (as in the LG 28MQ780 firmware) instead of blocking the start; same order of panel steps, training → backlight still ≥ 550 ms. v1 (blocking) kept as `panel-prepower-v1` |
 | `audio-off` | **experimental** | Skips the headphone DAC power-up (~350 ms of anti-pop waits at every start and wake); the 3.5 mm output stays silent |
 | `popup-flat` | **hardware-tested** | One-line OSD popups (No signal, input name, …) as one see-through gray box with white centred text, without the empty header band; the menu is unchanged |
@@ -80,6 +81,15 @@ panel-t12`; the same build without it works). It is excluded from builds.
 
 Recovery from any bad flash: flash the stock package. If FW2 fails its CRC,
 the bootloader falls back to the factory image at SPI `0x0`.
+
+`es07fw.py patch` refuses patches that list each other under `conflicts`.
+
+**Open items:**
+- Front-end failsafe (planned, not built): after a timed-out front-end
+  command, shorten the mailbox wait (10 s per phase) until a command succeeds
+  again, so a monitor with a dead MSB3300 starts in seconds and stays
+  reachable for reflashing (`docs/firmware-map.md` §22).
+- Input filter for wakes on the front-end's connector mask (event 9).
 
 ## Exploring
 
