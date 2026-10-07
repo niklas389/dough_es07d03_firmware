@@ -1127,3 +1127,18 @@ was not found as an LG-matched function. Ours calls application code
 - The selected input in settings `+0x4F` is the port index + 1:
   `sub_2678D9` calls `sub_23F836(path, +0x4F − 1)`, which sets the path's
   port (`+0x28`).
+
+**Tests 2026-10-07 (build with `port-nosignal` v2, `pm51-input-filter`, diagnostics):**
+- Input fixed to DP, output disabled with `kscreen-doctor`: "No signal"
+  appears; about 4–5 s later it disappears and reappears briefly. This
+  repeats, and the monitor never reaches standby.
+- Automatic input: standby after the longer scan, then a wake shortly after,
+  with event 9 and port 1 (DP).
+- v2 gave ports 0 and 1 different no-signal thresholds (8 s / 4 s). Ports 0
+  and 1 already changed state in the same main-loop pass in an earlier log
+  (§16), so they are probably judged together. `port-nosignal` v3 therefore
+  keeps both at the vendor value and shortens only ports 2–5. The cause is
+  not traced.
+- `0x453C74`/`0x453C78` are copied only at firmware start (`sub_20E254`). A
+  key press in link-held standby does not restart the firmware, so the values
+  read after it are those of the last start.
