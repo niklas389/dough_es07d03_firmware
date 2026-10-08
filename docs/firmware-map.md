@@ -2328,3 +2328,42 @@ once, and 1.4 → "1.4 without DSC" → 1.2 → 1.4 worked at every step. The
 earlier 1.2 failure was bandwidth: the PC's 4K 144 Hz mode does not fit HBR2
 without DSC, and the PC kept the link without sending a stream. Not a
 firmware problem; `dpmode-same` is hardware-tested.
+
+## 46. Stuck without "No signal" after the scan (automatic input) (2026-10-08)
+
+**Test** (`gate-all-dp` v4, automatic input):
+- DP output disabled (the dock holds the link), then the laptop's USB-C output
+  enabled during the countdown: the monitor woke and showed the laptop. The
+  5 s routing check during "No signal" works.
+- Laptop output disabled again: black screen, panel on, no standby.
+
+**Log:**
+- 358.3 s scan to HDMI 1, 359.36 s its no-signal decision.
+- 359.38 s `scan-active-first` asked USB-C and DP. The jump flag was set, so
+  it continued in rotation to HDMI 2.
+- 360.45 s HDMI 2 no-signal decision. After that, nothing until the owner's
+  `fequery` calls (590–656 s) and a new scan round at 985 s (cause not in
+  the log).
+- No standby-gate tick in ~625 s, so the countdown `cnt` was not running.
+  No OSD state change and no "No signal" entry in the window either.
+- `fequery` in that state: USB-C no source, DP source active (the dock), the
+  routed connector HDMI 2.
+- The link query answered 0 for HDMI 2's id (`0x0C`) with nothing connected,
+  so for HDMI ids the answer does not mean "source active". No patch uses it
+  for HDMI.
+
+**Candidate (not confirmed): the vendor's countdown pause.**
+- `sub_263995` sets `0x453C70` bit 15 and the re-evaluation timer `0x4551B5`
+  = 10 on a DP link event of the current port during "No signal"
+  (`0x263C26`).
+- The countdown does not run while bit 15 is set (`0x261CDA`).
+- Bit 15 (with bit 14) is cleared only when `0x45792D` = 9 (`0x263AA8`,
+  `0x26B23B`), i.e. never without a signal. The bit-14 path re-enters
+  "No signal" through state `0x0D`; the bit-15-only path was not traced to a
+  re-entry.
+- To be confirmed by reading `0x453C71` (bit 7 = bit 15) in the stuck state.
+
+**Log fix:** the `diag-log-ring` watcher read `0x453C72` as "bits 15–8" of
+`0x453C70`. This CPU is little-endian (`0x261CDA` tests bit 15 as
+`0x453C71` bit 7), so it watched bits 23–16, and bit-15 changes were never
+logged. It now watches `0x453C71`.

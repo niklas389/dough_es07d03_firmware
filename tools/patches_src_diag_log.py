@@ -79,7 +79,7 @@ WATCH = [(0x3B4970, 'port 0 +0x20 status'), (0x3B4A20, 'port 1 +0x20 status'),
          (0x203FF0, 'panel-prepower state (1 waiting, 2 ready)')]
 if MODE == 'ring':
     WATCH += [(0x47FAF5, 'current port (power-save hand-off +2)'),
-              (0x453C72, 'flags 0x453C70 bits 15-8 (0x80 bit 15, 0x40 bit 14: No-signal restart, section 11)'),
+              (0x453C71, 'flags 0x453C70 bits 15-8 (0x80 bit 15: countdown paused, 0x40 bit 14: No-signal restart, section 11)'),
               (0x3B495F, 'port 0 state'), (0x3B4A0F, 'port 1 state')]
 R0, R1, R3, R4, R5, R6, R7, R8, R9, R10 = 0, 1, 3, 4, 5, 6, 7, 8, 9, 10
 R11, R12, R13, R14, R17 = 11, 12, 13, 14, 17
