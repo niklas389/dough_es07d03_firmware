@@ -1849,3 +1849,27 @@ the dock releases the link.
 - So after every start (wake by key or by USB-C) the dock trains the DP link
   without video and holds it until the PC side changes something; the
   monitor then waits in link-held standby (13 W) instead of looping.
+
+## 37. Speed build (2026-10-08)
+
+**Ports 4 and 5** (port table `0x3B4950`): HDMI-class entries of the reference
+design (type `0x20408`, receiver ids 1 and 3, codes 4 and 2 in `0x3B427B`,
+front-end id 0 in `0x3B4281`). No connector is behind them, and nothing
+selects them: menu input (`+0x4F` 1–4 → ports 0–3), split screen / PIP
+second picture (`+0xB2` 0–3 → ports 0–3 on path 1, `sub_2678D9`), the
+automatic scan (0 → 1 → 2 → 3) and DDC/CI input select (`sub_26AD19`,
+ports 2, 3, 0, 1). Split screen therefore uses the same four ports on a
+second input path and is not affected by `hpd-skip-unused`.
+
+**`port-nosignal` v4:** `sub_260E0E` normal-case thresholds: type `0x20`
+(USB-C, DP) 400 → 125 passes, HDMI class 500 → 125 (2.5 s each); the flag
+case (200) unchanged. Requires `nosignal-once`. Measured enable-to-signal
+times: DP after a wake 0.6 s, DP switch 0.2 s, laptop on USB-C after
+re-enabling its output 2.1 s.
+
+**`pm51-powerup`:** PM51 power state machine, wake power-up: the delay after
+the reg `0x9C` power-good poll (`0x40B7`, `mov r7,#100` → 50) as in GP27U
+(`0x5517`) and M27P20P (`0x511C`). The 5 ms between our two reg `0x36` writes
+(`0x4078`) stays; GP27U / M27P20P write it only once.
+
+**`hpd-skip-unused`:** `sub_2394DC` skips `0x20` sub 3 for id 0.

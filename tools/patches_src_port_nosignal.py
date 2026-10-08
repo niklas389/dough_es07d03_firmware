@@ -1,8 +1,23 @@
 #!/usr/bin/env python3
-"""Source of patches/port-nosignal.json (v3). Run in an unpacked work dir (RT=runtime_0x200000.bin).
+"""Source of patches/port-nosignal.json (v4). Run in an unpacked work dir (RT=runtime_0x200000.bin).
 
-Shorter "no signal" decision for the HDMI-class input ports, for a faster
-automatic input scan; the DP and USB-C ports keep the vendor time.
+Shorter "no signal" decision for all input ports: DP / USB-C (NOSIG_DP,
+default 125 passes = 2.5 s, vendor 8 s) and HDMI (NOSIG, default 125 = 2.5 s,
+vendor 10 s). Faster automatic input switching and a faster way to "No
+signal" and standby. Requires nosignal-once (v4).
+
+v4 (2026-10-08): the "No signal" loop that limited v1-v3 (repeat after every
++0x1A passes restarting the countdown) was not caused by the port threshold
+itself but by the input path's detection rounds re-entering "No signal";
+nosignal-once (v2, hardware-tested) stops that re-entry, so short thresholds
+no longer keep the monitor out of standby (docs/firmware-map.md sections 33,
+34). Lower bound now 50 passes (1 s): ports whose receiver reports nothing at
+all give up after 50 passes anyway (sub_23B068), only ports with some activity
+wait the full threshold. Measured times from port enable to a signal: DP
+after a wake 0.6 s, DP after a switch with switch-no-unplug 0.2 s, a laptop on
+USB-C that had just re-enabled its output 2.1 s; 2.5 s covers these. A source
+slower than the threshold costs, with automatic input, one more scan round;
+with a fixed input a brief "No signal" message before the picture.
 
 Vendor (sub_260E0E -> sub_23E5C5, port +0x1A; see port-accept for +0x18):
 the port monitor sub_23B068 (every 20 ms per port) declares a port without
@@ -51,43 +66,44 @@ import aeondis as A, aeonasm as S
 d = open(os.environ.get('RT', 'runtime_0x200000.bin'), 'rb').read()
 def cur(a, n): return d[a - 0x200000:a - 0x200000 + n]
 
-NOSIG = int(os.environ.get('NOSIG', '300'))
-# A port that stays without signal repeats its no-signal decision every NOSIG passes, and every
-# repeat re-enters "No signal" (state 4), which restarts the 5 s countdown to pre-standby. NOSIG
-# must therefore stay well above 250 passes (5 s), or the monitor never reaches standby.
-assert 275 <= NOSIG <= 500
+NOSIG = int(os.environ.get('NOSIG', '125'))        # HDMI class (ports 2-5)
+NOSIG_DP = int(os.environ.get('NOSIG_DP', '125'))  # type 0x20 (port 0 USB-C, port 1 DP)
+# Without nosignal-once a value below ~275 loops on "No signal" (see the history above); v4
+# requires nosignal-once, so the lower bound is the receiver's own 1 s give-up.
+assert 50 <= NOSIG <= 500 and 50 <= NOSIG_DP <= 400
 
-SITES = [  # addr, stock bytes, register, vendor value, what
- (0x260E73, 'c8a001f4', 5, 500, 'type bit3/4/0x400, normal case'),
+SITES = [  # addr, stock bytes, register, vendor value, new value, what
+ (0x260E73, 'c8a001f4', 5, 500, NOSIG, 'type bit3/4/0x400 (HDMI), normal case'),
+ (0x260EDA, 'c8a00190', 5, 400, NOSIG_DP, 'type 0x20 (USB-C, DP), normal case'),
 ]
 edits = []
-for a, old, reg, val, what in SITES:
+for a, old, reg, val, NEW, what in SITES:
     ob = cur(a, len(old) // 2)
     assert ob.hex() == old, (hex(a), ob.hex())
     x = A.decode(ob, 0, a)
     assert x['mnem'] == 'b.ori' and x['ops'] == 'r%d,r0,%#x' % (reg, val), x
-    nb = S.encode('bg.ori', {'D': reg, 'A': 0, 't': NOSIG}, a)
-    assert len(nb) == len(ob) and A.decode(nb, 0, a)['ops'] == 'r%d,r0,%#x' % (reg, NOSIG)
-    print('%06x: %s -> %s  %s %d -> %d passes' % (a, ob.hex(), nb.hex(), what, val, NOSIG))
+    nb = S.encode('bg.ori', {'D': reg, 'A': 0, 't': NEW}, a)
+    assert len(nb) == len(ob) and A.decode(nb, 0, a)['ops'] == 'r%d,r0,%#x' % (reg, NEW)
+    print('%06x: %s -> %s  %s %d -> %d passes' % (a, ob.hex(), nb.hex(), what, val, NEW))
     if nb != ob:
         edits.append({'addr': '0x%06X' % a, 'old': ob.hex(), 'new': nb.hex(),
-                      'asm': 'sub_260E0E ori r%d,r0,%#x -> ori r%d,r0,%#x (port +0x1A no-signal threshold, %s)' % (reg, val, reg, NOSIG, what)})
+                      'asm': 'sub_260E0E ori r%d,r0,%#x -> ori r%d,r0,%#x (port +0x1A no-signal threshold, %s)' % (reg, val, reg, NEW, what)})
 
-# type-0x20 values (ports 0 USB-C and 1 DP) stay vendor and equal
-assert cur(0x260ED1, 3).hex() == '50a0c8' and cur(0x260EDA, 4).hex() == 'c8a00190'
+# flag-case values (200 passes when settings +0x48 bit 2 or flg bit 0) stay vendor
+assert cur(0x260ED1, 3).hex() == '50a0c8' and cur(0x260E70, 3).hex() == '50e0c8'
 
 patch = {
  'name': 'port-nosignal',
- 'summary': ('Declare the HDMI input ports "no signal" after %d x 20 ms = %.1f s instead of 10 s '
-             '(faster automatic input scan); DP and USB-C keep the vendor 8 s') % (NOSIG, NOSIG * 0.02),
- 'status': 'untested (v3)',
+ 'summary': ('v4: declare an input "no signal" after %.1f s (DP / USB-C, vendor 8 s) and %.1f s (HDMI, vendor 10 s): '
+             'faster automatic switching and a faster way to standby; requires nosignal-once') % (NOSIG_DP * 0.02, NOSIG * 0.02),
+ 'status': 'untested (v4; v3 HDMI-only 6 s in daily use)',
+ 'requires': ['nosignal-once'],
  'conflicts': ['port-nosignal-v1', 'port-nosignal-v2'],
  'edits': edits,
  'notes': ("Port +0x1A thresholds set by sub_260E0E (vendor: 400 passes for type 0x20 = ports 0 USB-C and 1 DP, 500 for "
-           "types bit3/4/0x400 = ports 2-5, 200 in the flag case). v3: ports 2-5 -> %d (normal case; must stay > 250 = the 5 s "
-           "pre-standby countdown, see the source); ports 0 (USB-C) and 1 (DP) unchanged. LG 28MQ780 uses 100. "
-           "Accept thresholds (+0x18, see port-accept) unchanged. Generated by tools/patches_src_port_nosignal.py (NOSIG=n, 275-500)."
-           % NOSIG),
+           "types bit3/4/0x400 = ports 2-5, 200 in the flag case). v4: type 0x20 -> %d, ports 2-5 -> %d (normal case); the "
+           "flag case stays 200. LG 28MQ780 uses 100. Accept thresholds (+0x18, see port-accept) unchanged. "
+           "Generated by tools/patches_src_port_nosignal.py (NOSIG_DP=n, NOSIG=n, 50-400/500)." % (NOSIG_DP, NOSIG)),
 }
 out = os.environ.get('OUT', 'port-nosignal.json')
 json.dump(patch, open(out, 'w'), indent=2)
