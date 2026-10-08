@@ -1667,3 +1667,17 @@ A DisplayPort Mode change keeps its 650 ms pulse (`sub_26535A`).
 If the front-end does not switch on the "high" command alone, the picture
 will stay on the old input as in this test; then the low phase is the
 trigger and a switch needs a real (short) pulse.
+
+**Test of `switch-no-unplug` (2026-10-08):**
+- "1.4 without DSC": switch commands now include (id, 1, 0) for the new
+  connector; the front-end switches (correct picture), 1.4 s from the menu
+  action to the accepted signal (USB-C 214.91 → 216.35 s, DP 221.38 →
+  222.81 s); no re-plug on either PC. So "HPD high" alone is the switch
+  trigger; the low phase is not needed.
+- 1.4 (DSC): the detach no longer sends `0x60` sub 2 (id, 0); the attach
+  sends (id, 1, 0), `0x60` sub 2 (id, 1) and the enable. No re-plug, the
+  other monitor on the dock is not disturbed. Main PC re-plugged while USB-C
+  was selected, then DP selected: picture with DSC as before.
+- Still to test: automatic input (the scan attaches through `sub_23F836`
+  without `sub_265A25`, so in "1.4 without DSC" it sends no `0x20` sub 14
+  for DP / USB-C, in stock as in the patch) and deep-standby wakes.

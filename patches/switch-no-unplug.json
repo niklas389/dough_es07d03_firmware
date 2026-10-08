@@ -1,7 +1,7 @@
 {
   "name": "switch-no-unplug",
   "summary": "EXPERIMENTAL: input switches between DP and USB-C send only \"HPD high\" to the new connector (the front-end's switch trigger) instead of an unplug pulse; in DisplayPort Mode 1.4 DSC stays advertised on both connectors",
-  "status": "untested",
+  "status": "hardware-tested 2026-10-08: manual switches DP <-> USB-C in DisplayPort Mode \"1.4 without DSC\" and 1.4 (DSC): correct picture in 1-2 s, no re-plug on either PC, other monitor undisturbed; main PC re-plugged while USB-C was selected, then DP selected: works. Not yet tested: automatic input, deep-standby wake",
   "conflicts": [
     "select-no-replug",
     "attach-no-replug"
