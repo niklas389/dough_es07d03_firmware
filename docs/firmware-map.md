@@ -2228,6 +2228,12 @@ the PCs in §31/§32).
   calls `sub_268BB0` (650 ms hot-plug pulse on DP and USB-C, port
   configuration, `0x60` sub 2 / sub 0). The pulse makes the dock's MST
   topology change, which blanks all its monitors.
+- The input was fixed to DP (owner, after the report). With a fixed input a
+  later signal restarts detection and is accepted (also in link-held standby,
+  and a DP source wakes deep standby), so either the PC sent no video to this
+  monitor again, or the monitor did not accept what came (as in §40, where
+  the front-end delivered only short blips). The `-n 10` read shows neither;
+  15 events that arrived while it was read are not shown.
 - Why the PC did not send video to this monitor again is not in the log. The
   PC re-creates the connector after such a pulse and needed ~5 s in §29, so
   the 2.5 s no-signal time (`port-nosignal` v4) expires first. With the input
