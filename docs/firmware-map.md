@@ -1836,3 +1836,16 @@ either reports an active source; with a fixed input only the selected one
 also refuses. Expected: with the dock holding the DP link the monitor stays
 in link-held standby (13 W) instead of looping, and goes to deep standby when
 the dock releases the link.
+
+**Test of `gate-all-dp` (2026-10-08, automatic input):**
+- After flashing: USB-C picture, DP output disabled; laptop output disabled
+  → deep standby (laptop still charging), no wake for > 2 min.
+- Wake by the menu key: wake event `0x11`, port 0 (`0x453C74` / `0x453C78`;
+  key wakes report `0x11`). Afterwards no deep standby: `fequery.sh r7 r8`
+  → USB-C no source, DP **source active** (the dock had trained the DP link
+  again after the start), so link-held standby, as designed. Disabling and
+  toggling the DP output once made the dock release the link
+  and the monitor went to deep standby.
+- So after every start (wake by key or by USB-C) the dock trains the DP link
+  without video and holds it until the PC side changes something; the
+  monitor then waits in link-held standby (13 W) instead of looping.

@@ -115,7 +115,9 @@ patch = {
  'summary': ('Standby gate v2: with automatic input, standby is refused while a source is active on any DP-class '
              'connector (DP or USB-C), not only the current one; fixed input: the selected one; no answer from the '
              'front-end: refused. Each connector is asked by its own id (replaces gate-raw-id)'),
- 'status': 'untested',
+ 'status': ('hardware-tested 2026-10-08: automatic input, both outputs off -> deep standby, no wake for minutes; '
+            'after a key wake the dock held the DP link (DP: source active) -> link-held standby, deep standby as soon '
+            'as the dock released the link'),
  'conflicts': ['gate-raw-id'],
  'edits': [
   {'addr': '0x%06X' % CAVE, 'old': '00' * len(code), 'new': code.hex(),
