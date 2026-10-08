@@ -1781,3 +1781,31 @@ the output was disabled; USB-C raw: no source. Before this run the monitor
 had restarted (log from ~0 s, scan at 35–51 s): most likely a deep-standby
 entry followed by a front-end wake (to be confirmed with `0x453C74` /
 `0x453C78`).
+
+## 35. Wake loop with a laptop on USB-C (2026-10-08)
+
+**Observation** (automatic input, DP output disabled, laptop on USB-C with
+its output disabled and charging): deep standby is reached, then the monitor
+loops: off ~12 s → on ~30 s (laptop picture; KDE on the laptop reports "a new
+output has been connected") → "No signal" → off ~27 s → … Every "on" phase is
+a fresh firmware start (`logread` saw the event counter drop from 150 to 101
+while reading).
+
+**One wake, from the log:** scan USB-C → DP (8.0 s no-signal decision) →
+HDMI 1 → HDMI 2 (~1 s each, with the vendor HDMI pulses) → USB-C enable at
+24.76 s → USB-C signal 26.85 s, accepted 27.44 s. The laptop sent a picture
+2 s after its port was enabled, i.e. its desktop had turned the output on.
+
+**Why the laptop turns its output on:** at every deep-standby wake the
+start-up sends each front-end port (id, 0, 0) then (id, 1, 650) (`0x20` sub
+14). `wake-no-replug` v3 dropped the low step only for DP, so the laptop saw
+an unplug and a re-plug of USB-C, and KDE treated it as a new output and
+enabled it. `wake-no-replug` v4 drops the low step for USB-C (id 7) too.
+
+**Still open: what wakes the monitor ~12 s after it went to deep standby.**
+Most likely an event-9 wake from the front-end on USB-C activity (the laptop
+reacting to the monitor's standby entry); to be confirmed with the wake event
+/ port (`0x453C74` / `0x453C78`) and the laptop's kernel log. With automatic
+input any connector's activity wakes the monitor (`pm51-input-filter` acts
+only with a fixed input). The same pattern was seen earlier with the dock on
+DP (§22, automatic input: standby, then a wake shortly after, event 9 port 1).
