@@ -2135,3 +2135,39 @@ backlight on and no "No signal" message, for ~45 min. Keys and DDC/CI worked.
   still refuse standby, as in v2.
 - Expected wake time: the next re-query (≤ 5 s), then the scan's jump to USB-C
   and the laptop's picture (~2–3 s).
+
+## 42. USB-C wake test; `picture-watchdog` v2 (2026-10-08)
+
+**Test** (build of §41, automatic input; standby on DP, then the laptop's
+USB-C output enabled):
+- Deep standby was reached; the wake by USB-C worked (firmware restart).
+- `wake-port-first` started on USB-C (selection at 6.48 s, "by
+  wake-port-first").
+- USB-C accepted at 8.32 s, backlight at 8.38 s.
+- No HPD-low command went to USB-C, only "HPD high" (7, 1), `0x60` sub 2
+  (7, 1) and the enable. The owner saw something like a re-plug on the laptop.
+  The laptop's own output being enabled, or USB-C alternate mode set-up after
+  deep standby, would look the same; this was not decided. The laptop
+  (new, Debian) is not treated as a reference.
+
+**`picture-watchdog` v1 fired falsely:** recovery 1 ran at 7.65 s, 1.05 s
+after the main loop started.
+- During a normal signal acquisition the port restarts detection several
+  times within ~1 s. The log shows only state changes, so the repeats of state
+  1 are not visible.
+- The recovery was harmless here (`0x60` sub 6, "HPD high"; picture
+  0.7 s later), but it is not what the watchdog is for.
+- v2 counts a restart only if a no-signal decision (`0x23B2E9`, hooked; RAM
+  `0x2024D4`) came since the last counted one. That matches the black-screen
+  pattern of §40 (no signal → blip → restart → no signal …) and excludes the
+  acquisition after an attach.
+
+**Open: 5 s gap in the start-up.**
+- After the front-end set-up (config update end 1.45 s) nothing was logged
+  until the start-up selection at 6.48 s, and the main loop started at
+  6.60 s; earlier wakes started their main loop at ~2.1 s (§16, §38).
+- `diag-log-ring` does not log `0x20` sub 18, and a mailbox wait of ~5 s
+  (PM51 busy, under the 10 s time-out, so no "K" entry) would fit. The cause
+  is not known.
+- A log of a DP wake with this build would show whether the gap belongs to
+  USB-C wakes.
