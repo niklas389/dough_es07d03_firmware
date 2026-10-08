@@ -76,7 +76,8 @@ patch = {
  'name': 'nosignal-once',
  'summary': ('v2: while "No signal" is already shown, the input path\'s ~8 s detection rounds no longer re-enter it, '
              'so the standby countdown runs to deep standby'),
- 'status': 'untested (v1, a port-monitor hook, had no effect on hardware 2026-10-08)',
+ 'status': ('hardware-tested 2026-10-08 (v2): one "No signal" entry, pre-standby 6 s later, standby request and '
+            'gate query 30 s after the entry (v1, a port-monitor hook, had no effect)'),
  'edits': [
   {'addr': '0x%06X' % CAVE, 'old': '00' * len(code), 'new': code.hex(),
    'asm': 'ns4 (linker padding 0x2039B0): OSD state already 4 -> j 0x26A895, else store 4 and j 0x26A840'},

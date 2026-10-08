@@ -1770,3 +1770,14 @@ without the loop.
 when the OSD state is already 4 it skips the store and the state change and
 continues at `0x26A895` (the normal tail). Every other previous state enters
 "No signal" with a fresh countdown as before.
+
+**Test of v2 (2026-10-08, automatic input, DP output disabled, USB-C
+unplugged):** one "No signal" entry (51.09 s), panel off 6 s later, and at
+81.09 s, exactly 30 s after the entry, the power-save request with the gate
+query: refused (1). Link-held standby then re-queried the gate every 5 s
+(`0x60` sub `0xFF`, data 8). `fequery.sh` in that state: DP (code 7 and raw
+id 8) answered 0 = source active, i.e. the dock kept the DP link up although
+the output was disabled; USB-C raw: no source. Before this run the monitor
+had restarted (log from ~0 s, scan at 35–51 s): most likely a deep-standby
+entry followed by a front-end wake (to be confirmed with `0x453C74` /
+`0x453C78`).
