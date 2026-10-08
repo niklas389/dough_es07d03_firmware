@@ -1809,3 +1809,30 @@ reacting to the monitor's standby entry); to be confirmed with the wake event
 input any connector's activity wakes the monitor (`pm51-input-filter` acts
 only with a fixed input). The same pattern was seen earlier with the dock on
 DP (§22, automatic input: standby, then a wake shortly after, event 9 port 1).
+
+## 36. Wake loop from the dock on DP, and the standby gate in automatic mode (2026-10-08)
+
+**Tests with `wake-no-replug` v4:**
+- Automatic input, DP and USB-C outputs disabled: deep standby quickly, no
+  wake for > 2 min.
+- Laptop output enabled: immediate wake, picture, other monitor undisturbed
+  (wake event 9, port 0 = USB-C).
+- Laptop output disabled again (DP still disabled): the loop returns, but
+  now with wake event 9, **port 1 = DP**; the laptop's kernel log stays
+  empty, so the laptop is not involved any more.
+
+**Reading:** after the USB-C wake the monitor restarted and its start-up /
+scan enabled DP again; the dock (MST hub) trained the DP link (no video) and
+held it. The vendor gate asks only about the current port (USB-C: no source),
+so deep standby was allowed although the DP link was held; the front-end
+dropped the link with the standby, the dock retrained it ~12 s later, and the
+front-end's event 9 (DP) woke the monitor. In automatic mode the PM51 wakes
+on any connector, but the gate only looks at one.
+
+**`gate-all-dp`** (replaces `gate-raw-id`): with automatic input the gate asks
+both DP-class connectors (ids 7 and 8, `0x60`/`0xB`) and refuses standby if
+either reports an active source; with a fixed input only the selected one
+(other connectors' wakes are filtered by `pm51-input-filter`). A failed query
+also refuses. Expected: with the dock holding the DP link the monitor stays
+in link-held standby (13 W) instead of looping, and goes to deep standby when
+the dock releases the link.
