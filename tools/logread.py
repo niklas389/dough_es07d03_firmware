@@ -148,6 +148,14 @@ else:
     if not shutil.which(SPECCTL):
         sys.exit("specctl not found as '%s': set SPECCTL=/path/to/specctl" % SPECCTL)
     R = Reader()
+    if 'sig' in P['data']:                                              # does the monitor run this build?
+        sig = R.byte(int(P['data']['sig'], 16))
+        if sig is not None and sig != int(P['data']['sig_value'], 16):
+            notes.append('BUILD MISMATCH: the monitor\'s %s has signature 0x%02X, patches/%s.json expects %s '
+                         '(0x00: a build from before signatures). Watch labels (W lines) and tags may be wrong; '
+                         'use the tools from the commit the firmware was built from.'
+                         % (LOGNAME, sig, LOGNAME, P['data']['sig_value']))
+            print('warning: ' + notes[-1], file=sys.stderr)
     hdr, hdr_end = R.block(BASE, 8), None
     count0 = u32(hdr[4:8])
     if count0 is None:

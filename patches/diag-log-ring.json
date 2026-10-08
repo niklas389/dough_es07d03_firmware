@@ -17,6 +17,12 @@
       "asm": "diag-log code and watch table (image head zero area 0x201400); data at 0x202200"
     },
     {
+      "addr": "0x202414",
+      "old": "00",
+      "new": "d5",
+      "asm": "build signature 0xD5 for tools/logread.py (constant, data area)"
+    },
+    {
       "addr": "0x240C55",
       "old": "9c380d21",
       "new": "e7f8108d",
@@ -143,7 +149,9 @@
     "ms": "0x202200",
     "count": "0x202204",
     "ring": "0x202208",
-    "entries": 64
+    "entries": 64,
+    "sig": "0x202414",
+    "sig_value": "0xD5"
   },
   "watch": {
     "0x1680": {

@@ -39,6 +39,9 @@ Patch state in RAM (page `0x2024xx`):
   `0x2024D1` detection restarts of the selected input since its last accept,
   `0x2024D2` recoveries since then (1 = selection repeated, 2 = hot-plug pulse
   and selection), `0x2024D3` the port these counts belong to.
+- `diag-log*`: `0x202414` build signature (constant). `tools/logread.py`
+  compares it with the patch file and warns ("BUILD MISMATCH") when the
+  monitor runs another build, whose watch labels would be decoded wrongly.
 - `gate-all-dp` v3/v4: `0x2024C0` / `0x2024C1` last link answer for USB-C / DP
   (0 source active, 1 no source); v4: `0x2024C2` re-queries since the last
   routing change (both links active: the other one at 6); `0x2024C3`

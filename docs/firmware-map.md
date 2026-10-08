@@ -2425,3 +2425,14 @@ appear as "0x453C71", because a watch entry was inserted before it):
 The cause of the missing "No signal" remains open. The next test with the
 current build (both flag bytes watched, `+0x5B` consistent) should show
 whether it recurs.
+
+**Test of v4.1 (2026-10-08, automatic input, DP output disabled):**
+- Laptop enabled during the countdown → laptop picture.
+- Laptop disabled → "No signal", then deep standby (the dock had released
+  DP this time).
+
+**Log decoding check:** `diag-log*` builds now carry a one-byte signature at
+`0x202414` (CRC of mode, watch list, tags and code; a constant in the image
+head, so it needs no code). `tools/logread.py` reads it first and warns when
+it differs from the patch file, as happened in §48 (old build, newer patch
+file: watch labels shifted by one).

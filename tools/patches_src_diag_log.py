@@ -303,6 +303,14 @@ if MB:   # no watcher (saves ring entries); mailbox duration at the common epilo
     hooks = [h for h in hooks if h[2] != 'h_loop'] + [(0x239002, '0e61020e4106', 'h_mbx', 'mailbox_query epilogue: log cmd, sub, duration')]
 edits = [{'addr': '0x%06X' % CODE, 'old': '00' * len(blob), 'new': blob.hex(),
           'asm': 'diag-log code and watch table (image head zero area 0x201400); data at 0x%06X' % DATA}]
+# build signature: one constant byte in the data area (copied from flash at every start, never written by the
+# code), so tools/logread.py can tell whether the monitor runs the build described by this file
+SIG = DATA + 0x214                    # after MBT (0x20240C-0x20240F); gate-all-dp uses 0x2024C0 on
+import zlib
+sig = zlib.crc32(repr((MODE, N, [(a, w) for a, w in WATCH], sorted(TAGS.items()), blob)).encode()) % 255 + 1   # 1-255
+assert cur(SIG, 1) == b'\0'
+edits.append({'addr': '0x%06X' % SIG, 'old': '00', 'new': '%02x' % sig,
+              'asm': 'build signature 0x%02X for tools/logread.py (constant, data area)' % sig})
 for a, old, lab, what in hooks:
     assert cur(a, len(old) // 2).hex() == old, (hex(a), cur(a, len(old) // 2).hex())
     nb = S.encode('bg.j', {'/': L[lab]}, a)
@@ -321,7 +329,8 @@ patch = {
  'tags': {k: '0x%02X' % v for k, v in TAGS.items()},
  'keep_first': not RING,
  'q_format': 'cmd_sub_dur' if MB else 'cmd_d1_sub_data0' if QALL else 'cmd_sub_data0',
- 'data': {'ms': '0x%06X' % DATA, 'count': '0x%06X' % (DATA + 4), 'ring': '0x%06X' % (DATA + 8), 'entries': N},
+ 'data': {'ms': '0x%06X' % DATA, 'count': '0x%06X' % (DATA + 4), 'ring': '0x%06X' % (DATA + 8), 'entries': N,
+          'sig': '0x%06X' % SIG, 'sig_value': '0x%02X' % sig},
  'watch': {} if MB else {'0x%04X' % ((wtab + 8 * i) & 0xFFFF): {'addr': '0x%06X' % a, 'what': w} for i, (a, w) in enumerate(WATCH)},
  'notes': ("Code in the uncompressed image head (0x201400, zero in the stock image, copied to RAM by the boot loader, "
            "not referenced by the firmware); data at 0x%06X (needs the diag-poke version that reads pages 0x2022xx-0x2024xx). "
