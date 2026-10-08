@@ -1606,8 +1606,10 @@ Build: the regular list + `select-no-replug`, `diag-poke`, `diag-log-ring` v3,
   8.5 W after unplugging the USB-C laptop (link-held standby 13 W, deep
   standby 1.2 W). A mains cycle restored normal operation (DP picture).
 - Reading (inference, not proven): the input front-end was not working
-  after the wake. DDC/CI to the PC and the picture both pass through it, the
-  scaler side worked. The standby entry, which the PM51 performs together
+  after the wake; the scaler side worked. Correction (same day): the test
+  setup sends DDC/CI over USB-B (Dough's DDC-over-USB, independent of the
+  video inputs), not over DP, so the DDC/CI failure does not point at the
+  front-end; how the USB path reaches the scaler is not traced. The standby entry, which the PM51 performs together
   with the front-end, then did not complete, and the PM51 no longer
   handled keys.
 - Changes in this build that touch the wake: `select-no-replug` removes the

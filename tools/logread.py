@@ -12,8 +12,11 @@ use are read.
 """
 import json, os, re, subprocess, sys
 
+import shutil
 HERE = os.path.dirname(os.path.abspath(__file__))
 SPECCTL = os.environ.get('SPECCTL', 'specctl')
+if not shutil.which(SPECCTL):
+    sys.exit("specctl not found as '%s': set SPECCTL=/path/to/specctl" % SPECCTL)
 MON = os.environ.get('MON', '0')
 P = json.load(open(os.path.join(HERE, '..', 'patches', os.environ.get('LOG', 'diag-log') + '.json')))
 TAGS = {int(v, 16): k for k, v in P['tags'].items()}

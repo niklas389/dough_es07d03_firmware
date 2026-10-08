@@ -15,6 +15,8 @@ set -euo pipefail
 SPECCTL=${SPECCTL:-specctl}
 MON=${MON:-0}
 HERE=$(cd "$(dirname "$0")" && pwd)
+command -v "$SPECCTL" >/dev/null 2>&1 || { echo "specctl not found as '$SPECCTL': set SPECCTL=/path/to/specctl" >&2; exit 1; }
+export SPECCTL
 codes=("$@"); [ ${#codes[@]} -gt 0 ] || codes=(8 7 1 3 r7 r8)
 name() { case $1 in 8) echo USB-C;; 7) echo DP;; 1) echo HDMI1;; 3) echo HDMI2;;
           r7) echo "USB-C raw";; r8) echo "DP raw";; r11) echo "HDMI1 raw";; r12) echo "HDMI2 raw";; *) echo "code $1";; esac; }

@@ -11,6 +11,7 @@ SPECCTL=${SPECCTL:-specctl}
 MON=${MON:-0}
 
 [ $# -ge 2 ] || { sed -n '2,8p' "$0"; exit 2; }
+command -v "$SPECCTL" >/dev/null 2>&1 || { echo "specctl not found as '$SPECCTL': set SPECCTL=/path/to/specctl" >&2; exit 1; }
 op=$1; addr=$(( $2 ))
 hi=$(( (addr >> 16) & 0xFFFF )); lo=$(( addr & 0xFFFF ))
 
