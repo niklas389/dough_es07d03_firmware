@@ -80,7 +80,7 @@ patch = {
              'hot-plug pulse, which blanks every monitor behind a dock, and leaves the input disabled); a real change is '
              'applied and the input enabled again (stock left it disabled when the DSC setting did not change, e.g. '
              '"1.4 without DSC" <-> 1.2)'),
- 'status': 'untested',
+ 'status': ('hardware-tested 2026-10-08: same mode -> nothing; 1.4 -> 1.4 without DSC -> 1.2 -> 1.4 with the PC at 4K 60 Hz: picture after every change (at 4K 144 Hz, 1.2 has no picture: the mode does not fit HBR2 without DSC)'),
  'edits': [
   {'addr': '0x%06X' % CAVE, 'old': '00' * len(code), 'new': code.hex(),
    'asm': 'dps (linker padding 0x2038B0): +0xCB unchanged -> skip; else store, sub_268BB0, port update request for path 0'},

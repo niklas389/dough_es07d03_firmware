@@ -2322,3 +2322,9 @@ No enable for DP was sent at any point.
   changed), or whether the front-end needs the start-up initialisation for
   the new link rate (only the start-up sets everything up after
   `0x60` sub 0).
+
+**Resolved (2026-10-08):** with the PC set to 4K 60 Hz the 1.2 picture came at
+once, and 1.4 → "1.4 without DSC" → 1.2 → 1.4 worked at every step. The
+earlier 1.2 failure was bandwidth: the PC's 4K 144 Hz mode does not fit HBR2
+without DSC, and the PC kept the link without sending a stream. Not a
+firmware problem; `dpmode-same` is hardware-tested.
