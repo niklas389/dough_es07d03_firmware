@@ -2217,3 +2217,42 @@ Code: gate `0x2016D0`, link-held part `0x201900`, query `0x201280`.
 Open: whether routing changes every 30 s while two links are held disturb a
 source (each change is the same as a manual switch, which did not disturb
 the PCs in §31/§32).
+
+## 44. DisplayPort Mode re-selected; standby timing; routing during "No signal" (2026-10-08)
+
+**DisplayPort Mode re-selected (1.4 → 1.4)**, monitor showing DP:
+- Both monitors behind the dock blanked. The main one came back; this one
+  restarted detection on DP (1323.19 s), decided "no signal" 2.48 s later,
+  showed "No signal" and turned the panel off 6 s after that.
+- The OSD action `0x268C20` stores the menu value into `+0xCB` and always
+  calls `sub_268BB0` (650 ms hot-plug pulse on DP and USB-C, port
+  configuration, `0x60` sub 2 / sub 0). The pulse makes the dock's MST
+  topology change, which blanks all its monitors.
+- Why the PC did not send video to this monitor again is not in the log. The
+  PC re-creates the connector after such a pulse and needed ~5 s in §29, so
+  the 2.5 s no-signal time (`port-nosignal` v4) expires first. With the input
+  fixed, a later signal still restarts detection and is accepted. With
+  automatic input, the vendor scan has moved away by then; `gate-all-dp` v4
+  routes back to a connector with an active link.
+- **`dpmode-same`:** the action skips the store and the apply when the value
+  equals the current `+0xCB` (writers of `+0xCB`: defaults, profile restore,
+  this action, so the comparison sees the old value). A real change is
+  applied as stock.
+
+**Standby timing** (with `standby-timeout`; owner's question): "No signal"
+starts the countdown `cnt` (30 s).
+- After ~5 s the vendor pre-standby turns the panel off with the red LED (the
+  log shows 6 s).
+- At 0 the power-save request runs the standby gate: deep standby if no link
+  is held, link-held standby if one is.
+- Pre-standby and link-held standby look the same from outside (dark panel,
+  red LED). Before v4 the gate and its 5 s re-query, and with them the
+  routing, ran only from the 30 s point.
+
+**`gate-all-dp` v4 addition:** the 1 s task's countdown step (`0x261CEB`,
+`sub_261C04`) calls the gate every 5 s while the OSD state is 4 ("No signal"
+and pre-standby).
+- A flag (`0x2024C4`) lets the gate route there although link-held standby
+  is not set; the result of the gate is ignored there.
+- A laptop enabled during the countdown is found within ~5 s instead of
+  after 30 s + 5 s.

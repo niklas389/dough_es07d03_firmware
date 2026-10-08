@@ -41,7 +41,8 @@ Patch state in RAM (page `0x2024xx`):
   and selection), `0x2024D3` the port these counts belong to.
 - `gate-all-dp` v3/v4: `0x2024C0` / `0x2024C1` last link answer for USB-C / DP
   (0 source active, 1 no source); v4: `0x2024C2` re-queries since the last
-  routing change (both links active: the other one at 6).
+  routing change (both links active: the other one at 6); `0x2024C3`
+  seconds of the "No signal" countdown since the last routing check.
 - `scan-active-first`: `0x2024E8` = 1 after the scan jumped to a connector
   with an active source; `0x2024E9` = the accept count at that jump (no
   further jump until `0x2024D0` differs).

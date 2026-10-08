@@ -47,8 +47,13 @@ standby the normal way:
 3. else (both links active): the other one every ALT (6) re-queries = 30 s,
    so video on either is found while two links are held (counter 0x2024C2).
 Every gate call also clears scan-active-first's jump flag (0x2024E8).
-Code in the image head zero area: gate 0x2016D0, link-held part 0x201900,
-query 0x201280.
+v4 also runs the same check every 5 s of the "No signal" countdown (OSD state
+4, pre-standby included; hook 0x261CEB in the 1 s task sub_261C04): the
+vendor scan stops after one round, so before the standby decision (30 s
+with standby-timeout) a source that appears on another connector was not
+found either.
+Code in the image head zero area: gate 0x2016D0, link-held part and tick
+0x201900, query 0x201280.
 """
 import sys, json, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aeon'))
@@ -66,6 +71,9 @@ CAVE_Q, CAVE_Q_END = 0x201280, 0x201300  # gq: head zero area after fe-failsafe 
 SWITCH = 0x23F836                    # sub_23F836(path, port): the scan's input switch
 ALT = int(os.environ.get('ALT', '6'))  # both links active in link-held standby: try the other one every ALT re-queries (5 s)
 ALTC = 0x2024C2
+TICK, ROUTE = 0x2024C3, 0x2024C4     # countdown ticks since the last routing check; 1 while the tick runs the gate
+TICK_S = 5                           # routing check every 5 s of the "No signal" countdown
+TICK_SITE = 0x261CEB                 # sub_261C04: lbz r7,0x51a6(r10) before cnt -= 1
 PREV = 0x2024C0                      # last answer per connector (0 USB-C, 1 DP): 0 active, 1 none
 SCAN_FLAG = 0x2024E8                 # scan-active-first: jumped in this search
 R0, R1, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12, R13 = 0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
@@ -79,6 +87,7 @@ assert cur(0x3B4281, 2).hex() == '0708'                              # front-end
 assert cur(MBOX, 3).hex() == '1c21d4'
 assert A.decode(d, 0x260181 - 0x200000, 0x260181)['target'] == SWITCH   # the scan's sub_23F836(0, port)
 assert 2 <= ALT <= 15
+assert cur(TICK_SITE, 4).hex() == 'f0ea51a6' and cur(TICK_SITE + 4, 5).hex() == '9cff5ce700'   # lbz r7,cnt ; addi -1 ; extbz
 assert A.decode(d, 0x261DFD - 0x200000, 0x261DFD)['target'] == GATE and cur(0x261F89, 6).hex() == '98e5f8ea51cd'  # re-query; refusal re-arms
 assert cur(PREV, 4) == b'\0' * 4
 
@@ -129,7 +138,9 @@ prog = [
 prog_l = [
  # ---- link-held standby (rws set, standby refused): route a connector with an active link ----
  'g_lhs:',
- mh(R7, 0x45), lbz(R6, 0x4551CC, R7), ('bg.beqi', {'A': R6, 'I': 0, ';': 'G_OUT'}),
+ mh(R7, 0x45), lbz(R6, 0x4551CC, R7), ('bg.bnei', {'A': R6, 'I': 0, ';': 'g_l0'}),
+ mh(R7, 0x20), lbz(R6, ROUTE, R7), ('bg.beqi', {'A': R6, 'I': 0, ';': 'G_OUT'}),   # "No signal" countdown tick
+ 'g_l0:',
  mh(R7, 0x20),
  ('bt.movi', {'D': R13, 'I': 0}),                         # 1. a new source on another connector
  'g_e:',
@@ -167,6 +178,20 @@ prog_l = [
  ('bn.lbz', {'?': R6, 'A': R7, 'z': 0x20}), ('bg.ori', {'D': R6, 'A': R6, 't': 0x0C}), ('bn.sb', {'z': 0x20, 'A': R7, 'B': R6}),
  ('bt.movi', {'D': R3, 'I': 0}), ('bn.or', {'D': R4, 'A': R13, 'B': R0}), ('bg.jal', {'/': SWITCH}),
  ('bg.j', {'/': 'G_OUT'}),
+
+ # ---- standby countdown, once per second while it runs (0x261CEB; r10 = 0x45 base, r5-r7 free) ----
+ 'g_tick:',
+ ('bn.addi', {'D': R1, 'A': R1, 'O': -4}), ('bn.sw', {':': 0, 'A': R1, 'B': R9}),
+ mh(R7, 0x45), lbz(R6, 0x457854, R7), ('bg.bnei', {'A': R6, 'I': 4, ';': 't_x'}),   # "No signal" / pre-standby only
+ mh(R7, 0x20), lbz(R6, TICK, R7), ('bn.addi', {'D': R6, 'A': R6, 'O': 1}), sb(TICK, R7, R6),
+ ('bg.bleui', {'A': R6, 'I': TICK_S - 1, ';': 't_x'}),
+ sb(TICK, R7, R0), ('bt.movi', {'D': R6, 'I': 1}), sb(ROUTE, R7, R6),
+ ('bg.jal', {'/': 'GATE3'}),                              # query both connectors, route if needed (result ignored)
+ mh(R7, 0x20), sb(ROUTE, R7, R0),
+ 't_x:',
+ ('bn.lwz', {'D': R9, 'A': R1, ':': 0}), ('bn.addi', {'D': R1, 'A': R1, 'O': 4}),
+ lbz(R7, 0x4551A6, R10),                                  # displaced: lbz r7,0x51a6(r10)
+ ('bt.jr', {'A': R9}),
 ]
 prog_q = [
  'gq:',                                                   # r3 = port -> 0 source active, 1 no source, 2 not DP-class / other, 3 no answer
@@ -199,7 +224,8 @@ code, L = S.assemble(prog, CAVE)
 assert CAVE + len(code) <= CAVE_END, hex(CAVE + len(code))
 assert cur(CAVE, len(code)) == b'\0' * len(code)
 prog_l = [((it[0], {**it[1], **({';': L['g_out']} if it[1].get(';') == 'G_OUT' else {}),
-                     **({'/': L['g_out']} if it[1].get('/') == 'G_OUT' else {})}) if isinstance(it, tuple) else it)
+                     **({'/': L['g_out']} if it[1].get('/') == 'G_OUT' else {}),
+                     **({'/': L['gate3']} if it[1].get('/') == 'GATE3' else {})}) if isinstance(it, tuple) else it)
           for it in prog_l]
 code_l, LL = S.assemble(prog_l, CAVE_L)
 assert LL['g_lhs'] == CAVE_L and CAVE_L + len(code_l) <= CAVE_L_END, hex(CAVE_L + len(code_l))
@@ -215,8 +241,9 @@ patch = {
  'name': 'gate-all-dp',
  'summary': ('Standby gate v4: with automatic input, standby is refused while a source is active on any DP-class '
              'connector (DP or USB-C), not only the current one; fixed input: the selected one; no answer from the '
-             'front-end: refused. v4: in link-held standby with automatic input, the input is routed to a connector with '
-             'an active link (a new one first, alternating every 30 s if both), so its video ends the standby'),
+             'front-end: refused. v4: in link-held standby and every 5 s of "No signal" with automatic input, the input is '
+             'routed to a connector with an active link (a new one first, alternating every 30 s if both), so its video '
+             'is found'),
  'status': ('v2 hardware-tested 2026-10-08: automatic input, both outputs off -> deep standby, no wake for minutes; '
             'after a key wake the dock held the DP link (DP: source active) -> link-held standby, deep standby as soon '
             'as the dock released the link. v3 (edge wake) did not help (2026-10-08); v4 (routing in link-held standby) untested'),
@@ -230,6 +257,8 @@ patch = {
    'asm': 'gq (image head zero area 0x201280): 0x60/0xB for one DP-class connector: 0 active, 1 none, 2 not DP-class, 3 no answer'},
   {'addr': '0x%06X' % GATE, 'old': cur(GATE, 4).hex(), 'new': hook.hex(),
    'asm': 'sub_2612F9 entry -> j gate3'},
+  {'addr': '0x%06X' % TICK_SITE, 'old': cur(TICK_SITE, 4).hex(), 'new': S.encode('bg.jal', {'/': LL['g_tick']}, TICK_SITE).hex(),
+   'asm': 'sub_261C04 standby countdown: lbz r7,0x51a6(r10) -> jal g_tick (routing check every 5 s of "No signal")'},
  ],
  'notes': 'See the docstring of tools/patches_src_gate_all_dp.py. Generated by tools/patches_src_gate_all_dp.py.',
 }
