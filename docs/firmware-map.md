@@ -2509,7 +2509,7 @@ clears it.
 - How a 4K 144 Hz input reaches the scaler. The width checks at 1920
   (`sub_22284B`: path window +0x18/+0x1C → +0x35/+0x36) concern the output
   halves of the panel, not the input.
-- Lead: in the DP wake log of §45/§46 (2026-10-08) port 0 (USB-C receiver)
+- Lead: in the DP wake log of §43 port 0 (USB-C receiver)
   ran detection and acceptance together with port 1. Here no port 0 event is
   among the kept entries; in another correct start it was absent as well,
   so this proves nothing.
