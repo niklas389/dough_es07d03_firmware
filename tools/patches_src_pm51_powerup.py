@@ -33,7 +33,7 @@ new = bytes([0x7F, MS])
 patch = {
  'name': 'pm51-powerup',
  'summary': 'PM51 deep-standby wake: settle time after the power-good poll %d ms instead of 100 ms (GP27U / M27P20P: 50 ms)' % MS,
- 'status': 'untested',
+ 'status': 'on hold: left out of builds since 2026-10-08 until the hang of docs/firmware-map.md section 39 is explained',
  'space': 'pm51',
  'edits': [
   {'addr': '0x%04X' % SITE, 'old': cur(SITE, 2).hex(), 'new': new.hex(),

@@ -1896,3 +1896,111 @@ assumed to follow the same table order (not measured).
 **No-signal times of other monitors** (normal case, passes of 20 ms): HDMI:
 LG 28MQ780 100 (2 s), GP27U 300 (6 s, with type `0x400`) / 200; DP class: LG
 100 (2 s), GP27U 200 (4 s); ours (stock) 500 (10 s) / 400 (8 s).
+
+## 39. Hang after a switch to USB-C, front-end failsafe, scan by link status (2026-10-08)
+
+**Speed build results** (§37/§38 list with `pm51-powerup`, `wake-port-first`):
+- Automatic input, DP output disabled, laptop active on USB-C: USB-C picture
+  after ~6.8 s. USB-C output disabled, DP active: DP picture after ~4.2 s.
+- Input fixed to DP, wake from deep standby: picture after ~6.2 s, no
+  "No signal".
+
+**Incident** (same build; input fixed to DP; DisplayPort Mode "1.4 without
+DSC"; laptop on USB-C with its output enabled):
+- In deep standby the laptop on USB-C did not wake the monitor
+  (`pm51-input-filter`, as designed).
+- Wake by the menu key, then USB-C selected in the menu: the screen stayed
+  black. Some time later the keys stopped responding and DDC/CI did not answer
+  (`poke.sh`, 30 tries). "No signal" appeared, then the red LED with the panel
+  still on, panel off ~4 s later. Then (by the owner's reading) link-held
+  standby, DDC/CI still dead.
+- After a mains cycle the input was DP again: the USB-C selection had not been
+  saved. No log could be read.
+
+**Common factors with §30** (none proven as the cause):
+- Input fixed to DP with the laptop connected to USB-C, a deep-standby wake,
+  then no picture from the front-end and no DDC/CI, while the firmware still
+  acted on its own.
+- Both builds had `wake-no-replug`, `pm51-input-filter` and a change of the
+  selection's HPD command (`select-no-replug` / `switch-no-unplug`).
+  `pm51-powerup` was only in the second one; it is left out of builds until
+  this is explained.
+- In §30 the keys kept working while DDC/CI failed, so DDC/CI can fail while
+  the main loop runs. Its path from the USB hub (VL822 I2C) to the scaler is not
+  traced. If it passes through the front-end, or a bus the front-end shares, a
+  front-end that has stopped working explains the DDC/CI failure in both
+  incidents (inference).
+
+**Reading (inference):** keys that stop responding mean a blocked main loop.
+The only long waits on that path are front-end mailbox transactions (§22):
+- up to 10 s per phase;
+- a posted command waits in phase 1 while the PM51 still retries the previous
+  one (5 tries with 100 ms pauses plus its own answer time-out, `0x8A5E`ff);
+- a query waits up to 30 s.
+
+In link-held standby the gate query runs every 5 s, and `gate-all-dp` refuses
+standby when it gets no answer, so the monitor stays there with the main loop
+mostly blocked.
+- `mailbox_query` is identical in GP27U (`0x23BA85`) and M27P20P (`0x23C3FD`):
+  three 10 s waits, no failure handling.
+- No front-end reset or recovery was found in any of the three firmwares.
+
+**`fe-failsafe`** (untested):
+- The three wait loads in `mailbox_query` (`0x238FD9`, `0x239091`, `0x23914B`)
+  call a stub. It returns 10000 ms, or 500 ms while the flag at RAM `0x2024E0`
+  is set.
+- The function's last instructions (`0x239023`) jump to an exit stub, after the
+  epilogue `diag-log-ring` hooks at `0x239002`. The exit stub reads the wait
+  counter `0x4551C8`: 0 means a phase ran out (this also catches a posted
+  command whose phase 2 ran out, which returns 1). It then sets the flag and
+  counts the failure at `0x2024E1`, up to 255; any completed transaction clears
+  the flag.
+- Normal operation is unchanged until one transaction has run out its full
+  10 s. Every start begins with the flag clear (the image head is copied from
+  flash).
+- While the flag is set, a command that the PM51 would only take after more
+  than 0.5 s is dropped instead of sent late.
+- Expected effect: keys and OSD keep working while the front-end does not
+  answer, and DDC/CI too if its own path still works. `0x2024E0`/`0x2024E1` and
+  the "K MAILBOX FAILED" entries of `diag-log-ring` show whether the front-end
+  stopped answering.
+
+**Test to find the trigger:**
+1. Repeat the steps (fixed DP, laptop active on USB-C, deep standby, key
+   wake, select USB-C) with `fe-failsafe` and `diag-log-ring`.
+2. If it hangs, read `0x2024E0`/`0x2024E1` and the log.
+3. If the hang is reproducible, repeat without `pm51-input-filter`, then
+   without `wake-no-replug`.
+
+**Reference firmwares, re-checked:**
+- GP27U and M27P20P send the link query `0x60`/`0xB` only from their standby
+  gate (GP27U `0x26BAD6`, M27P20P `0x26AEFB`), as ours does. Their scans do not
+  ask the front-end.
+- GP27U reads the PM wake port at start-up (`0x26B350`, debug string
+  `ePMWakeupActivePort`). It logs the port, starts on the last input as ours
+  does, and sets a byte (`0x502249`) when the two differ. That byte later
+  selects power-on state 8 instead of 6 (`0x45068C`, `0x27A78A`); what state 8
+  does was not traced. So no reference firmware starts on the wake port
+  (`wake-port-first`).
+
+**`scan-active-first`** (untested, requires `fe-failsafe`): the scan step
+(`0x2601EB`, `jal sub_2653EA`) goes through a stub.
+1. **Query:** for the next three inputs in rotation order, the stub asks the
+   front-end about each DP-class input (`0x60`/`0xB` with its front-end id).
+   HDMI inputs are not asked.
+2. **Jump:** once per search, it takes the first input that reports an active
+   source, even if HDMI inputs come before it. Example: DP lost, laptop active
+   on USB-C → USB-C directly, ~2 s less than the measured 6.8 s.
+3. **Skip:** otherwise it follows the stock rotation, but skips a DP-class
+   input that reports no source (2.5 s each).
+4. **Fallback:** a query without an answer ends the step with the stock
+   `sub_2653EA`.
+
+The jump flag (RAM `0x2024E8`) is cleared when a port's signal is accepted
+(`0x23B367`, `sub_23E64A(port, 1)`, hooked). If two DP-class connectors both
+hold a link without video (e.g. an MST dock), the scan therefore still visits
+the HDMI inputs. Key-selection mode (`0x4551AC` bit 5) is stock.
+
+Limitation (stock, §32): in "1.4 without DSC" the scan's attach sends no
+"HPD high" to the new connector; if the old connector's source still holds its
+link, the front-end may keep showing the old picture.

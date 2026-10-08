@@ -28,7 +28,15 @@ Wake source after a deep-standby wake (current version): `tools/poke.sh read
 0x453C74` gives the PM51 wake event (2 = port activity, `0x0A` = port
 message), `tools/poke.sh read 0x453C78` the port the PM51 reported (2–5; 5 also
 means "no unsuppressed port matched"). Both are 0 after a mains start
-(`docs/firmware-map.md` §21).
+(`docs/firmware-map.md` §21). Measured since then: source wakes report event
+9 (port 0 = USB-C, 1 = DP), key wakes `0x11` (§22, §36).
+
+Patch state in RAM (page `0x2024xx`):
+- `fe-failsafe`: `0x2024E0` = 1 while the short mailbox waits are active (a
+  front-end transaction timed out and none has completed since);
+  `0x2024E1` = number of timed-out transactions since the start (stops at 255).
+- `scan-active-first`: `0x2024E8` = 1 after the scan jumped to a connector
+  with an active source, until a picture is accepted.
 
 Return values of a GET on `0xEC`: `0x00`–`0xFF` value, `0xFFFF` address not
 readable (BLOCKED), `0xFFFE` three reads differed (UNSTABLE, current version

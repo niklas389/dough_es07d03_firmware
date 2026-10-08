@@ -1,7 +1,7 @@
 {
   "name": "pm51-powerup",
   "summary": "PM51 deep-standby wake: settle time after the power-good poll 50 ms instead of 100 ms (GP27U / M27P20P: 50 ms)",
-  "status": "untested",
+  "status": "on hold: left out of builds since 2026-10-08 until the hang of docs/firmware-map.md section 39 is explained",
   "space": "pm51",
   "edits": [
     {

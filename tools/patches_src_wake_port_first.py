@@ -11,8 +11,9 @@ decision 8 s later (10.32 s), then the scan moved to DP, which reported a
 signal 0.17 s after its attach and was accepted at 11.15 s. The PM51 had
 reported the wake source: event 9 (front-end), port 1 = DP (RAM 0x453C74 /
 0x453C78, copied by sub_20E254 from sub_2414AE at 0x262044, before the
-start-up selection at 0x2620E5). Neither our firmware nor the reference
-firmwares use the port.
+start-up selection at 0x2620E5). Our firmware does not use the port; GP27U
+reads and logs it but also starts on the last input (docs/firmware-map.md
+section 39).
 
 Patch: the start-up call jal sub_2678D9 (0x2684CA) goes through a stub. With
 automatic input (+0x4F = 0), wake event 9 and a wake port 0-3, it first
