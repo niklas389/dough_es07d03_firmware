@@ -2544,9 +2544,10 @@ PC kernel log (amdgpu, through the dock) at the deep-standby entry: one
 - Link-held standby: 12.2 W / 12.7 W (two readings).
 - Main supply cut in link-held standby (`tools/glowtest.sh 7`: `0x434` bit 7
   low; the CPU stops, mains cycle afterwards): 4.1 W / 3.7 W. The PC kept
-  listing the monitor as connected and printed no new kernel lines (the ten
-  lines `journalctl -kf` showed were its backlog from the earlier toggle), so
-  HPD stayed asserted: the front-end is not on the switched supply.
+  listing the monitor as connected, with no disconnect message. The ten
+  kernel lines `journalctl -kf` showed (00:38:21) are most likely its backlog
+  from the earlier toggle (00:38:11), not from this test (to be confirmed).
+  So HPD stayed asserted: the front-end is not on the switched supply.
 - Deep standby (§16): 1.2 W.
 
 So about 8.5 W are in the main domain (scaler chip, memory and what else the
