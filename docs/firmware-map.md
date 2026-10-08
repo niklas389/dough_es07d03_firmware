@@ -1714,3 +1714,32 @@ reads it as "source active": standby refused, and with `standby-lhs` the
 link-held standby never ends (inference; which port was current is not in
 this log). `gate-raw-id` makes the gate send the current port's front-end
 id (`0x3B4281[port]`) directly.
+
+## 33. Why the monitor stays in pre-standby: the no-signal repeat (2026-10-08)
+
+**Log** (build before `gate-raw-id`; automatic input, DP output disabled,
+USB-C unplugged; LED red): "No signal" (state-4 entry, caller `0x2575C6`)
+every 8.04–8.05 s for > 450 s, no port state change, **no standby gate
+query** at all. `gate-raw-id` therefore cannot have changed this (and with
+it flashed, the monitor still did not reach deep standby).
+
+**Mechanism:**
+- The port monitor `sub_23B068` calls `sub_23E64A(port, 2)` (`0x23B2E9`) when
+  the port shows no signal (`+0x20 & 0x0C`) and its counter `+0x16` has
+  reached `+0x1A`. `sub_23E64A` stores the state (`+0x0C` = 2) and sets path
+  state 5 for every path using the port, which re-enters OSD state 4.
+- The counter restarts, so the decision repeats every `+0x1A` passes: 400 =
+  8 s for DP / USB-C (4 s with `port-nosignal` v1/v2, §24).
+- Each state-4 entry sets the countdown `0x4551A6` (`standby-timeout`: 30 s;
+  pre-standby 5 s after the entry). The repeat comes after the pre-standby
+  (red LED) but long before the countdown ends, so deep standby is never
+  requested. The earlier statement in §24 that 400 / 500 passes "leave
+  room" was true only for the pre-standby. Same code in stock (countdown
+  255 s), so stock is expected to behave the same in this situation
+  (inference).
+
+**`nosignal-once`** (untested): the call at `0x23B2E9` goes through a stub
+that returns when the port's state is already 2. The first decision of an
+episode and every decision after the port has left state 2 are passed on.
+Once tested, the DP / USB-C no-signal threshold (8 s) can be shortened
+without the loop.
