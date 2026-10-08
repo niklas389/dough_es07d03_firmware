@@ -2482,6 +2482,12 @@ bit 1). Otherwise "No signal" is entered again as stock and reloads `cnt`.
 - Link-held standby and a pending standby are unaffected. The repeated 8 s
   rounds of §33 still do not restart a running countdown.
 
+**Test of `nosignal-once` v3 (2026-10-08):** automatic input, DP and laptop
+outputs disabled, deep standby (laptop charging on USB-C). After unplugging
+and replugging USB-C: wake, "No signal", nothing shown, "No signal" again,
+then pre-standby. This is the expected sequence (§49); the stuck state of
+§46–§48 did not occur. Not checked yet: whether deep standby followed.
+
 ## 50. Half-width DP picture after a start (one occurrence) (2026-10-08)
 
 **Observation:** first mains start after flashing the build with
@@ -2520,9 +2526,3 @@ clears it.
 If it recurs: read `tools/logread.py` and the OSD information before
 changing anything; next step would be watching port 0 and input path 1
 (`0x47FAE0`) in `diag-log-ring`.
-
-**Test of `nosignal-once` v3 (2026-10-08):** automatic input, DP and laptop
-outputs disabled, deep standby (laptop charging on USB-C). After unplugging
-and replugging USB-C: wake, "No signal", nothing shown, "No signal" again,
-then pre-standby. This is the expected sequence (§49); the stuck state of
-§46–§48 did not occur. Not checked yet: whether deep standby followed.
