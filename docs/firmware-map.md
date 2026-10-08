@@ -2303,3 +2303,22 @@ No enable for DP was sent at any point.
   "HPD high", `0x60` sub 2, enable).
 - The other DP-class input stays disabled until it is selected, which enables
   it (as in stock).
+
+**Test of v2 (2026-10-08, input fixed to DP):**
+- Re-selecting the current mode: nothing happens (the menu cursor jumps back
+  to the selected entry).
+- 1.4 → "1.4 without DSC": picture back.
+- "1.4 without DSC" → 1.2: "No signal", panel off, then link-held standby
+  (fixed input: the gate asks DP every 5 s; the dock holds the link).
+  - The apply ran as in stock, ending with `0x60` sub 0 (8, 1).
+  - v2's update request then ran: 40.177 `0x20` sub 0 (0, 8), DP restart,
+    40.191 `0x20` sub 0 **(1, 8)** (enable).
+  - DP no-signal decision 2.47 s later.
+- So the input is enabled now, but in 1.2 no video arrives although the link
+  is up (gate: source active). §29 saw the same with 1.2 in an earlier build
+  ("No signal" until a power-key restart).
+- Open, not decided: whether the PC / MST dock sends no stream after the
+  change to HBR2 without DSC (e.g. the desktop mode does not fit and is not
+  changed), or whether the front-end needs the start-up initialisation for
+  the new link rate (only the start-up sets everything up after
+  `0x60` sub 0).
