@@ -82,8 +82,13 @@ entries), which the boot loader copies to RAM with the head and which no
 firmware code uses. So `diag-log` no longer shares the `0x203800` padding with
 the regular patches and can be built with the whole list. `diag-poke` reads
 `0x2022xx`–`0x2024xx` as RAM; its allowlist tables moved to `0x201F00`.
-`tools/logread.py` reads only the entries in use (about 2 DDC transactions per
+`tools/logread.py` reads only the entries in use (about 3 DDC transactions per
 byte). The log starts empty at every firmware start; a deep-standby wake clears it.
+Since 2026-10-08 it defaults to `LOG=diag-log-ring`, reads the newest entries
+first, skips bytes it cannot read after `TRIES` attempts (stopping only after
+`--maxfail` failures in a row or Ctrl-C) and decodes whatever it got; `-n N`
+reads only the newest N entries, and the raw bytes are saved
+(`/tmp/logread-last.json`, `-o`) for decoding again with `-i`.
 
 The time base starts when the 1 ms timer runs, i.e. after the boot loader has
 checked and unpacked the firmware. Stopwatch time to picture minus the `B`
