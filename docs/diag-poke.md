@@ -46,6 +46,9 @@ Patch state in RAM (page `0x2024xx`):
   (0 source active, 1 no source); v4: `0x2024C2` re-queries since the last
   routing change (both links active: the other one at 6); `0x2024C3`
   seconds of the "No signal" countdown since the last routing check.
+- `diag-fe` v3: `0x202480`–`0x20249F` the bytes of the last front-end
+  register block read (`tools/fereg.sh`), `0x2024F2` the number of reads in
+  it that completed.
 - `scan-active-first`: `0x2024E8` = 1 after the scan jumped to a connector
   with an active source; `0x2024E9` = the accept count at that jump (no
   further jump until `0x2024D0` differs).

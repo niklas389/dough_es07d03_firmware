@@ -60,7 +60,10 @@ def assemble(prog, base):
     labels, a = {}, base
     for item in prog:
         if isinstance(item, str):
-            labels[item.rstrip(':')] = a
+            name = item.rstrip(':')
+            if name in labels:
+                raise ValueError('duplicate label %r' % name)
+            labels[name] = a
         else:
             a += _length(item[0])
     out, a = b'', base

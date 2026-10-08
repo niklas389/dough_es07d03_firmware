@@ -8,6 +8,9 @@ in RAM for tools/poke.sh.
   specctl set 0xED <code>       run the queries for connector code <code>
   specctl set 0xED <0x100|id>   raw mode (v2): skip 0x30/7 and send 0x60/0xB with index <id>
                                 directly (e.g. 0x107 = USB-C, 0x108 = DP); 0x2024F0 then echoes <id>
+  specctl set 0xED <0x300|n>    register mode (v3): read n (1-32) front-end register bytes from
+                                the address set with diag-poke's VCP 0xEA/0xEB (tools/fereg.sh);
+                                bytes at 0x202480.., 0x2024F2 = number of reads that completed
   tools/poke.sh read 0x2024F0   0x30/7 answer: the front-end's index for the code
   tools/poke.sh read 0x2024F1   0x60/0xB answer: 0 = source active, 1 = none (vendor gate: 0 refuses standby)
   tools/poke.sh read 0x2024F2   1 = the 0x60/0xB transaction completed, 0 = timeout/failed
@@ -45,6 +48,17 @@ not a fixed code -> index map. It was 0x08 for codes 7 and 8 while DP was the
 selected input and 0x07 for both while USB-C was selected, i.e. the front-end
 id of the selected DP-class connector; HDMI codes give 0. Raw mode asks the
 link status of a connector that is not selected.
+
+v3 register mode (2026-10-08, docs/firmware-map.md section 53): the
+front-end's command 0xFF, sub 0xFF, x 2 (handler 0x87759 in its firmware)
+reads one byte of its own register space (0x13EFC -> RIU read) at the 32-bit
+address in the 4 data bytes (big-endian) and answers it. Only reads are
+sent; sub 0xFF is fixed (sub 3 of the same command writes). Allowed ranges
+(the DP receiver blocks; anything else is skipped and reads as 0, not
+counted): 0x001100-0x0016FF (DPCD register banks of receivers 0-2, (rx <<
+8) + 0x1100 / 0x1400), 0x110000-0x113FFF (receiver PHY/link banks, 0xA00
+per receiver, and the stream timing (MSA) of the DP decoders at 0x113068 +
+0x100 x decoder). Receiver 0 = USB-C (front-end id 7), 1 = DP (id 8).
 
 Hooks: diag-poke's SET fall-through for unknown VCP codes (movhi r7,0x48;
 j 0x26B335 inside diag-poke's cave) becomes j fe_set; fe_set handles 0xED
@@ -90,14 +104,19 @@ movi = lambda r, i: ('bt.movi', {'D': r, 'I': i})
 lo = RES & 0xFFFF
 
 T = 0x2200                           # diag-log ms counter (u32 at 0x202200)
+ADDR_VAR = 0x3FF4                    # diag-poke's address variable (u32 at 0x203FF4, VCP 0xEA/0xEB)
+BUF = 0x202480                       # v3 register mode: up to 32 bytes (page 0x2024xx, unused)
+NMAX = 32
+R10, R11, R12, R13 = 10, 11, 12, 13
 TS = lo + 8                          # u32 scratch: start time (0x2024F8)
 
-def dur(dst):                        # byte at 0x20xxxx dst = min(now - start, 255); start = now
+def dur(dst, tag=''):                # byte at 0x20xxxx dst = min(now - start, 255); start = now
+    lab = 'd_%x%s' % (dst, tag)      # unique label per use
     return [mh(R7, 0x20), ('bg.lwz', {'D': R5, 'A': R7, 'W': T}), ('bg.lwz', {'D': R6, 'A': R7, 'W': TS}),
             ('bg.sw', {'W': TS, 'A': R7, 'B': R5}),
             ('bn.sub', {'D': R6, 'A': R5, 'B': R6}),
-            ('bg.sfgtui', {'A': R6, 'Y': 255}), ('bg.bnf', {"'": 'd_%x' % dst}), ori(R6, R0, 255),
-            'd_%x:' % dst, sb(dst, R7, R6)]
+            ('bg.sfgtui', {'A': R6, 'Y': 255}), ('bg.bnf', {"'": lab}), ori(R6, R0, 255),
+            lab + ':', sb(dst, R7, R6)]
 
 prog = [
  'fe_set:',
@@ -111,6 +130,7 @@ prog = [
  ('bg.lwz', {'D': R5, 'A': R7, 'W': T}), ('bg.sw', {'W': TS, 'A': R7, 'B': R5}),        # start time
  ('bn.srli', {'D': R4, 'A': R3, 'H': 8}),                   # value >= 0x100: raw mode, index = low byte
  ('bg.beqi', {'A': R4, 'I': 0, ';': 'fe_map'}),
+ ('bg.beqi', {'A': R4, 'I': 3, ';': 'fe_reg'}),             # 0x3nn: register mode
  ('bn.andi', {'D': R3, 'A': R3, 'N': 0xFF}), ('bg.j', {'/': 'fe_idx'}),
  'fe_map:',
  ('bg.jal', {'/': MAP_Q}),                                # r3 = front-end index
@@ -129,7 +149,51 @@ prog = [
  mh(R7, 0x20), sb(lo + 1, R7, R4), sb(lo + 2, R7, R3),
  *dur(lo + 6),
  ('bg.j', {'/': SET_DONE}),
+
+ # ---- v3 register mode: r3 = 0x3nn -> n front-end register bytes from the address at 0x203FF4 ----
+ 'fe_reg:',
+ ('bn.andi', {'D': R4, 'A': R3, 'N': 0xFF}),
+ ('bg.bnei', {'A': R4, 'I': 0, ';': 'fr_n1'}), movi(R4, 1),
+ 'fr_n1:',
+ ('bg.sfgtui', {'A': R4, 'Y': NMAX}), ('bg.bnf', {"'": 'fr_n2'}), ori(R4, R0, NMAX),   # n > 32 -> 32
+ 'fr_n2:',
+ ('bn.addi', {'D': R1, 'A': R1, 'O': -24}),
+ ('bn.sw', {':': 8, 'A': R1, 'B': R10}), ('bn.sw', {':': 12, 'A': R1, 'B': R11}),
+ ('bn.sw', {':': 16, 'A': R1, 'B': R12}), ('bn.sw', {':': 20, 'A': R1, 'B': R13}),
+ ('bn.or', {'D': R10, 'A': R4, 'B': R0}), movi(R11, 0), movi(R13, 0),
+ mh(R7, 0x20), ('bg.lwz', {'D': R12, 'A': R7, 'W': ADDR_VAR}),
+ 'fr_l:',
+ ('bn.add', {'D': R7, 'A': R12, 'B': R11}),                # address of this byte
+ sb(4, R1, R0),                                           # answer byte (0 when skipped / failed)
+ ('bn.srli', {'D': R6, 'A': R7, 'H': 8}),                   # allowed: 0x0011xx-0x0016xx ...
+ ('bn.addi', {'D': R6, 'A': R6, 'O': -0x11}), ('bg.bleui', {'A': R6, 'I': 5, ';': 'fr_ok'}),
+ ('bn.srli', {'D': R6, 'A': R7, 'H': 14}),                  # ... or 0x110000-0x113FFF
+ ori(R5, R0, 0x44), ('bg.bne', {'A': R6, 'B': R5, ';': 'fr_st'}),
+ 'fr_ok:',
+ ('bn.srli', {'D': R6, 'A': R7, 'H': 24}), sb(0, R1, R6),   # data: 32-bit address, big-endian
+ ('bn.srli', {'D': R6, 'A': R7, 'H': 16}), sb(1, R1, R6),
+ ('bn.srli', {'D': R6, 'A': R7, 'H': 8}), sb(2, R1, R6),
+ sb(3, R1, R7),
+ ori(R3, R0, 0xFF), ori(R4, R0, 0xFF), movi(R5, 2), movi(R6, 4),   # front-end debug read (cmd 0xFF, sub 0xFF, x 2)
+ ('bn.or', {'D': R7, 'A': R1, 'B': R0}), ('bn.addi', {'D': R8, 'A': R1, 'O': 4}),
+ ('bg.jal', {'/': MBOX}),
+ ('bg.beqi', {'A': R3, 'I': 0, ';': 'fr_st'}),
+ ('bn.addi', {'D': R13, 'A': R13, 'O': 1}),
+ 'fr_st:',
+ lbz(R4, 4, R1),
+ mh(R7, 0x20), ('bg.addi', {'D': R7, 'A': R7, 'Y': BUF & 0xFFFF}), ('bn.add', {'D': R7, 'A': R7, 'B': R11}),
+ ('bn.sb', {'z': 0, 'A': R7, 'B': R4}),
+ ('bn.addi', {'D': R11, 'A': R11, 'O': 1}),
+ ('bg.bne', {'A': R11, 'B': R10, ';': 'fr_l'}),
+ mh(R7, 0x20), sb(lo + 2, R7, R13),                       # reads that completed
+ *dur(lo + 6, '_r'),
+ ('bn.lwz', {'D': R13, 'A': R1, ':': 20}), ('bn.lwz', {'D': R12, 'A': R1, ':': 16}),
+ ('bn.lwz', {'D': R11, 'A': R1, ':': 12}), ('bn.lwz', {'D': R10, 'A': R1, ':': 8}),
+ ('bn.addi', {'D': R1, 'A': R1, 'O': 24}),
+ ('bg.j', {'/': SET_DONE}),
 ]
+labels = [x for x in prog if isinstance(x, str)]
+assert len(labels) == len(set(labels)), 'duplicate labels'
 code, L = S.assemble(prog, CODE)
 for a, b, x in A.disasm(code, CODE, CODE + len(code), CODE):
     lab = [k for k, v in L.items() if v == a]
@@ -137,6 +201,7 @@ for a, b, x in A.disasm(code, CODE, CODE + len(code), CODE):
 assert CODE + len(code) <= 0x201F00                       # diag-poke allowlist tables from 0x201F00
 assert cur(CODE, len(code)) == b'\0' * len(code)
 assert cur(RES, 12) == b'\0' * 12
+assert cur(BUF, NMAX) == b'\0' * NMAX
 # vendor code the routine relies on
 assert cur(MAP_Q, 3).hex() == '1c21ec'                     # sub_23956D: addi r1,r1,-0x14
 assert A.decode(d, 0x239579 - 0x200000, 0x239579)['ops'] == 'r3,r0,0x30'
@@ -150,8 +215,8 @@ print('fall-through at %#x: %s -> %s' % (FALL, fall_old.hex(), hook.hex()))
 
 patch = {
  'name': 'diag-fe',
- 'summary': 'DIAGNOSTIC: VCP 0xED = connector code runs the front-end link query (0x30/7, 0x60/0xB, as the vendor standby gate; 0x100|id: 0x60/0xB for front-end id directly) and keeps the answers at RAM 0x2024F0 for tools/poke.sh',
- 'status': 'diagnostic, untested',
+ 'summary': 'DIAGNOSTIC: VCP 0xED = connector code runs the front-end link query (0x30/7, 0x60/0xB, as the vendor standby gate; 0x100|id: 0x60/0xB for front-end id directly; 0x300|n: read n front-end DP receiver register bytes at the diag-poke address) and keeps the answers at RAM 0x2024F0 / 0x202480 for tools/poke.sh',
+ 'status': 'diagnostic; v2 link query hardware-tested 2026-10-08; v3 register mode untested',
  'requires': ['diag-poke'],
  'edits': [
   {'addr': '0x%06X' % CODE, 'old': '00' * len(code), 'new': code.hex(),

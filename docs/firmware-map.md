@@ -2613,3 +2613,71 @@ no event 9 arrives at all: neither when the source starts video nor when a
 source appears on another connector. Option A therefore also needs a wake
 source in that state: one of the normal program's messages (types 7–9,
 meanings open) or a front-end query that the PM51 polls. Not identified yet.
+
+## 53. Front-end modes 1–3, queries and a video signal for Option A (2026-10-08)
+
+**Power modes in the front-end** (`0x00` sub 1 → after the answer, the frame
+handler `0x88D0E` calls `0x142BD(mode, mask)`):
+- Mode 0: nothing happens (normal operation continues).
+- Modes 1, 2 and 3 all leave the normal program: mode and mask go to RIU
+  `0x102A00`–`0x102A0B` (`0x8D28F`, flag `0x10211E`), the receivers are
+  switched off (`0x25375` for 0–2, `0x24E31(mode)`; mode 2 also `0x25135`,
+  `0x1425E`, `0x142A1`), the low-power program (file offset `0xA0000`,
+  `0x14000` bytes) is copied to address 0 and started.
+- Low-power program (main `0xA102C`): reads mode/mask back (`0xA175A` →
+  RAM `0xB0000C14`/`0xC18`, `0xA1C07` → `0xB0000C20`), CPU clock 923 kHz in
+  mode 2, 12 MHz in modes 1/3 (`0xA1C4B`). Modes 1 and 3 arm the connector
+  detectors from the mask (`0xA3C94`: low 3 bits and bits 8–18); mode 2 arms
+  nothing. On a detector event (`0xA32C2`, PM status `0x3C4`–`0x3C6`) it
+  sends message type 0 with the connector mask (`0xA3DC3`, payload
+  `0xB0000BC8`) = PM51 event 9. Afterwards mode 3 stops (state 2) while
+  mode 1 re-arms and keeps reporting.
+- So mode 1 is not a partial normal mode: it is the same low-power program
+  as mode 3, without the main link; it is of no use for Option A or B.
+
+**Message types of the normal program** (§52), decoded further:
+- 9: per-connector item `0x11` = the DP receiver's plug/cable detection
+  (`0x3DE14`: pins at `0xA00008E9` bits 1/3 and PM `0x475` bits 1/3/5,
+  debounced), not video.
+- 7: status of the output paths to the scaler (`0x8692D`, transmitter items
+  `0x0D`/`0x09` via `0x27DF7`); with the scaler off the transmitter has no
+  sink, so it is unlikely to report anything useful.
+- 6: HDMI only; 8: not decoded.
+
+**Front-end commands usable from outside** (main firmware → mailbox → PM51
+→ front-end; command, sub, x and data reach the front-end unchanged):
+- `0x60`/`0xFF`/x with data [id] (`0x87B00`, table `0x00FA354`... at
+  `0x10000-0x5CAC`): x `0x0B` link status (the standby gate's query,
+  `0x24E79` → `0x3D536`), x `0x0A` DPCD `0x202`/`0x203` lane status, x `0x09`
+  DPCD read for a few addresses only (`0x50471`: `0x000`–`0x002`, `0x00E`,
+  `0x111`, `0x160`, `0x202`, `0x203`, `0x270`, `0x300`–`0x30B`,
+  `0x2200`–`0x2211`; not `0x600`, not `0x205`).
+- `0xFF`/`0xFF`/x 2 with data [address, 4 bytes big-endian] (`0x87759`):
+  reads one byte of the front-end's register space (`0x13EFC` → RIU read
+  `0x8D6C5`). Sub 3 of the same command writes (`0x13F0C`); never used.
+- Front-end ids → DP receivers (`0x12C7F`, `0x36360`): id 7 (USB-C) =
+  receiver 0, id 8 (DP) = receiver 1.
+
+**Receiver registers** (front-end RIU):
+- DPCD banks per receiver: `(rx << 8) + 0x1100` and `+ 0x1400` (DP:
+  `0x1200`, `0x1500`).
+- Link block `0x110000 + 0xA00 × rx`: lane status `+0x32E`/`+0x32F`
+  (DPCD `0x202`/`0x203`), training state `+0x541` (low bits).
+- Stream timing (MSA) of DP decoder d: 16-bit at `0x113068 + 0x100 × d`:
+  `+0` htotal, `+2` vtotal, `+4` hstart, `+6` vstart, `+8` hsync, `+0xA`
+  vsync, `+0xC` width, `+0xE` height (15 bits; `0x39CD1`). The decoder of a
+  receiver comes from RAM (`0x4DEE1`), so all four blocks are read.
+- Where the source's DPCD `0x600` (D0/D3) lands is not identified (the
+  `0x600` constants in the code belong to the transmitter side, `0x42D1C`ff).
+
+**`diag-fe` v3** (register mode): VCP `0xED` = `0x300 | n` reads n (≤ 32)
+bytes from the diag-poke address (VCP `0xEA`/`0xEB`) with the debug read,
+into RAM `0x202480`; only `0x001100`–`0x0016FF` and `0x110000`–`0x113FFF`
+are sent (others read 0). `tools/fereg.sh preset dp` reads the DP receiver's
+DPCD banks, link block and the four MSA blocks.
+
+**Plan:** read them with a picture and in link-held standby (link held, no
+video) and compare. If the MSA timing (or another register) separates the
+two, the PM51 can poll it in Option A's state (front-end in mode 0, main
+supply off) with the same command, together with the link query `0x0B` to
+notice the link being released (then mode 3, real deep standby).
