@@ -1623,3 +1623,47 @@ Build: the regular list + `select-no-replug`, `diag-poke`, `diag-log-ring` v3,
 - `diag-log-ring` v4 logs failed mailbox transactions ("K MAILBOX FAILED"),
   and `poke.sh` / `logread.py` take `TRIES=` for a DDC/CI that answers
   only now and then.
+
+## 31. The front-end does the input switch (2026-10-08)
+
+**Test:** DisplayPort Mode "1.4 without DSC" (`+0xCB` = 1, `+0xA5` = 0),
+build with `select-no-replug`; menu switches DP ↔ USB-C.
+- Commands per switch: `0x20` sub 0 (0, old id) (disable), `0x60` sub 6
+  (new id, 0), `0x20` sub 0 (1, new id) (enable). No `0x20` sub 14, no
+  `0x60` sub 2 (the `+0x0E` flags are clear in this mode).
+- Result: the screen blanks for ~1 s and shows the DP picture again although
+  USB-C is selected; neither PC sees a change.
+
+**Reading:**
+- Both scaler receivers (port 0 USB-C, port 1 DP) carry whatever the
+  front-end outputs. That explains why both ports always report a signal
+  within tens of ms of each other (§27, §28) and why the scaler accepted
+  "USB-C" with DP's picture.
+- So the switch itself happens in the front-end. In this mode the stock
+  firmware sends one more command, the selection's HPD pulse (`0x20` sub 14
+  (id, 0, 0), (id, 1, 0) from `sub_265A25`), which `select-no-replug`
+  removed. A `0x20` sub 14 command for the new connector is therefore the
+  front-end's switch trigger (inference). Whether the "high" command alone
+  triggers it is untested.
+- In DisplayPort Mode 1.4 the switch worked with `select-no-replug`
+  because the attach still sent its own pulse (650 ms).
+- `0x60` sub 2 (id, value) is most likely the DSC capability of a connector:
+  `sub_26535A` (DisplayPort Mode handler) sends it for DP and USB-C with
+  (`+0xCB` = 2); in mode 1.4 the detach withdraws it from the old connector
+  and the attach restores it, so the attach must make the source read the
+  capabilities again (650 ms pulse).
+
+**`switch-no-unplug`** (`tools/patches_src_switch_no_unplug.py`, untested;
+replaces `select-no-replug` and `attach-no-replug`):
+1. Selection (`sub_265A25`, duration 0): only (id, 1, 0) instead of the
+   pulse.
+2. Attach in mode 1.4 (`sub_239618`, `0x239747`): (id, 1, 0) instead of the
+   650 ms pulse.
+3. Detach in mode 1.4 (`sub_23979A`, `0x239855`): `0x60` sub 2 (id, 0) is not
+   sent, so DSC stays advertised on both connectors, as after every mains
+   start and DisplayPort Mode change.
+A DisplayPort Mode change keeps its 650 ms pulse (`sub_26535A`).
+
+If the front-end does not switch on the "high" command alone, the picture
+will stay on the old input as in this test; then the low phase is the
+trigger and a switch needs a real (short) pulse.

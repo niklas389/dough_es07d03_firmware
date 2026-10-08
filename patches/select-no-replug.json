@@ -1,7 +1,10 @@
 {
   "name": "select-no-replug",
   "summary": "EXPERIMENTAL: input selection (menu, keys, DDC/CI) sends no HPD pulse (emulated unplug) to the selected DP / USB-C input; setting changes keep theirs",
-  "status": "untested",
+  "status": "SUPERSEDED by switch-no-unplug - do not use: with DisplayPort Mode \"1.4 without DSC\" or 1.2 the input no longer switches (2026-10-08)",
+  "conflicts": [
+    "switch-no-unplug"
+  ],
   "edits": [
     {
       "addr": "0x203980",

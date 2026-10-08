@@ -1,7 +1,10 @@
 {
   "name": "attach-no-replug",
   "summary": "EXPERIMENTAL: the port attach of DP / USB-C (selection, automatic scan, wake) sends no 650 ms HPD pulse; 0x60 sub 2 and the configuration are sent as stock",
-  "status": "untested",
+  "status": "SUPERSEDED by switch-no-unplug - do not use: with DisplayPort Mode \"1.4 without DSC\" or 1.2 the input no longer switches (2026-10-08)",
+  "conflicts": [
+    "switch-no-unplug"
+  ],
   "edits": [
     {
       "addr": "0x239747",
