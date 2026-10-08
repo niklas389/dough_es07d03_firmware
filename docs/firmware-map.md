@@ -2481,3 +2481,42 @@ bit 1). Otherwise "No signal" is entered again as stock and reloads `cnt`.
   usual.
 - Link-held standby and a pending standby are unaffected. The repeated 8 s
   rounds of §33 still do not restart a running countdown.
+
+## 50. Half-width DP picture after a start (one occurrence) (2026-10-08)
+
+**Observation:** first mains start after flashing the build with
+`nosignal-once` v3 (automatic input, PC on DP at 3840×2160 144 Hz with DSC,
+laptop output on USB-C disabled). The picture showed the left half of the
+PC's image stretched to full width; top and bottom complete, OSD normal. OSD
+information: "1920x2160@144Hz" (normal: "3840x2160@144Hz"). The PC reported
+3840×2160 at 143.98 Hz throughout.
+
+**Log** (`diag-log-ring`, last 64 of 93 events): scan HDMI 1 → HDMI 2 → DP.
+- At 6.96 s the DP link query most likely answered "no source": the PC was
+  still training the link after the monitor start, so `scan-active-first`
+  did not jump. The answers are not logged.
+- At 8.04 s DP was active and was attached; accepted at 8.85 s.
+- The DP attach (port 1 flags `0x20 → 0x26 → 0x2E → 0x2A`, status `0x03 →
+  0x43`, state 3 → 4, `0x60` sub 2 DP = 1) matches all earlier DP attaches.
+- No further events after 14.8 s. The fault was most likely there from the
+  first picture.
+
+**Recovery:** setting the PC to 120 Hz gave a correct picture; back to 144 Hz
+stayed correct ("3840x2160@144Hz"). A new timing detection and mode set
+clears it.
+
+**Not established:**
+- How a 4K 144 Hz input reaches the scaler. The width checks at 1920
+  (`sub_22284B`: path window +0x18/+0x1C → +0x35/+0x36) concern the output
+  halves of the panel, not the input.
+- Lead: in the DP wake log of §45/§46 (2026-10-08) port 0 (USB-C receiver)
+  ran detection and acceptance together with port 1. Here no port 0 event is
+  among the kept entries; in another correct start it was absent as well,
+  so this proves nothing.
+- Whether stock firmware shows this too. No patch in the build writes scaler
+  or timing-measurement registers; they change when and in which order
+  inputs are selected.
+
+If it recurs: read `tools/logread.py` and the OSD information before
+changing anything; next step would be watching port 0 and input path 1
+(`0x47FAE0`) in `diag-log-ring`.
