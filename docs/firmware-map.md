@@ -2562,3 +2562,54 @@ power-down. Receivers to mode 5 (`sub_20ED62` → `sub_20FFB2`), per port
 the PM51 then switches its own mode (`0x4BE9`: `0x7E4C(1)` with PM registers
 `0x391`, `0x372`, `0x3B8`, `0x3BC`, mode routine `0x76CE`; not decoded) and
 cuts the main supply (`0x434` bits 6/7).
+
+## 52. Front-end power modes and wake messages (Option A feasibility, 2026-10-08)
+
+Goal (§51): link-held standby with the main supply off (~4 W) while the
+front-end keeps the DP link, instead of 12.5 W with the scaler running.
+
+**Front-end power mode command** (PM51 → front-end, front-end command `0x00`
+sub 1, data: mode, 32-bit mask), sent by PM51 `0x8A25(mode)` with the mask in
+IRAM `0x28..0x2B`, five tries, answer `0x10` = done:
+- mode 3, mask from the main firmware's PM block (`0x5E97`, via `0x8337`):
+  standby entry `0x4A29` → `0x4B1A` (state 1);
+- mode 2, mask 0: power off (state 2), after `0x20` sub 3 (id, 0) (HPD low)
+  for ids 7, 8, 9 (`0x4AAB`; only in state 2, so standby keeps HPD);
+- mode 0, mask 0: wake (`0x513E`, `0x5253`);
+- mode 1 with mask `0xFFFF`/`0xFF00`/`0x00FF`/0, or mode 2: PM51 local
+  command `0x61` sub 3 (`0x4990`, by data byte); the main firmware never
+  sends command `0x61`.
+PM51 mailbox dispatcher `0x47ED`: main-firmware command `0x60` is forwarded
+to the front-end as (sub, data0, data1) by `0x4910`; `0x61` is local
+(`0x4939`: sub 0 read, 1, 3 power mode, 4).
+
+**Front-end firmware** (`010F` of V108, `v108_010f.bin`; AEON R2 like the
+scaler, uncompressed, load address 0, RAM `0xB000xxxx`):
+- Command dispatcher `0x88A63` (from the frame parser at `0x88CDA`):
+  `0x00` → `0x88989`, `0x10` → `0x8879D`, `0x20` → `0x8808C`, `0x30` →
+  `0x87EF0`, `0x40` → `0x87E03`, `0x50` → `0x87C17`, `0x60` → `0x8787F`,
+  `0x70` → `0x87836`, `0x80` → `0x87790`, `0xFF` → `0x8765F`; answer `0x10`
+  = done, `0x30` = unknown command.
+- `0x00` sub 1 stores mode and mask at `0xB001A799` / `0xB001A79C` (copy at
+  `0xB001A13C` when `+0x187` is set).
+- Messages to the PM51 (`0xF0`, type, 4 payload bytes; repeated until the
+  PM51 acknowledges, `0x88473`): the normal program sends them from a
+  pending-flag word `0xB0008FD0` (payloads at `0xB0009ECC + 4 × type`,
+  `0x85FE4`), but only types 1, 6, 7, 8 and 9 are ever flagged (6: per-port
+  item `0x2B`, HDMI only; 9: per-port item `0x11`, for DP a debounced RX
+  flag at `+0xE6` of the RX state, `0x3DE14`; 7, 8: not decoded).
+- **Type 0 (the PM51's event 9, "source activity" with connector mask) is
+  sent only by a separate low-power program** in the image (`0xA0000`
+  region, own RAM `0xB0000xxx`, sender `0xA4730`, callers `0xA6E30`ff: types
+  0, 5, 2, 3), i.e. in the standby mode.
+- PM51 side (`0x5ED5`): every type sets a flag (`0x6332` bits 0–7 = types
+  0–7, `0x6331` bits 0–1 = types 8–9) and stores the payload at
+  `0x6309 + 4 × type`; only type 0 (event 9) and type 4 (events 5/6/7)
+  lead to a wake.
+
+**Consequence for Option A:** skipping mode 3 at standby entry keeps the
+front-end's normal program (and most likely the DP link) running, but then
+no event 9 arrives at all: neither when the source starts video nor when a
+source appears on another connector. Option A therefore also needs a wake
+source in that state: one of the normal program's messages (types 7–9,
+meanings open) or a front-end query that the PM51 polls. Not identified yet.
