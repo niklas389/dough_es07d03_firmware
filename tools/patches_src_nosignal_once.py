@@ -1,8 +1,21 @@
 #!/usr/bin/env python3
 """Source of patches/nosignal-once.json. Run in an unpacked work dir (RT=runtime_0x200000.bin).
 
-v2: "No signal" is not entered again while it is already the OSD state, so the
-standby countdown is not restarted.
+v3: "No signal" is not entered again while it is already the OSD state AND its
+standby countdown is still running (or standby is already requested / the
+monitor is in link-held standby), so the countdown is not restarted by the
+input path's repeated detection rounds. When the countdown was cleared in the
+meantime, "No signal" is entered again as stock, which reloads it.
+
+v3 finding (diag-log-ring, 2026-10-08, automatic input): every detection
+restart of a port (sub_23B068 -> sub_23E64A(port, 1) at 0x23B367, tail call
+sub_23AB33) clears the power-save request bit (0x4551AC bit 1) and the
+countdown cnt (0x4551A6 = 0, 0x23AB91). Stock relies on the next "no signal"
+decision re-entering state 4 to load it again. v2 skipped that re-entry
+whenever the OSD state was already 4, so after a restart during "No signal"
+(an attach by the scan, or gate-all-dp's routing) the countdown stayed 0:
+black screen with the panel on, no standby, no 5 s routing check, for as long
+as nothing else happened (owner's runs: 625 s, 354 s and more).
 
 Finding (diag-log-ring, 2026-10-08, automatic input, DP disabled, USB-C
 unplugged): "No signal" (OSD state-4 entry, caller 0x2575C6) every 8.04-8.05 s
@@ -43,7 +56,7 @@ def cur(a, n): return d[a - 0x200000:a - 0x200000 + n]
 
 SITE = 0x26A90A                      # sub_26A809: movhi r12,0x45; movi r7,4; sb 0x7854(r12),r7; j 0x26A840
 CONT, SKIP = 0x26A840, 0x26A895
-CAVE = 0x2039B0                      # linker padding: after switch-no-unplug (0x203980-0x2039A1)
+CAVE = 0x203B80                      # linker padding freed by gate-all-dp v4 (0x203B78-0x203BFF); v2 used 0x2039B0
 R7, R12 = 7, 12
 
 assert cur(SITE, 10).hex() == 'c18008a198e4f8ec7854'
@@ -51,12 +64,20 @@ assert A.decode(d, SITE + 10 - 0x200000, SITE + 10)['target'] == CONT
 assert A.decode(d, 0x26A891 - 0x200000, 0x26A891)['target'] == 0x257493     # state change (event 0x1E)
 assert A.decode(d, SKIP - 0x200000, SKIP)['ops'] == 'r7,0x3c70(r11)'         # lwz r7,0x3c70(r11)
 assert A.decode(d, 0x26A81B - 0x200000, 0x26A81B)['ops'] == 'r11,0x45'       # r11 = 0x45xxxx base
+assert cur(0x23AB8D, 8).hex() == 'c0e008a1f80751a6'                          # restart path: cnt = 0 (0x23AB91)
 
 prog = [
  'ns4:',
  ('bg.movhi', {'D': R12, 'U': 0x45}),
  ('bg.lbz', {'?': R7, 'A': R12, '!': 0x7854}),            # current OSD state
- ('bg.beqi', {'A': R7, 'I': 4, ';': 'ns4_skip'}),         # already "No signal": no re-entry
+ ('bg.bnei', {'A': R7, 'I': 4, ';': 'ns4_in'}),           # not "No signal" yet: enter as stock
+ ('bg.lbz', {'?': R7, 'A': R12, '!': 0x51A6}),            # countdown still running: no restart
+ ('bg.bnei', {'A': R7, 'I': 0, ';': 'ns4_skip'}),
+ ('bg.lbz', {'?': R7, 'A': R12, '!': 0x51CC}),            # link-held standby (rws): stay there
+ ('bg.bnei', {'A': R7, 'I': 0, ';': 'ns4_skip'}),
+ ('bg.lhz', {'D': R7, 'A': R12, 'X': 0x51AC}), ('bn.andi', {'D': R7, 'A': R7, 'N': 2}),
+ ('bg.bnei', {'A': R7, 'I': 0, ';': 'ns4_skip'}),         # power-save already requested
+ 'ns4_in:',                                               # (countdown cleared by a restart: enter again, reloads it)
  ('bt.movi', {'D': R7, 'I': 4}),
  ('bg.sb', {'Y': 0x7854, 'A': R12, 'B': R7}),
  ('bg.j', {'/': CONT}),
@@ -64,7 +85,7 @@ prog = [
  ('bg.j', {'/': SKIP}),
 ]
 code, L = S.assemble(prog, CAVE)
-assert CAVE + len(code) <= 0x203A00                      # panel-prepower from 0x203A00
+assert CAVE + len(code) <= 0x203C00, hex(CAVE + len(code))   # popup-flat from 0x203C00
 assert cur(CAVE, len(code)) == b'\0' * len(code)
 for a, b, x in A.disasm(code, CAVE, CAVE + len(code), CAVE):
     lab = [k for k, v in L.items() if v == a]
@@ -74,13 +95,14 @@ print('%06x: %s -> %s' % (SITE, cur(SITE, 4).hex(), hook.hex()))
 
 patch = {
  'name': 'nosignal-once',
- 'summary': ('v2: while "No signal" is already shown, the input path\'s ~8 s detection rounds no longer re-enter it, '
-             'so the standby countdown runs to deep standby'),
- 'status': ('hardware-tested 2026-10-08 (v2): one "No signal" entry, pre-standby 6 s later, standby request and '
-            'gate query 30 s after the entry (v1, a port-monitor hook, had no effect)'),
+ 'summary': ('v3: while "No signal" is already shown and its standby countdown runs, the input path\'s ~8 s detection '
+             'rounds no longer re-enter it, so the countdown runs to standby; when a detection restart cleared the '
+             'countdown, "No signal" is entered again and reloads it (v2 left it at 0: black screen, no standby)'),
+ 'status': ('v3 untested. v2 hardware-tested 2026-10-08 (one "No signal" entry, standby request 30 s later) but stuck '
+            'without standby after a restart during "No signal" (docs/firmware-map.md section 49)'),
  'edits': [
   {'addr': '0x%06X' % CAVE, 'old': '00' * len(code), 'new': code.hex(),
-   'asm': 'ns4 (linker padding 0x2039B0): OSD state already 4 -> j 0x26A895, else store 4 and j 0x26A840'},
+   'asm': 'ns4 (linker padding 0x203B80): OSD state 4 with countdown running / power-save requested / rws -> j 0x26A895, else store 4 and j 0x26A840'},
   {'addr': '0x%06X' % SITE, 'old': cur(SITE, 4).hex(), 'new': hook.hex(),
    'asm': 'sub_26A809 "No signal" store: movhi r12,0x45 -> j ns4'},
  ],

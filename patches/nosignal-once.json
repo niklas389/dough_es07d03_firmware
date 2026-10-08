@@ -1,18 +1,18 @@
 {
   "name": "nosignal-once",
-  "summary": "v2: while \"No signal\" is already shown, the input path's ~8 s detection rounds no longer re-enter it, so the standby countdown runs to deep standby",
-  "status": "hardware-tested 2026-10-08 (v2): one \"No signal\" entry, pre-standby 6 s later, standby request and gate query 30 s after the entry (v1, a port-monitor hook, had no effect)",
+  "summary": "v3: while \"No signal\" is already shown and its standby countdown runs, the input path's ~8 s detection rounds no longer re-enter it, so the countdown runs to standby; when a detection restart cleared the countdown, \"No signal\" is entered again and reloads it (v2 left it at 0: black screen, no standby)",
+  "status": "v3 untested. v2 hardware-tested 2026-10-08 (one \"No signal\" entry, standby request 30 s later) but stuck without standby after a restart during \"No signal\" (docs/firmware-map.md section 49)",
   "edits": [
     {
-      "addr": "0x2039B0",
-      "old": "0000000000000000000000000000000000000000000000000000",
-      "new": "c18008a1f0ec7854d0e4007298e4f8ec7854e40cdcfde40cdd9f",
-      "asm": "ns4 (linker padding 0x2039B0): OSD state already 4 -> j 0x26A895, else store 4 and j 0x26A840"
+      "addr": "0x203B80",
+      "old": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "new": "c18008a1f0ec7854d0e400fef0ec51a6d0e0010ef0ec51ccd0e000cee8ec51ad54e702d0e0007698e4f8ec7854e40cd927e40cd9c9",
+      "asm": "ns4 (linker padding 0x203B80): OSD state 4 with countdown running / power-save requested / rws -> j 0x26A895, else store 4 and j 0x26A840"
     },
     {
       "addr": "0x26A90A",
       "old": "c18008a1",
-      "new": "e7f3214d",
+      "new": "e7f324ed",
       "asm": "sub_26A809 \"No signal\" store: movhi r12,0x45 -> j ns4"
     }
   ],

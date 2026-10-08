@@ -2436,3 +2436,48 @@ whether it recurs.
 head, so it needs no code). `tools/logread.py` reads it first and warns when
 it differs from the patch file, as happened in §48 (old build, newer patch
 file: watch labels shifted by one).
+
+## 49. Stuck state explained: a detection restart clears the countdown, `nosignal-once` v3 (2026-10-08)
+
+**Test** (build of §48, automatic input, DP and USB-C outputs disabled, deep
+standby, laptop charging): unplugging and plugging the laptop woke the
+monitor (event 9, port 0). Result: black screen, panel on, nothing
+displayed.
+
+**Log:**
+- Scan DP (22.45) → HDMI 1 → HDMI 2, HDMI 2 no-signal 27.11 s, "No signal"
+  27.23 s (OSD state 4).
+- 32.23 s: the routing tick (USB-C no source, DP active), routed to DP
+  (32.27 s: port 1 state 1).
+- 34.77 s: DP no-signal decision. Then nothing: no tick, no "No signal"
+  entry, OSD state unchanged.
+- Readings: `0x453C71` = 0, `0x453C72` = 0, watchdog counts 0; `fequery`:
+  USB-C no source, DP source active.
+- (The first query at 32.23 s is logged with id `0x00`. The built code reads
+  `07` from `0x3B4281` and the scan's queries in the same log show `0x07`, so
+  this is most likely a byte read error of the log read.)
+
+**Cause:**
+- Every detection restart of a port (`0x23B367`, `sub_23E64A(port, 1)`, tail
+  call `sub_23AB33`) clears the power-save request bit and the countdown
+  (`0x23AB7A`–`0x23AB91`: `0x4551AC` &= ~2, `cnt` = 0).
+- Stock relies on the next "no signal" decision re-entering state 4, which
+  reloads `cnt`. `nosignal-once` v2 skipped that re-entry whenever the OSD
+  state was already 4.
+- So after any restart during "No signal" (the scan attaching the next port,
+  or `gate-all-dp`'s routing) the countdown stayed 0: no pre-standby, no
+  standby, no routing tick (it runs on the countdown). It stayed so until
+  something else happened (a key, the menu retry, a new scan round).
+- This explains the stuck runs of §46–§48. It is also why it appeared only
+  together with the scan/routing after "No signal": in §43, "No signal" came
+  after the last scan step.
+
+**`nosignal-once` v3** (cave moved to `0x203B80`): when the OSD state is
+already 4, the re-entry is skipped only while the countdown runs (`cnt` ≠
+0), or link-held standby is set (rws), or power-save is requested (`0x4551AC`
+bit 1). Otherwise "No signal" is entered again as stock and reloads `cnt`.
+- Expected: after a restart during "No signal", one more "No signal" entry
+  (the message may show again) and a fresh 30 s countdown, then standby as
+  usual.
+- Link-held standby and a pending standby are unaffected. The repeated 8 s
+  rounds of §33 still do not restart a running countdown.
