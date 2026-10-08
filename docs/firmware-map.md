@@ -2526,3 +2526,38 @@ clears it.
 If it recurs: read `tools/logread.py` and the OSD information before
 changing anything; next step would be watching port 0 and input path 1
 (`0x47FAE0`) in `diag-log-ring`.
+
+## 51. Link-held standby power: where the 13 W go (2026-10-08)
+
+**Wake reason after the DP toggle of the §49 test:** `0x453C74` = 9,
+`0x453C78` = 2, with nothing connected to HDMI 1 or 2. The PM51 derives the
+port in `0x69B3`: the first port (0, 1, …) of its own id table (XDATA
+`0x6202+port`) whose front-end id matches a bit set in the front-end's message
+(byte 0: bit 0 → id 7, bit 1 → 8, bit 2 → 9, bit 3 → `0x0F`, bit 4 → `0x10`;
+byte 1: bits 0–4 → ids 1–5; …). Whether port 2's id in that table is HDMI 1's
+or the table is ordered differently from the main firmware's is not traced.
+`wake-port-first` therefore started the scan on HDMI 1 in that run.
+PC kernel log (amdgpu, through the dock) at the deep-standby entry: one
+`DMUB HPD RX IRQ` (short pulse), no disconnect; KDE kept the output.
+
+**Measurement** (owner, 2026-10-08; nothing charging from the monitor):
+- Link-held standby: 12.2 W / 12.7 W (two readings).
+- Main supply cut in link-held standby (`tools/glowtest.sh 7`: `0x434` bit 7
+  low; the CPU stops, mains cycle afterwards): 4.1 W / 3.7 W. The PC kept
+  listing the monitor as connected and printed no new kernel lines (the ten
+  lines `journalctl -kf` showed were its backlog from the earlier toggle), so
+  HPD stayed asserted: the front-end is not on the switched supply.
+- Deep standby (§16): 1.2 W.
+
+So about 8.5 W are in the main domain (scaler chip, memory and what else the
+switched supply feeds), and about 2.5–3 W more are saved in deep standby,
+most likely by the front-end's own low-power mode. Whether the front-end kept
+the DP link trained after the cut (not only HPD) was not observable.
+
+**Vendor hand-off for comparison** (`sub_23D6AA` → `0x20E56B`): no partial
+power-down. Receivers to mode 5 (`sub_20ED62` → `sub_20FFB2`), per port
+`sub_20EDCC(id, 1)` (`sub_23EF7E`), power pads, clock gates `0x2B08`/
+`0x2B18`/`0x2B28` = `0xFFFF`, PM wake block copied to `0x103380`, CPU parked;
+the PM51 then switches its own mode (`0x4BE9`: `0x7E4C(1)` with PM registers
+`0x391`, `0x372`, `0x3B8`, `0x3BC`, mode routine `0x76CE`; not decoded) and
+cuts the main supply (`0x434` bits 6/7).
