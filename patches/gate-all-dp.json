@@ -1,16 +1,22 @@
 {
   "name": "gate-all-dp",
-  "summary": "Standby gate v3: with automatic input, standby is refused while a source is active on any DP-class connector (DP or USB-C), not only the current one; fixed input: the selected one; no answer from the front-end: refused. v3: in link-held standby with automatic input, a source that becomes active on the other DP-class connector wakes the monitor (as a key does)",
-  "status": "v2 hardware-tested 2026-10-08: automatic input, both outputs off -> deep standby, no wake for minutes; after a key wake the dock held the DP link (DP: source active) -> link-held standby, deep standby as soon as the dock released the link. v3 (edge wake) untested",
+  "summary": "Standby gate v4: with automatic input, standby is refused while a source is active on any DP-class connector (DP or USB-C), not only the current one; fixed input: the selected one; no answer from the front-end: refused. v4: in link-held standby with automatic input, the input is routed to a connector with an active link (a new one first, alternating every 30 s if both), so its video ends the standby",
+  "status": "v2 hardware-tested 2026-10-08: automatic input, both outputs off -> deep standby, no wake for minutes; after a key wake the dock held the DP link (DP: source active) -> link-held standby, deep standby as soon as the dock released the link. v3 (edge wake) did not help (2026-10-08); v4 (routing in link-held standby) untested",
   "conflicts": [
     "gate-raw-id"
   ],
   "edits": [
     {
+      "addr": "0x2016D0",
+      "old": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "new": "1c21ec0d21100d410c0d61080d81040da100c0e00401f80724e8c0e00901f147faf599609980c0e00761ece75f3a10e74fd0e0009a446a05e7fff6f0e40000c0e400008b99a0446d05e7fff6cee400009ed061012dc0e00401fce724c040e76c10c700186700d0600086d0c1006698c14cc66c458c351dad01d1a2fe6ed1600042e400035f446b050da1020d81060d610a0d410e0d21121c21148529d0600042d063003699618529",
+      "asm": "gate3 (image head zero area 0x2016D0): automatic input -> ask ports 0 and 1 (edge wake from link-held standby), else the current port"
+    },
+    {
       "addr": "0x201900",
-      "old": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-      "new": "1c21ec0d21100d410c0d61080d81040da100c0e00401f80724e8c0e00901f147faf599609980c0e00761ece75f3a10e74fd0e0009a446a05e7fff290e40000e0e40000ab99a0446d05e7fff26ee40000bed061011dc0e00401fce724c040e76c10c700186700d5aa0072d0600056d0c1003699811dad01d1a2fe7ed18000d2c0e008a1f0c751ccd0c00072f80751cce4087f149961446b050da1020d81060d610a0d410e0d21121c21148529d0600042d063003699618529",
-      "asm": "gate3 (image head zero area 0x201900): automatic input -> ask ports 0 and 1 (edge wake from link-held standby), else the current port"
+      "old": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "new": "c0e008a1f0c751ccd0c0f26ac0e0040199a0d5aa00724ccc6d54c601d0c0030e1dad01d1a2ff7ed1410095fcc724c040c65410c600d0c0011a99a0d5aa0092fcc724c040c66c10c600d0c001a21dad01d1a2ff5ee7fffc03f0c724c21cc601f8c724c2d0c5ef91f80724c2d9aa0001fcc724c040c66c10c600d0c0eee6f80724c2c8e000b040ed3bc0c00761fcc6495040e73410c720c8c6000c18c7209860448d05e407bd28e7fffb5f",
+      "asm": "g_lhs (image head zero area 0x201900): in link-held standby route a connector with an active link (sub_23F836)"
     },
     {
       "addr": "0x201280",
@@ -21,7 +27,7 @@
     {
       "addr": "0x2612F9",
       "old": "9c340d21",
-      "new": "e7f40c0f",
+      "new": "e7f407af",
       "asm": "sub_2612F9 entry -> j gate3"
     }
   ],

@@ -2171,3 +2171,49 @@ after the main loop started.
   is not known.
 - A log of a DP wake with this build would show whether the gap belongs to
   USB-C wakes.
+
+## 43. DP wake timing; link-held standby routing (`gate-all-dp` v4) (2026-10-08)
+
+**DP wake** (build of §42, automatic input, wake by DP):
+- start-up selection 1.57 s ("by wake-port-first", DP);
+- main loop 1.69 s;
+- DP accepted 3.38 s, backlight 3.46 s.
+
+The 5 s gap of §42 is therefore specific to the USB-C wake (cause still
+open).
+
+**`gate-all-dp` v3 did not help** (automatic input; DP output disabled, the dock
+held the DP link; the laptop's USB-C output enabled ~3 s after "No signal"
+disappeared):
+- The scan had last moved to HDMI 2 (426.4 s), "No signal" at 427.5 s, panel
+  off 433.5 s. The laptop was enabled before the gate's first query (the
+  power-save request 30 s after "No signal").
+- Link-held standby re-queried both connectors every 5 s (527 s …); the
+  picture came only minutes later.
+- v3 woke only on a "no source" → "source active" change it had seen, so an
+  already active laptop never counted. With HDMI 2 routed, no video could end
+  link-held standby.
+- The vendor scan stops stepping after its first round (`sub_25FE39`: after
+  the per-call counter passes its limit it only handles "no signal"), so
+  during the 30 s before standby nothing moved either (inference from the code
+  and this log).
+
+**v4: route instead of wake.** While in link-held standby with automatic input,
+each re-query routes path 0 (`sub_23F836(0, port)`, as the scan; status
+"no signal" until the port reports one; panel stays off) to:
+1. a connector other than the current one whose answer changed to "source
+   active";
+2. else, if the current input is HDMI or its connector has no link: the
+   first other connector with an active link;
+3. else (both links active): the other connector every 6 re-queries
+   (30 s; `ALT`), so video on either is found while two links are held.
+
+The routed connector's video then ends link-held standby the normal way
+(`standby-lhs` `cave_b`, relight on valid timing). Expected for the test
+above: ≤ 5 s after the first re-query, USB-C routed → laptop picture.
+
+Code: gate `0x2016D0`, link-held part `0x201900`, query `0x201280`.
+
+Open: whether routing changes every 30 s while two links are held disturb a
+source (each change is the same as a manual switch, which did not disturb
+the PCs in §31/§32).

@@ -28,19 +28,27 @@ Patch: sub_2612F9's entry jumps to the new gate; its callers (power-save
 entry 0x2613A0, link-held standby re-query 0x261DFD, diag-log's G hook) are
 unchanged. Conflicts with gate-raw-id (same function).
 
-v3 (2026-10-08): automatic input, both outputs disabled, the dock held the DP
-link -> link-held standby (re-query every 5 s, both connectors). Enabling the
-laptop's output on USB-C did not wake the monitor for 6+ min: in link-held
-standby only the current input's signal ends it (standby-lhs, cave_b), and the
-front-end routes only the current connector. v3 keeps each connector's last
-answer (RAM 0x2024C0 USB-C, 0x2024C1 DP); when a connector that is not the
-current one changes from "no source" to "source active" while the monitor is
-in link-held standby (rws 0x4551CC), the gate leaves it the way standby-lhs's
-key exit does (rws = 0, sub_245919 panel on) and refuses standby; the
-automatic scan then finds the source (scan-active-first: directly). A link
-that stays active (the dock) never wakes it. Every gate call also clears
-scan-active-first's jump flag (0x2024E8): a new search after a standby
-decision. All code now in the image head zero area (gate3 0x201900, gq 0x201280).
+v3 (2026-10-08): automatic input, the dock held the DP link -> link-held
+standby. A source on the other connector cannot end it: in link-held standby
+only the routed input's own video does (standby-lhs, cave_b), and the
+front-end routes only the current connector. v3 woke the monitor like a key
+on a "no source" -> "source active" change; on hardware the laptop had been
+enabled before link-held standby began (no change seen) and the current
+input was HDMI 2, so nothing happened for minutes.
+
+v4: the gate keeps each connector's last answer (RAM 0x2024C0 USB-C,
+0x2024C1 DP) and, while in link-held standby (rws 0x4551CC) with automatic
+input, routes path 0 to a connector with an active link (sub_23F836, as the
+scan does; the panel stays off), so that connector's video ends link-held
+standby the normal way:
+1. a connector that is not the current one and changed to "source active";
+2. else, if the current input is HDMI or its connector has no link: the
+   first other connector with an active link;
+3. else (both links active): the other one every ALT (6) re-queries = 30 s,
+   so video on either is found while two links are held (counter 0x2024C2).
+Every gate call also clears scan-active-first's jump flag (0x2024E8).
+Code in the image head zero area: gate 0x2016D0, link-held part 0x201900,
+query 0x201280.
 """
 import sys, json, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aeon'))
@@ -51,10 +59,13 @@ def cur(a, n): return d[a - 0x200000:a - 0x200000 + n]
 
 GATE = 0x2612F9                      # sub_2612F9: r3 = 1 refuse, 0 allow
 MBOX = 0x238FA5                      # mailbox_query(r3 cmd, r4 sub, r5, r6 len, r7 data, r8 reply) -> r3 1 ok / 0 failed
-CAVE, CAVE_END = 0x201900, 0x201A00  # image head zero area: after picture-watchdog (0x201800-0x2018C8), before scan-active-first
+CAVE, CAVE_END = 0x2016D0, 0x201800  # image head zero area: after diag-log-ring's code (ends 0x2016C8), before picture-watchdog
+CAVE_L, CAVE_L_END = 0x201900, 0x201A00  # link-held standby part: after picture-watchdog, before scan-active-first
 CAVE_Q, CAVE_Q_END = 0x201280, 0x201300  # gq: head zero area after fe-failsafe (0x201220-0x20126D), before wake-port-first
                                      # (v2 used the linker padding 0x2038AC and 0x203B78; both are free again)
-PANEL_ON = 0x245919                  # what standby-lhs's key exit (cave_c) calls after clearing rws 0x4551CC
+SWITCH = 0x23F836                    # sub_23F836(path, port): the scan's input switch
+ALT = int(os.environ.get('ALT', '6'))  # both links active in link-held standby: try the other one every ALT re-queries (5 s)
+ALTC = 0x2024C2
 PREV = 0x2024C0                      # last answer per connector (0 USB-C, 1 DP): 0 active, 1 none
 SCAN_FLAG = 0x2024E8                 # scan-active-first: jumped in this search
 R0, R1, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12, R13 = 0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
@@ -66,7 +77,8 @@ assert A.decode(d, 0x261344 - 0x200000, 0x261344)['ops'] == 'r3,r0,0x60'
 assert A.decode(d, 0x261354 - 0x200000, 0x261354)['target'] == MBOX
 assert cur(0x3B4281, 2).hex() == '0708'                              # front-end ids of ports 0 (USB-C), 1 (DP)
 assert cur(MBOX, 3).hex() == '1c21d4'
-assert cur(PANEL_ON, 5).hex() == '9c380d2104'                       # sub_245919 prologue
+assert A.decode(d, 0x260181 - 0x200000, 0x260181)['target'] == SWITCH   # the scan's sub_23F836(0, port)
+assert 2 <= ALT <= 15
 assert A.decode(d, 0x261DFD - 0x200000, 0x261DFD)['target'] == GATE and cur(0x261F89, 6).hex() == '98e5f8ea51cd'  # re-query; refusal re-arms
 assert cur(PREV, 4) == b'\0' * 4
 
@@ -80,7 +92,7 @@ prog = [
  ('bn.sw', {':': 4, 'A': R1, 'B': R12}), ('bn.sw', {':': 0, 'A': R1, 'B': R13}),
  mh(R7, 0x20), sb(SCAN_FLAG, R7, R0),                     # scan-active-first: a new search after any standby decision
  mh(R7, 0x48), ('bg.lbz', {'?': R10, 'A': R7, '!': -0x50B}),          # r10 = current port (0x47FAF5)
- ('bt.movi', {'D': R11, 'I': 0}), ('bt.movi', {'D': R12, 'I': 0}),    # r11 refuse, r12 wake
+ ('bt.movi', {'D': R11, 'I': 0}), ('bt.movi', {'D': R12, 'I': 0}),    # r11 refuse, r12 = connectors with a new source (bits)
  mh(R7, 0x3B), ('bg.lwz', {'D': R7, 'A': R7, 'W': 0x5F38}),
  ('bn.lbz', {'?': R7, 'A': R7, 'z': 0x4F}),                           # settings +0x4F: 0 = automatic input
  ('bg.beqi', {'A': R7, 'I': 0, ';': 'g_auto'}),
@@ -95,18 +107,14 @@ prog = [
  ('bg.bgtui', {'A': R3, 'I': 1, ';': 'g_next'}),          # no answer / not DP-class: keep the last answer
  mh(R7, 0x20), ('bg.addi', {'D': R7, 'A': R7, 'Y': PREV & 0xFFFF}), ('bn.add', {'D': R7, 'A': R7, 'B': R13}),
  ('bn.lbz', {'?': R6, 'A': R7, 'z': 0}), ('bn.sb', {'z': 0, 'A': R7, 'B': R3}),
- ('bg.beq', {'A': R13, 'B': R10, ';': 'g_next'}),         # the current connector wakes by its own signal
  ('bg.bnei', {'A': R3, 'I': 0, ';': 'g_next'}),
- ('bg.bnei', {'A': R6, 'I': 1, ';': 'g_next'}),           # only "no source" -> "source active"
- ('bt.movi', {'D': R12, 'I': 1}),
+ ('bg.bnei', {'A': R6, 'I': 1, ';': 'g_next'}),           # "no source" -> "source active"
+ ('bt.movi', {'D': R6, 'I': 1}), ('bn.sll', {'D': R6, 'A': R6, 'B': R13}), ('bn.or', {'D': R12, 'A': R12, 'B': R6}),
  'g_next:',
  ('bn.addi', {'D': R13, 'A': R13, 'O': 1}),
  ('bg.bnei', {'A': R13, 'I': 2, ';': 'g_loop'}),
- ('bg.beqi', {'A': R12, 'I': 0, ';': 'g_out'}),
- mh(R7, 0x45), lbz(R6, 0x4551CC, R7),                     # in link-held standby (rws): leave it as a key does
- ('bg.beqi', {'A': R6, 'I': 0, ';': 'g_out'}),
- sb(0x4551CC, R7, R0), ('bg.jal', {'/': PANEL_ON}),
- ('bt.movi', {'D': R11, 'I': 1}),
+ ('bg.beqi', {'A': R11, 'I': 0, ';': 'g_out'}),
+ ('bg.j', {'/': CAVE_L}),                                 # link-held standby part (second block)
  'g_out:',
  ('bn.or', {'D': R3, 'A': R11, 'B': R0}),
  ('bn.lwz', {'D': R13, 'A': R1, ':': 0}), ('bn.lwz', {'D': R12, 'A': R1, ':': 4}), ('bn.lwz', {'D': R11, 'A': R1, ':': 8}),
@@ -117,6 +125,48 @@ prog = [
  ('bg.bnei', {'A': R3, 'I': 3, ';': 'g_r0'}),
  'g_r1:', ('bt.movi', {'D': R11, 'I': 1}),
  'g_r0:', ('bt.jr', {'A': R9}),
+]
+prog_l = [
+ # ---- link-held standby (rws set, standby refused): route a connector with an active link ----
+ 'g_lhs:',
+ mh(R7, 0x45), lbz(R6, 0x4551CC, R7), ('bg.beqi', {'A': R6, 'I': 0, ';': 'G_OUT'}),
+ mh(R7, 0x20),
+ ('bt.movi', {'D': R13, 'I': 0}),                         # 1. a new source on another connector
+ 'g_e:',
+ ('bg.beq', {'A': R13, 'B': R10, ';': 'g_e1'}),
+ ('bn.srl', {'D': R6, 'A': R12, 'B': R13}), ('bn.andi', {'D': R6, 'A': R6, 'N': 1}),
+ ('bg.bnei', {'A': R6, 'I': 0, ';': 'g_sw'}),
+ 'g_e1:',
+ ('bn.addi', {'D': R13, 'A': R13, 'O': 1}), ('bg.bnei', {'A': R13, 'I': 2, ';': 'g_e'}),
+ ('bg.bgtui', {'A': R10, 'I': 1, ';': 'g_any'}),          # 2. current input is not DP-class, or has no link:
+ ('bg.addi', {'D': R6, 'A': R7, 'Y': PREV & 0xFFFF}), ('bn.add', {'D': R6, 'A': R6, 'B': R10}),
+ ('bn.lbz', {'?': R6, 'A': R6, 'z': 0}),
+ ('bg.beqi', {'A': R6, 'I': 0, ';': 'g_alt'}),
+ 'g_any:',                                                #    the first connector with an active link
+ ('bt.movi', {'D': R13, 'I': 0}),
+ 'g_a:',
+ ('bg.beq', {'A': R13, 'B': R10, ';': 'g_a1'}),
+ ('bg.addi', {'D': R6, 'A': R7, 'Y': PREV & 0xFFFF}), ('bn.add', {'D': R6, 'A': R6, 'B': R13}),
+ ('bn.lbz', {'?': R6, 'A': R6, 'z': 0}),
+ ('bg.beqi', {'A': R6, 'I': 0, ';': 'g_sw'}),
+ 'g_a1:',
+ ('bn.addi', {'D': R13, 'A': R13, 'O': 1}), ('bg.bnei', {'A': R13, 'I': 2, ';': 'g_a'}),
+ ('bg.j', {'/': 'G_OUT'}),
+ 'g_alt:',                                                # 3. both links active: try the other one every ALT re-queries
+ lbz(R6, ALTC, R7), ('bn.addi', {'D': R6, 'A': R6, 'O': 1}), sb(ALTC, R7, R6),
+ ('bg.bleui', {'A': R6, 'I': ALT - 1, ';': 'G_OUT'}),
+ sb(ALTC, R7, R0),
+ ('bg.xori', {'D': R13, 'A': R10, 'Y': 1}),                # the other connector (current is 0 or 1 here)
+ ('bg.addi', {'D': R6, 'A': R7, 'Y': PREV & 0xFFFF}), ('bn.add', {'D': R6, 'A': R6, 'B': R13}),
+ ('bn.lbz', {'?': R6, 'A': R6, 'z': 0}),
+ ('bg.bnei', {'A': R6, 'I': 0, ';': 'G_OUT'}),
+ 'g_sw:',                                                 # path 0 -> port r13 (as the scan: "no signal" until it reports one)
+ sb(ALTC, R7, R0),
+ ('bg.ori', {'D': R7, 'A': R0, 't': 0xB0}), ('bn.mul', {'D': R7, 'A': R13, 'B': R7}),
+ mh(R6, 0x3B), ('bg.addi', {'D': R6, 'A': R6, 'Y': 0x4950}), ('bn.add', {'D': R7, 'A': R7, 'B': R6}),
+ ('bn.lbz', {'?': R6, 'A': R7, 'z': 0x20}), ('bg.ori', {'D': R6, 'A': R6, 't': 0x0C}), ('bn.sb', {'z': 0x20, 'A': R7, 'B': R6}),
+ ('bt.movi', {'D': R3, 'I': 0}), ('bn.or', {'D': R4, 'A': R13, 'B': R0}), ('bg.jal', {'/': SWITCH}),
+ ('bg.j', {'/': 'G_OUT'}),
 ]
 prog_q = [
  'gq:',                                                   # r3 = port -> 0 source active, 1 no source, 2 not DP-class / other, 3 no answer
@@ -148,7 +198,13 @@ prog = [(('bg.jal', {'/': LQ['gq']}) if it == ('bg.jal', {'/': 'gq'}) else it) f
 code, L = S.assemble(prog, CAVE)
 assert CAVE + len(code) <= CAVE_END, hex(CAVE + len(code))
 assert cur(CAVE, len(code)) == b'\0' * len(code)
-for c, base, labs in ((code, CAVE, L), (code_q, CAVE_Q, LQ)):
+prog_l = [((it[0], {**it[1], **({';': L['g_out']} if it[1].get(';') == 'G_OUT' else {}),
+                     **({'/': L['g_out']} if it[1].get('/') == 'G_OUT' else {})}) if isinstance(it, tuple) else it)
+          for it in prog_l]
+code_l, LL = S.assemble(prog_l, CAVE_L)
+assert LL['g_lhs'] == CAVE_L and CAVE_L + len(code_l) <= CAVE_L_END, hex(CAVE_L + len(code_l))
+assert cur(CAVE_L, len(code_l)) == b'\0' * len(code_l)
+for c, base, labs in ((code, CAVE, L), (code_l, CAVE_L, LL), (code_q, CAVE_Q, LQ)):
     for a, b, x in A.disasm(c, base, base + len(c), base):
         lab = [k for k, v in labs.items() if v == a]
         print(('%-8s' % (lab[0] + ':' if lab else '')) + '%08x: %-12s %-9s %s' % (a, b.hex(' '), x['mnem'], x['ops']))
@@ -157,17 +213,19 @@ print('%06x: %s -> %s  (gate3 %#x-%#x)' % (GATE, cur(GATE, 4).hex(), hook.hex(),
 
 patch = {
  'name': 'gate-all-dp',
- 'summary': ('Standby gate v3: with automatic input, standby is refused while a source is active on any DP-class '
+ 'summary': ('Standby gate v4: with automatic input, standby is refused while a source is active on any DP-class '
              'connector (DP or USB-C), not only the current one; fixed input: the selected one; no answer from the '
-             'front-end: refused. v3: in link-held standby with automatic input, a source that becomes active on the '
-             'other DP-class connector wakes the monitor (as a key does)'),
+             'front-end: refused. v4: in link-held standby with automatic input, the input is routed to a connector with '
+             'an active link (a new one first, alternating every 30 s if both), so its video ends the standby'),
  'status': ('v2 hardware-tested 2026-10-08: automatic input, both outputs off -> deep standby, no wake for minutes; '
             'after a key wake the dock held the DP link (DP: source active) -> link-held standby, deep standby as soon '
-            'as the dock released the link. v3 (edge wake) untested'),
+            'as the dock released the link. v3 (edge wake) did not help (2026-10-08); v4 (routing in link-held standby) untested'),
  'conflicts': ['gate-raw-id'],
  'edits': [
   {'addr': '0x%06X' % CAVE, 'old': '00' * len(code), 'new': code.hex(),
-   'asm': 'gate3 (image head zero area 0x201900): automatic input -> ask ports 0 and 1 (edge wake from link-held standby), else the current port'},
+   'asm': 'gate3 (image head zero area 0x2016D0): automatic input -> ask ports 0 and 1 (edge wake from link-held standby), else the current port'},
+  {'addr': '0x%06X' % CAVE_L, 'old': '00' * len(code_l), 'new': code_l.hex(),
+   'asm': 'g_lhs (image head zero area 0x201900): in link-held standby route a connector with an active link (sub_23F836)'},
   {'addr': '0x%06X' % CAVE_Q, 'old': '00' * len(code_q), 'new': code_q.hex(),
    'asm': 'gq (image head zero area 0x201280): 0x60/0xB for one DP-class connector: 0 active, 1 none, 2 not DP-class, 3 no answer'},
   {'addr': '0x%06X' % GATE, 'old': cur(GATE, 4).hex(), 'new': hook.hex(),
