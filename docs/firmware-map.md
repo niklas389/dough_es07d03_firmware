@@ -1743,3 +1743,30 @@ that returns when the port's state is already 2. The first decision of an
 episode and every decision after the port has left state 2 are passed on.
 Once tested, the DP / USB-C no-signal threshold (8 s) can be shortened
 without the loop.
+
+## 34. The no-signal repeat comes from the input path, not the port (2026-10-08)
+
+`nosignal-once` v1 (§33) had no effect on hardware: same 8.04–8.05 s
+"No signal" re-entries, no gate query, red LED. Correction of §33:
+- After its first no-signal decision the port monitor `sub_23B068` returns
+  early on every pass (port flags `+0x1C` bit 1, `0x23B266`); the log shows
+  port 1 flags `0x02` from the decision on and no further port state change.
+  So the port does not repeat the decision; v1's hook was never reached
+  again.
+- The repeat is the input-path state machine `sub_22F2C7`: when a path's
+  detection round ends while its port shows no signal (`+0x20 & 0x2C`,
+  `0x22F692`/`0x22F699`), it calls `sub_26A809` (`0x22F734`) and puts the
+  path back into detection (path `+4` = 2). The round takes ~8 s.
+- `sub_26A809` derives the OSD state from the signal status. For "no signal"
+  it stores state 4 (`0x26A90A`), then clears the OSD timer, sets the
+  countdown `0x4551A6` = 0 and runs the state change (`sub_257493`, event
+  `0x1E`), whose state-4 entry handler (`sub_26A7C5`) loads the countdown
+  again. It does this even when the state is already 4.
+- The earlier `port-nosignal` v1/v2 loop (4.07 s with 200 passes) is most
+  likely the same path round, whose length follows the port threshold
+  (inference).
+
+**`nosignal-once` v2:** the state-4 store in `sub_26A809` goes through a stub;
+when the OSD state is already 4 it skips the store and the state change and
+continues at `0x26A895` (the normal tail). Every other previous state enters
+"No signal" with a fresh countdown as before.

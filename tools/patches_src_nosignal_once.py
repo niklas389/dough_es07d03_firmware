@@ -1,37 +1,38 @@
 #!/usr/bin/env python3
 """Source of patches/nosignal-once.json. Run in an unpacked work dir (RT=runtime_0x200000.bin).
 
-A port that is already in "no signal" (port state 2) does not repeat its
-no-signal decision, so "No signal" is not re-entered and the standby
-countdown is not restarted.
+v2: "No signal" is not entered again while it is already the OSD state, so the
+standby countdown is not restarted.
 
 Finding (diag-log-ring, 2026-10-08, automatic input, DP disabled, USB-C
-unplugged): "No signal" (OSD state-4 entry, caller 0x2575C6) every 8.05 s for
-more than 450 s, with no port state change and no standby gate query in
-between; LED red (pre-standby). Every state-4 entry sets the countdown
-(0x4551A6; standby-timeout: 30 s, pre-standby 5 s after the entry), so with a
-repeat every 8 s the countdown never reaches 0 and the monitor never asks for
-deep standby. The same mechanism made port-nosignal v1/v2 (repeat every
-4.07 s) loop on "No signal" (docs/firmware-map.md section 24); there the repeat
-also came before the pre-standby. With the vendor countdown (255 s) the
-monitor would equally stay in pre-standby (inference: same code).
+unplugged): "No signal" (OSD state-4 entry, caller 0x2575C6) every 8.04-8.05 s
+for minutes, no port state change, no standby gate query; LED red
+(pre-standby). The OSD state stayed 4 throughout (no change of 0x457854 after
+the first entry).
 
-Source of the repeat: the port monitor sub_23B068 (every 20 ms per monitored
-port) calls sub_23E64A(port, 2) at 0x23B2E9 whenever the port shows no signal
-(+0x20 & 0x0C) and its counter +0x16 has reached the threshold +0x1A. The
-port state (+0x0C) is then already 2, and the counter restarts, so the
-decision repeats every +0x1A passes (DP / USB-C: 400 = 8 s); each call hands
-"no signal" to the input path again (path state 5), which re-enters OSD
-state 4.
+v1 (port monitor, 0x23B2E9) had no effect: after its first no-signal decision
+the port monitor sub_23B068 returns early anyway (port flags +0x1C bit 1,
+0x23B266), so the decision is not repeated there (docs/firmware-map.md 34).
 
-Patch: the jal sub_23E64A at 0x23B2E9 goes through a stub that returns
-without the call when the port's state (+0x0C, r10 = port record) is already
-2. The first decision of an episode, and every decision after the port has
-left state 2 (signal found: state 1 / 3), are passed on as before. The
-automatic scan reads the port status (+0x20), not these calls.
-With this in place the no-signal thresholds of DP / USB-C can be shortened
-without the loop (port-nosignal guards against values below 275 only for
-that reason).
+Source of the repeat: the input-path state machine sub_22F2C7. When a path's
+detection round ends while its port shows no signal (+0x20 & 0x2C), it calls
+sub_26A809 (0x22F734) and sets the path back to detection (path +4 = 2); the
+round repeats every ~8 s. sub_26A809 picks the OSD state from the signal
+status; for "no signal" it stores state 4 (0x26A90A), then (0x26A866) clears
+the OSD timer, sets the countdown 0x4551A6 to 0 and runs the state change
+(sub_257493 event 0x1E), whose state-4 entry handler sets the countdown again
+(standby-timeout: 30 s). Every round therefore restarts the countdown, which
+never reaches 0: no power-save request, no deep standby. Same code in stock
+(countdown 255 s).
+
+Patch: the "state 4" store in sub_26A809 (0x26A90A: movhi r12,0x45; movi r7,4;
+sb 0x7854(r12),r7; j 0x26A840) goes to a stub that, when the OSD state is
+already 4, skips the store and the state change and continues at 0x26A895
+(clears 0x453C70 bit 19 and returns, as the normal path does after the state
+change). Any other previous state (normal picture, menu, logo) enters
+"No signal" as before, with a fresh countdown. Side effect: with automatic
+input, the scan moving to the next port while "No signal" is shown no longer
+restarts the countdown either.
 """
 import sys, json, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aeon'))
@@ -40,43 +41,47 @@ import aeondis as A, aeonasm as S
 d = open(os.environ.get('RT', 'runtime_0x200000.bin'), 'rb').read()
 def cur(a, n): return d[a - 0x200000:a - 0x200000 + n]
 
-NOTIFY = 0x23E64A                    # sub_23E64A(port, new state)
-SITE = 0x23B2E9                      # jal sub_23E64A (no-signal decision, r4 = 2)
+SITE = 0x26A90A                      # sub_26A809: movhi r12,0x45; movi r7,4; sb 0x7854(r12),r7; j 0x26A840
+CONT, SKIP = 0x26A840, 0x26A895
 CAVE = 0x2039B0                      # linker padding: after switch-no-unplug (0x203980-0x2039A1)
-R4, R7, R9, R10 = 4, 7, 9, 10
+R7, R12 = 7, 12
 
-assert A.decode(d, SITE - 0x200000, SITE)['target'] == NOTIFY
-assert cur(0x23B2E5, 4).hex() == '886c9882'                  # mov r3,r12 ; movi r4,2
-assert A.decode(d, 0x23B2C5 - 0x200000, 0x23B2C5)['ops'] == 'r10,r12,r7'   # r10 = port record (0x3B4950 + port*0xB0)
-assert A.decode(d, 0x23B2CC - 0x200000, 0x23B2CC)['ops'] == 'r7,r7,0x4950'
+assert cur(SITE, 10).hex() == 'c18008a198e4f8ec7854'
+assert A.decode(d, SITE + 10 - 0x200000, SITE + 10)['target'] == CONT
+assert A.decode(d, 0x26A891 - 0x200000, 0x26A891)['target'] == 0x257493     # state change (event 0x1E)
+assert A.decode(d, SKIP - 0x200000, SKIP)['ops'] == 'r7,0x3c70(r11)'         # lwz r7,0x3c70(r11)
+assert A.decode(d, 0x26A81B - 0x200000, 0x26A81B)['ops'] == 'r11,0x45'       # r11 = 0x45xxxx base
 
 prog = [
- 'ns_once:',                                              # r3 = port, r4 = 2, r10 = port record
- ('bn.lwz', {'D': R7, 'A': R10, ':': 0x0C}),              # port state (word +0x0C)
- ('bg.bnei', {'A': R7, 'I': 2, ';': 'ns_go'}),
- ('bt.jr', {'A': R9}),                                    # already "no signal": no repeat
- 'ns_go:',
- ('bg.j', {'/': NOTIFY}),
+ 'ns4:',
+ ('bg.movhi', {'D': R12, 'U': 0x45}),
+ ('bg.lbz', {'?': R7, 'A': R12, '!': 0x7854}),            # current OSD state
+ ('bg.beqi', {'A': R7, 'I': 4, ';': 'ns4_skip'}),         # already "No signal": no re-entry
+ ('bt.movi', {'D': R7, 'I': 4}),
+ ('bg.sb', {'Y': 0x7854, 'A': R12, 'B': R7}),
+ ('bg.j', {'/': CONT}),
+ 'ns4_skip:',
+ ('bg.j', {'/': SKIP}),
 ]
 code, L = S.assemble(prog, CAVE)
 assert CAVE + len(code) <= 0x203A00                      # panel-prepower from 0x203A00
 assert cur(CAVE, len(code)) == b'\0' * len(code)
 for a, b, x in A.disasm(code, CAVE, CAVE + len(code), CAVE):
     lab = [k for k, v in L.items() if v == a]
-    print(('%-9s' % (lab[0] + ':' if lab else '')) + '%08x: %-12s %-9s %s' % (a, b.hex(' '), x['mnem'], x['ops']))
-hook = S.encode('bg.jal', {'/': CAVE}, SITE)
+    print(('%-10s' % (lab[0] + ':' if lab else '')) + '%08x: %-12s %-9s %s' % (a, b.hex(' '), x['mnem'], x['ops']))
+hook = S.encode('bg.j', {'/': CAVE}, SITE)
 print('%06x: %s -> %s' % (SITE, cur(SITE, 4).hex(), hook.hex()))
 
 patch = {
  'name': 'nosignal-once',
- 'summary': ('A port already in "no signal" does not repeat its no-signal decision every 8 s, so "No signal" is not '
-             're-entered and the standby countdown runs to deep standby'),
- 'status': 'untested',
+ 'summary': ('v2: while "No signal" is already shown, the input path\'s ~8 s detection rounds no longer re-enter it, '
+             'so the standby countdown runs to deep standby'),
+ 'status': 'untested (v1, a port-monitor hook, had no effect on hardware 2026-10-08)',
  'edits': [
   {'addr': '0x%06X' % CAVE, 'old': '00' * len(code), 'new': code.hex(),
-   'asm': 'ns_once (linker padding 0x2039B0): port state already 2 -> return, else j sub_23E64A'},
+   'asm': 'ns4 (linker padding 0x2039B0): OSD state already 4 -> j 0x26A895, else store 4 and j 0x26A840'},
   {'addr': '0x%06X' % SITE, 'old': cur(SITE, 4).hex(), 'new': hook.hex(),
-   'asm': 'sub_23B068 no-signal decision: jal sub_23E64A -> jal ns_once'},
+   'asm': 'sub_26A809 "No signal" store: movhi r12,0x45 -> j ns4'},
  ],
  'notes': 'See the docstring of tools/patches_src_nosignal_once.py. Generated by tools/patches_src_nosignal_once.py.',
 }
