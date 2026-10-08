@@ -2089,3 +2089,49 @@ backlight on and no "No signal" message, for ~45 min. Keys and DDC/CI worked.
 
 **Diagnosis aid:** `tools/logread.py` names the watchdog's selections
 ("picture-watchdog recovery") and those of `wake-port-first`.
+
+## 41. No wake from USB-C in link-held standby (2026-10-08)
+
+**Test** (build of §40):
+- Several manual switches DP ↔ USB-C worked.
+- Automatic input, DP and USB-C outputs disabled → standby. Enabling the
+  laptop's USB-C output did not wake the monitor; the picture came only after
+  6+ min.
+
+**Log:**
+- From 193 s to 618 s only the standby gate's re-query every 5 s
+  (`0x60`/`0xB` for ids 7 and 8). So the monitor was in link-held standby, not
+  deep standby; the firmware did not restart. Most likely the dock held the DP
+  link, as in §36.
+- At 631.6 s link-held standby ended (cause not in the log). The scan went
+  DP → HDMI 1 (no signal 1 s later) → HDMI 2 → USB-C; USB-C accepted at
+  635.9 s.
+- `scan-active-first` did not jump to USB-C. Its last jump was before standby,
+  and no signal had been accepted since, so its guard held.
+
+**Reading:**
+- In link-held standby only the current input's own signal ends it
+  (`standby-lhs` `cave_b`), and the front-end routes only the current
+  connector. The PM51's source wake (event 9) works only in deep standby.
+- So with automatic input, a source on the other connector cannot wake the
+  monitor while a held link (the dock) keeps it in link-held standby. Stock is
+  the same, except that its gate asks about the current port only.
+
+**`gate-all-dp` v3:**
+- The gate keeps each connector's last answer (RAM `0x2024C0` USB-C,
+  `0x2024C1` DP).
+- When a connector that is not the current one changes from "no source" to
+  "source active" during link-held standby (rws `0x4551CC` set):
+  - the gate clears rws and calls `sub_245919`, as `standby-lhs`'s key exit
+    does;
+  - it refuses standby;
+  - the automatic scan then finds the source.
+- A link that stays active (the dock) cannot wake the monitor, because only a
+  change counts.
+- Every gate call also clears `scan-active-first`'s jump flag, so the search
+  after a standby decision may jump again.
+- The code moved to the image head zero area (gate `0x201900`, query
+  `0x201280`). The query now tells "no answer" apart from "source active"; both
+  still refuse standby, as in v2.
+- Expected wake time: the next re-query (≤ 5 s), then the scan's jump to USB-C
+  and the laptop's picture (~2–3 s).
