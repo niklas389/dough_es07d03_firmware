@@ -97,8 +97,10 @@ raw += read_bytes(BASE + 8, 8 * used) if used else b''
 def order(first, last):
     ts = [u32(8 + 8 * (i % N)) for i in range(first, last)]
     tg = [raw[8 + 8 * (i % N) + 7] for i in range(first, last)]           # unknown tag byte: read error too
+    we = [u32(8 + 8 * (i % N) + 4) >> 8 & 0xFFFF for i in range(first, last)]
+    badw = lambda k: TAGS.get(tg[k]) in ('w_lp', 'w_run') and WATCH and '0x%04X' % we[k] not in WATCH
     return [k for k in range(len(ts)) if (k > 0 and ts[k] < ts[k - 1]) or (k + 1 < len(ts) and ts[k] > ts[k + 1])
-            or tg[k] not in TAGS]
+            or tg[k] not in TAGS or badw(k)]
 first0 = 0 if P.get('keep_first', False) else max(0, count - N)
 last0 = min(count, first0 + N)
 for _ in range(2):
@@ -174,6 +176,6 @@ for i in range(first, min(count, first + N)):
     else:
         shown = '0x%06X' % val
     if i in SUSPECT:
-        shown += '   [time or tag inconsistent: read error, or the log changed while it was read]'
+        shown += '   [entry inconsistent: read error, or the log changed while it was read]'
     print('%10.3f s %10s  %s %s' % (t / 1000, dt, name, shown))
     prev = t

@@ -1557,6 +1557,11 @@ earlier statement "non-zero refuses standby" (§24) was the wrong way round.
   selection for DP / USB-C could use it (raw ids 7 and 8). HDMI ids
   (`0x0B`, `0x0C`) are untested.
 
+**Confirmed 2026-10-08** (`diag-poke`): 1.4 → `+0xCB` 2, `+0xA5` 1;
+1.4 without DSC → 1, 0; 1.2 → 0, 0. Switching to 1.2 while running gave "No
+signal" on the dock-connected PC until a restart by the power key;
+switching back to 1.4 worked at once.
+
 **Settings `+0xCB` = OSD "DisplayPort Mode"** (1.2 / 1.4 without DSC / 1.4;
 test monitor: 1.4). Three values, and 2 gives `+0xA5` = 1 (§27), so most
 likely 0 = 1.2, 1 = 1.4 without DSC, 2 = 1.4 (inference; to be confirmed by
