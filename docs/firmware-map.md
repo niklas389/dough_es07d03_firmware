@@ -1681,3 +1681,36 @@ trigger and a switch needs a real (short) pulse.
 - Still to test: automatic input (the scan attaches through `sub_23F836`
   without `sub_265A25`, so in "1.4 without DSC" it sends no `0x20` sub 14
   for DP / USB-C, in stock as in the patch) and deep-standby wakes.
+
+## 32. Automatic input with `switch-no-unplug`, and a stuck standby gate (2026-10-08)
+
+**Automatic input, DisplayPort Mode 1.4 (DSC):** DP output disabled →
+scan HDMI 1, HDMI 2, USB-C; the USB-C attach sends (7, 1, 0), `0x60` sub 2
+(7, 1) and the enable; USB-C picture after ~2 s. DP re-enabled: the monitor
+stays on USB-C (vendor design). USB-C unplugged at 1693.87 s → USB-C
+no-signal decision 8.0 s later → DP attach → DP accepted at 1702.70 s,
+without disturbing the other monitor. The 8 s are the vendor no-signal
+threshold of DP-class ports.
+
+**Automatic input, "1.4 without DSC":** the scan's attach of USB-C sends
+only the enable (no `0x20` sub 14: no `+0x0E` flags, and the scan does not
+go through `sub_265A25`), yet the front-end switched to USB-C (~3 s). The
+difference to the failed manual switch of §31: here the old connector (DP)
+had no source any more. So the front-end does switch by itself when the
+routed connector loses its source, or on the enable in that case
+(inference); the HPD command is needed when the old source is still active.
+(First attempt failed with the laptop at 4K 144 Hz, which USB-C without DSC
+may not carry; at 4K 60 Hz it worked.)
+
+The scan sends a real HPD pulse (`0x20` sub 14 (id, 0, 0), (id, 1, …)) to
+every HDMI port it visits (`0x260179`, 600 ms): HDMI sources see an unplug
+at each scan step (vendor behaviour, not changed).
+
+**No deep standby afterwards** (both sources gone, automatic input):
+`fequery.sh`: USB-C code 8 → `0x30`/7 index **0** ("no index"); DP code 7
+→ index 8, no source; raw ids 7 and 8 → no source. With USB-C as the
+current port the vendor gate sends `0x60`/`0xB` with index 0, gets 0 and
+reads it as "source active": standby refused, and with `standby-lhs` the
+link-held standby never ends (inference; which port was current is not in
+this log). `gate-raw-id` makes the gate send the current port's front-end
+id (`0x3B4281[port]`) directly.
