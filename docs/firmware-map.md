@@ -2646,8 +2646,8 @@ handler `0x88D0E` calls `0x142BD(mode, mask)`):
 
 **Front-end commands usable from outside** (main firmware → mailbox → PM51
 → front-end; command, sub, x and data reach the front-end unchanged):
-- `0x60`/`0xFF`/x with data [id] (`0x87B00`, table `0x00FA354`... at
-  `0x10000-0x5CAC`): x `0x0B` link status (the standby gate's query,
+- `0x60`/`0xFF`/x with data [id] (`0x87B00`, jump table at
+  `0xA354`): x `0x0B` link status (the standby gate's query,
   `0x24E79` → `0x3D536`), x `0x0A` DPCD `0x202`/`0x203` lane status, x `0x09`
   DPCD read for a few addresses only (`0x50471`: `0x000`–`0x002`, `0x00E`,
   `0x111`, `0x160`, `0x202`, `0x203`, `0x270`, `0x300`–`0x30B`,
