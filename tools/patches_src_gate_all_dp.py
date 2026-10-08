@@ -52,8 +52,11 @@ v4 also runs the same check every 5 s of the "No signal" countdown (OSD state
 vendor scan stops after one round, so before the standby decision (30 s
 with standby-timeout) a source that appears on another connector was not
 found either.
-Code in the image head zero area: gate 0x2016D0, link-held part and tick
-0x201900, query 0x201280.
+v4.1: the routing also stores the port in settings +0x5B (path 0's current
+port, written by the scan at 0x260189 and by sub_2678D9, read by sub_26A809,
+the OSD and DDC/CI); v4 left it stale after a routing.
+Code in the image head zero area: gate 0x2016D0, link-held part 0x201900,
+tick 0x201350, query 0x201280.
 """
 import sys, json, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aeon'))
@@ -66,6 +69,7 @@ GATE = 0x2612F9                      # sub_2612F9: r3 = 1 refuse, 0 allow
 MBOX = 0x238FA5                      # mailbox_query(r3 cmd, r4 sub, r5, r6 len, r7 data, r8 reply) -> r3 1 ok / 0 failed
 CAVE, CAVE_END = 0x2016D0, 0x201800  # image head zero area: after diag-log-ring's code (ends 0x2016C8), before picture-watchdog
 CAVE_L, CAVE_L_END = 0x201900, 0x201A00  # link-held standby part: after picture-watchdog, before scan-active-first
+CAVE_T, CAVE_T_END = 0x201350, 0x201400  # countdown tick: after wake-port-first (0x201300-0x201344), before diag-log
 CAVE_Q, CAVE_Q_END = 0x201280, 0x201300  # gq: head zero area after fe-failsafe (0x201220-0x20126D), before wake-port-first
                                      # (v2 used the linker padding 0x2038AC and 0x203B78; both are free again)
 SWITCH = 0x23F836                    # sub_23F836(path, port): the scan's input switch
@@ -177,7 +181,11 @@ prog_l = [
  mh(R6, 0x3B), ('bg.addi', {'D': R6, 'A': R6, 'Y': 0x4950}), ('bn.add', {'D': R7, 'A': R7, 'B': R6}),
  ('bn.lbz', {'?': R6, 'A': R7, 'z': 0x20}), ('bg.ori', {'D': R6, 'A': R6, 't': 0x0C}), ('bn.sb', {'z': 0x20, 'A': R7, 'B': R6}),
  ('bt.movi', {'D': R3, 'I': 0}), ('bn.or', {'D': R4, 'A': R13, 'B': R0}), ('bg.jal', {'/': SWITCH}),
+ mh(R7, 0x3B), ('bg.lwz', {'D': R7, 'A': R7, 'W': 0x5F38}),
+ ('bn.sb', {'z': 0x5B, 'A': R7, 'B': R13}),                # settings +0x5B = path 0's port, as the scan (0x260189)
  ('bg.j', {'/': 'G_OUT'}),
+]
+prog_t = [
 
  # ---- standby countdown, once per second while it runs (0x261CEB; r10 = 0x45 base, r5-r7 free) ----
  'g_tick:',
@@ -228,9 +236,14 @@ prog_l = [((it[0], {**it[1], **({';': L['g_out']} if it[1].get(';') == 'G_OUT' e
                      **({'/': L['gate3']} if it[1].get('/') == 'GATE3' else {})}) if isinstance(it, tuple) else it)
           for it in prog_l]
 code_l, LL = S.assemble(prog_l, CAVE_L)
+prog_t = [((it[0], {**it[1], **({'/': L['gate3']} if it[1].get('/') == 'GATE3' else {})}) if isinstance(it, tuple) else it)
+          for it in prog_t]
+code_t, LT = S.assemble(prog_t, CAVE_T)
+assert CAVE_T + len(code_t) <= CAVE_T_END, hex(CAVE_T + len(code_t))
+assert cur(CAVE_T, len(code_t)) == b'\0' * len(code_t)
 assert LL['g_lhs'] == CAVE_L and CAVE_L + len(code_l) <= CAVE_L_END, hex(CAVE_L + len(code_l))
 assert cur(CAVE_L, len(code_l)) == b'\0' * len(code_l)
-for c, base, labs in ((code, CAVE, L), (code_l, CAVE_L, LL), (code_q, CAVE_Q, LQ)):
+for c, base, labs in ((code, CAVE, L), (code_l, CAVE_L, LL), (code_t, CAVE_T, LT), (code_q, CAVE_Q, LQ)):
     for a, b, x in A.disasm(c, base, base + len(c), base):
         lab = [k for k, v in labs.items() if v == a]
         print(('%-8s' % (lab[0] + ':' if lab else '')) + '%08x: %-12s %-9s %s' % (a, b.hex(' '), x['mnem'], x['ops']))
@@ -252,12 +265,14 @@ patch = {
   {'addr': '0x%06X' % CAVE, 'old': '00' * len(code), 'new': code.hex(),
    'asm': 'gate3 (image head zero area 0x2016D0): automatic input -> ask ports 0 and 1 (edge wake from link-held standby), else the current port'},
   {'addr': '0x%06X' % CAVE_L, 'old': '00' * len(code_l), 'new': code_l.hex(),
-   'asm': 'g_lhs (image head zero area 0x201900): in link-held standby route a connector with an active link (sub_23F836)'},
+   'asm': 'g_lhs (image head zero area 0x201900): route a connector with an active link (sub_23F836, settings +0x5B)'},
+  {'addr': '0x%06X' % CAVE_T, 'old': '00' * len(code_t), 'new': code_t.hex(),
+   'asm': 'g_tick (image head zero area 0x201350): routing check every 5 s of the No-signal countdown'},
   {'addr': '0x%06X' % CAVE_Q, 'old': '00' * len(code_q), 'new': code_q.hex(),
    'asm': 'gq (image head zero area 0x201280): 0x60/0xB for one DP-class connector: 0 active, 1 none, 2 not DP-class, 3 no answer'},
   {'addr': '0x%06X' % GATE, 'old': cur(GATE, 4).hex(), 'new': hook.hex(),
    'asm': 'sub_2612F9 entry -> j gate3'},
-  {'addr': '0x%06X' % TICK_SITE, 'old': cur(TICK_SITE, 4).hex(), 'new': S.encode('bg.jal', {'/': LL['g_tick']}, TICK_SITE).hex(),
+  {'addr': '0x%06X' % TICK_SITE, 'old': cur(TICK_SITE, 4).hex(), 'new': S.encode('bg.jal', {'/': LT['g_tick']}, TICK_SITE).hex(),
    'asm': 'sub_261C04 standby countdown: lbz r7,0x51a6(r10) -> jal g_tick (routing check every 5 s of "No signal")'},
  ],
  'notes': 'See the docstring of tools/patches_src_gate_all_dp.py. Generated by tools/patches_src_gate_all_dp.py.',

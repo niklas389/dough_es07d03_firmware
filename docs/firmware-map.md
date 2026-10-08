@@ -2394,3 +2394,34 @@ logged. It now watches `0x453C71`.
   this bit: in §40 it went to `0x00` exactly at the menu-close retry. It is
   watched again, next to `0x453C71`.
 - To be confirmed by reading `0x453C72` (bit 0) in the stuck state.
+
+## 48. Recovery from the stuck state; `+0x5B` not updated by the routing (2026-10-08)
+
+**Log of the same run** (monitor still on the earlier `diag-log-ring`,
+which watches `0x453C72`; decoded with the newer patch file, its entries
+appear as "0x453C71", because a watch entry was inserted before it):
+- Another stuck episode: scan DP → HDMI 1 (1613.6) → HDMI 2 (1614.7),
+  HDMI 2 no-signal 1615.86 s, then nothing for 354 s.
+- 1969.73 s: menu key; OSD state 8 (quick input menu), `0x453C72` 0x00 →
+  0x01 (bit 16 set). So bit 16 was 0 during the stuck period (the watcher
+  logs changes only): bit 16 is ruled out as well.
+- 1973.53 s: the menu-timer retry (`sub_258E5D`): `sub_2678D9(0, automatic)`;
+  OSD state 6; bit 16 cleared.
+- HDMI 2 no-signal 1974.75 s, **"No signal" entered 1974.85 s**.
+- 1979.85 s: the routing tick (5 s), DP active (the owner had re-enabled DP)
+  → routed to DP; DP accepted 1980.64 s.
+
+**Finding in our patch:**
+- settings `+0x5B` holds path 0's current port. It is written by the scan
+  (`0x260189`), by `sub_2678D9` (`0x2679A8`) and by `sub_26A809`
+  (`0x26A9BC`), and read by `sub_26A809`, the OSD, DDC/CI and many others.
+- The v4 routing called `sub_23F836` without updating it, so after a routing
+  (e.g. the earlier laptop wake in this run) `+0x5B` named the old port.
+  Whether that caused the missing "No signal" decision is not proven, but it
+  is an inconsistency the vendor scan never creates.
+- v4.1 stores the port in `+0x5B` as the scan does. The tick moved to
+  `0x201350` (room).
+
+The cause of the missing "No signal" remains open. The next test with the
+current build (both flag bytes watched, `+0x5B` consistent) should show
+whether it recurs.
