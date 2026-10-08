@@ -2262,3 +2262,44 @@ and pre-standby).
   is not set; the result of the gate is ignored there.
 - A laptop enabled during the countdown is found within ~5 s instead of
   after 30 s + 5 s.
+
+## 45. DisplayPort Mode apply leaves the input disabled (stock bug) (2026-10-08)
+
+**Log** (build of §43, input fixed to DP, DisplayPort Mode 1.4 re-selected):
+
+| Time | Event |
+|---|---|
+| 462.318 | `0x20` sub 14 (8, 0) / (8, 1): the 650 ms pulse |
+| 462.323 | `0x20` sub 0 **(0, 8)**: DP disabled |
+| 462.328 | `0x60` sub 2 (8, 1) |
+| 462.335–462.354 | the same for USB-C (7) |
+| 462.360 | `0x60` sub 0 (8, 3) |
+| 462.92 | port 1 restarts detection |
+| 465.40 | no-signal decision; "No signal", panel off 6 s later |
+| 530 s on | link-held standby: the gate asks DP every 5 s (the dock held the link) |
+
+No enable for DP was sent at any point.
+
+**Code:**
+- `sub_26535A(port, dsc)` (called by `sub_268BB0` for ports 1 and 0):
+  - `+0xA5` = dsc;
+  - `sub_23EE83(port, 650)`;
+  - `sub_23959E(0, id, …)`, i.e. `0x20` sub 0 with enable = 0;
+  - `sub_239333(id, dsc)`, i.e. `0x60` sub 2;
+  - then a tail call to `sub_264633(dsc)`.
+- Only `sub_264633` requests the port configuration update that enables the
+  input again (`0x264683`: path 0's port entry in `0x3B4288`, +0 = 1,
+  +0x11 = 0, +1 = 2). It does that only when dsc differs from its cache
+  `0x455061` (or settings `+0x59` ≠ 0).
+- So in stock, re-selecting the current mode, and changing between "1.4
+  without DSC" and 1.2 (dsc 0 both), leave the selected input disabled in the
+  front-end: "No signal" until another input selection or a restart. §29's
+  "1.2 gave No signal until a restart by the power key" fits.
+
+**`dpmode-same` v2:**
+- An unchanged value does nothing (no pulse, no disable).
+- A change is applied as stock and is followed by the same update request for
+  path 0's port, so the input is enabled again (with `switch-no-unplug`:
+  "HPD high", `0x60` sub 2, enable).
+- The other DP-class input stays disabled until it is selected, which enables
+  it (as in stock).

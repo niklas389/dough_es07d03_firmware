@@ -1,13 +1,13 @@
 {
   "name": "dpmode-same",
-  "summary": "Selecting the DisplayPort Mode that is already set does nothing (stock: re-applies it with a 650 ms hot-plug pulse on DP and USB-C, which blanks every monitor behind a dock); a real change is applied as stock",
+  "summary": "DisplayPort Mode: selecting the mode that is already set does nothing (stock: re-applies it with a 650 ms hot-plug pulse, which blanks every monitor behind a dock, and leaves the input disabled); a real change is applied and the input enabled again (stock left it disabled when the DSC setting did not change, e.g. \"1.4 without DSC\" <-> 1.2)",
   "status": "untested",
   "edits": [
     {
       "addr": "0x2038B0",
-      "old": "0000000000000000000000000000000000000000",
-      "new": "f0a600cbd4a70062f8e600cbe40ca5e8e40ca6fb",
-      "asm": "dps (linker padding 0x2038B0): +0xCB unchanged -> skip store and sub_268BB0"
+      "old": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "new": "f0a600cbd4a7019af8e600cbe40ca5e8c0c00901f0c621d4c8e0001840e733c0c00761fcc6428840e73498c118c70018071198c218c701e40ca6ad",
+      "asm": "dps (linker padding 0x2038B0): +0xCB unchanged -> skip; else store, sub_268BB0, port update request for path 0"
     },
     {
       "addr": "0x268C35",
