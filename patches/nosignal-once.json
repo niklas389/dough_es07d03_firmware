@@ -1,7 +1,7 @@
 {
   "name": "nosignal-once",
   "summary": "v3: while \"No signal\" is already shown and its standby countdown runs, the input path's ~8 s detection rounds no longer re-enter it, so the countdown runs to standby; when a detection restart cleared the countdown, \"No signal\" is entered again and reloads it (v2 left it at 0: black screen, no standby)",
-  "status": "v3 untested. v2 hardware-tested 2026-10-08 (one \"No signal\" entry, standby request 30 s later) but stuck without standby after a restart during \"No signal\" (docs/firmware-map.md section 49)",
+  "status": "v3 hardware-tested 2026-10-08 (automatic input, DP and laptop outputs disabled, deep standby, USB-C replugged: wake, \"No signal\", scan, \"No signal\" again, pre-standby; the stuck case of section 49 no longer occurs). v2 left the countdown at 0 after a restart during \"No signal\" (docs/firmware-map.md section 49)",
   "edits": [
     {
       "addr": "0x203B80",

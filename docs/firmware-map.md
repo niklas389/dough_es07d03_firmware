@@ -2520,3 +2520,9 @@ clears it.
 If it recurs: read `tools/logread.py` and the OSD information before
 changing anything; next step would be watching port 0 and input path 1
 (`0x47FAE0`) in `diag-log-ring`.
+
+**Test of `nosignal-once` v3 (2026-10-08):** automatic input, DP and laptop
+outputs disabled, deep standby (laptop charging on USB-C). After unplugging
+and replugging USB-C: wake, "No signal", nothing shown, "No signal" again,
+then pre-standby. This is the expected sequence (§49); the stuck state of
+§46–§48 did not occur. Not checked yet: whether deep standby followed.
