@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+"""Source of patches/wake-port-first.json. Run in an unpacked work dir (RT=runtime_0x200000.bin).
+
+With automatic input, a wake from deep standby by a source starts on the
+input that woke the monitor, instead of the input used last.
+
+Finding (diag-log-ring, 2026-10-08, automatic input, wake by enabling the
+PC's DP output): the start-up selection (sub_268453 -> sub_2678D9(0, +0x4F =
+0)) kept the last input, USB-C; its attach came at 2.26 s, its no-signal
+decision 8 s later (10.32 s), then the scan moved to DP, which reported a
+signal 0.17 s after its attach and was accepted at 11.15 s. The PM51 had
+reported the wake source: event 9 (front-end), port 1 = DP (RAM 0x453C74 /
+0x453C78, copied by sub_20E254 from sub_2414AE at 0x262044, before the
+start-up selection at 0x2620E5). Neither our firmware nor the reference
+firmwares use the port.
+
+Patch: the start-up call jal sub_2678D9 (0x2684CA) goes through a stub. With
+automatic input (+0x4F = 0), wake event 9 and a wake port 0-3, it first
+switches the main path (settings +0x5A) to that port with sub_23F836 - the
+call the automatic scan and the menu use - and then runs sub_2678D9 as
+before, which keeps the path's (now the wake) port. Fixed input, key /
+mains / power-key starts (other events) and port 5 ("none") are unchanged.
+If the waking source does not deliver a picture, the automatic scan goes on
+from there as usual.
+
+Code in the image head zero area 0x201300 (copied to RAM with the head by the
+boot loader, unused by the firmware; hardware-proven by diag-log / diag-fe).
+"""
+import sys, json, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aeon'))
+import aeondis as A, aeonasm as S
+
+d = open(os.environ.get('RT', 'runtime_0x200000.bin'), 'rb').read()
+def cur(a, n): return d[a - 0x200000:a - 0x200000 + n]
+
+SITE, SEL, SWITCH = 0x2684CA, 0x2678D9, 0x23F836
+CAVE = 0x201300
+R0, R1, R3, R4, R6, R7, R9 = 0, 1, 3, 4, 6, 7, 9
+
+assert A.decode(d, SITE - 0x200000, SITE)['target'] == SEL
+assert cur(0x2684C1, 9).hex() == 'ecec5f3a986010874f'           # lwz r7,0x5f38(r12); movi r3,0; lbz r4,0x4f(r7)
+assert cur(0x262044, 4).hex() and A.decode(d, 0x262044 - 0x200000, 0x262044)['target'] == 0x2414AE   # wake info copy first
+assert A.decode(d, 0x2620E5 - 0x200000, 0x2620E5)['target'] == 0x268453                               # then the start-up selection
+assert A.decode(d, 0x2679F7 - 0x200000, 0x2679F7)['target'] == SWITCH                                 # sub_2678D9 uses sub_23F836(+0x5A, port)
+assert cur(0x20E27B, 4).hex() == 'c94a3380'                      # sub_20E254 copies RIU 0x103380.. (event, ..., port at +4)
+
+mh = lambda r, v: ('bg.movhi', {'D': r, 'U': v})
+prog = [
+ 'wpf:',                                                  # r3 = 0 (path argument), r4 = settings +0x4F
+ ('bg.bnei', {'A': R4, 'I': 0, ';': 'wpf_sel'}),          # fixed input: as stock
+ mh(R7, 0x45), ('bg.lbz', {'?': R6, 'A': R7, '!': 0x3C74}),   # wake event
+ ('bg.bnei', {'A': R6, 'I': 9, ';': 'wpf_sel'}),
+ ('bg.lbz', {'?': R6, 'A': R7, '!': 0x3C78}),             # wake port (0-5, 5 = none)
+ ('bg.bgtui', {'A': R6, 'I': 3, ';': 'wpf_sel'}),
+ ('bn.addi', {'D': R1, 'A': R1, 'O': -4}), ('bn.sw', {':': 0, 'A': R1, 'B': R9}),
+ mh(R7, 0x3B), ('bg.lwz', {'D': R7, 'A': R7, 'W': 0x5F38}),
+ ('bn.lbz', {'?': R3, 'A': R7, 'z': 0x5A}),               # main path
+ ('bn.or', {'D': R4, 'A': R6, 'B': R0}),
+ ('bg.jal', {'/': SWITCH}),                               # sub_23F836(path, wake port)
+ ('bt.movi', {'D': R3, 'I': 0}), ('bt.movi', {'D': R4, 'I': 0}),
+ ('bg.jal', {'/': SEL}),                                  # sub_2678D9(0, automatic) as stock
+ ('bn.lwz', {'D': R9, 'A': R1, ':': 0}), ('bn.addi', {'D': R1, 'A': R1, 'O': 4}),
+ ('bt.jr', {'A': R9}),
+ 'wpf_sel:',
+ ('bg.j', {'/': SEL}),
+]
+code, L = S.assemble(prog, CAVE)
+assert CAVE + len(code) <= 0x201400                       # diag-log code from 0x201400
+assert cur(CAVE, len(code)) == b'\0' * len(code)
+for a, b, x in A.disasm(code, CAVE, CAVE + len(code), CAVE):
+    lab = [k for k, v in L.items() if v == a]
+    print(('%-9s' % (lab[0] + ':' if lab else '')) + '%08x: %-12s %-9s %s' % (a, b.hex(' '), x['mnem'], x['ops']))
+hook = S.encode('bg.jal', {'/': CAVE}, SITE)
+print('%06x: %s -> %s' % (SITE, cur(SITE, 4).hex(), hook.hex()))
+
+patch = {
+ 'name': 'wake-port-first',
+ 'summary': ('Automatic input: a deep-standby wake by a source (event 9) starts on the input that woke the monitor '
+             'instead of the last one used'),
+ 'status': 'untested',
+ 'edits': [
+  {'addr': '0x%06X' % CAVE, 'old': '00' * len(code), 'new': code.hex(),
+   'asm': 'wpf (image head zero area 0x201300): automatic + event 9 + port 0-3 -> sub_23F836(+0x5A, port), then sub_2678D9'},
+  {'addr': '0x%06X' % SITE, 'old': cur(SITE, 4).hex(), 'new': hook.hex(),
+   'asm': 'sub_268453 start-up selection: jal sub_2678D9 -> jal wpf'},
+ ],
+ 'notes': 'See the docstring of tools/patches_src_wake_port_first.py. Generated by tools/patches_src_wake_port_first.py.',
+}
+out = os.environ.get('OUT', 'wake-port-first.json')
+json.dump(patch, open(out, 'w'), indent=2)
+open(out, 'a').write('\n')

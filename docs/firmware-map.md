@@ -1873,3 +1873,26 @@ the reg `0x9C` power-good poll (`0x40B7`, `mov r7,#100` → 50) as in GP27U
 (`0x4078`) stays; GP27U / M27P20P write it only once.
 
 **`hpd-skip-unused`:** `sub_2394DC` skips `0x20` sub 3 for id 0.
+
+## 38. Wake on the waking input first (2026-10-08)
+
+**Log** (build before the speed build; automatic input; wake by enabling the
+PC's DP output; 56 events from the start):
+- 1.18 s start-up selection `sub_2678D9(0, automatic)` by `sub_268453`: it
+  keeps the last input, USB-C (attach 2.26 s).
+- 1.43–2.07 s: `0x20` sub 3 for ids 7, 8 and again 7, 8, `0x0B`, `0x0C`, 0, 0,
+  66–125 ms each; the two id-0 commands ≈ 0.19 s; `panel-prepower` ready
+  2.34 s right after the last one.
+- 10.32 s USB-C no-signal decision (8 s), scan to DP: DP signal 0.17 s after
+  its attach, accepted 11.15 s. The wake source was DP (event 9, port 1).
+
+**`wake-port-first`:** the start-up call of `sub_2678D9` (`0x2684CA`) goes
+through a stub (head zero area `0x201300`): automatic input, wake event 9 and
+wake port 0–3 → `sub_23F836(+0x5A, port)` first, then `sub_2678D9` as stock,
+which keeps the path's port. In this log the picture would have come ~8.3 s
+earlier. Port numbering: PM51 port 0 = USB-C, 1 = DP measured; HDMI (2, 3)
+assumed to follow the same table order (not measured).
+
+**No-signal times of other monitors** (normal case, passes of 20 ms): HDMI:
+LG 28MQ780 100 (2 s), GP27U 300 (6 s, with type `0x400`) / 200; DP class: LG
+100 (2 s), GP27U 200 (4 s); ours (stock) 500 (10 s) / 400 (8 s).
