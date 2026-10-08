@@ -2367,3 +2367,30 @@ firmware problem; `dpmode-same` is hardware-tested.
 `0x453C70`. This CPU is little-endian (`0x261CDA` tests bit 15 as
 `0x453C71` bit 7), so it watched bits 23–16, and bit-15 changes were never
 logged. It now watches `0x453C71`.
+
+## 47. The stuck state is not the countdown pause; `0x453C70` bit 16 (2026-10-08)
+
+**Reading in the stuck state of §46:** `0x453C71` = `0x00` (bit 15 clear),
+`0x453C70` = `0x50`.
+- Bit 6 is the countdown task's 1 s flag.
+- Bit 4 is set by `key_process` (`0x257FFB`), `sub_23ADAF` (`0x23AFBB`) and
+  `0x23FFB0`.
+- The countdown pause of §46 is ruled out.
+
+**The countdown never started:**
+- `sub_261C04` reaches the `cnt` step every second (also through the
+  re-evaluation and menu-timer branches, `0x261DC9` → `0x261CCB`).
+- With bit 15 clear, a stopped countdown means `cnt` = 0, i.e. "No signal"
+  (state 4, whose entry handler loads `cnt`) was never entered in this
+  episode.
+
+**Candidate: `0x453C70` bit 16.** The scan handler's no-signal branch
+(`sub_25FE39`, `0x2600DF`) returns without calling `sub_26A809` while bit
+16 is set.
+- Bit 16 is set by `key_process` (`0x257E34`, `0x257E93`).
+- It is cleared by `sub_258E5D` at the menu-timer end (`0x2590B0`, the
+  vendor retry path of §29) and by `power_soft_off`.
+- The earlier `diag-log-ring` watcher on `0x453C72` (bits 23–16) did show
+  this bit: in §40 it went to `0x00` exactly at the menu-close retry. It is
+  watched again, next to `0x453C71`.
+- To be confirmed by reading `0x453C72` (bit 0) in the stuck state.
