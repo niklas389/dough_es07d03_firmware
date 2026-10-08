@@ -31,10 +31,12 @@ are not asked). An answer other than 0/1 and non-DP-class inputs count as
 "unknown": no jump to them, no skip. A query without an answer (mailbox
 failure) ends the step with the stock sub_2653EA, so a front-end that does
 not answer costs one failed query per step (with fe-failsafe: <= 1.5 s).
-After a jump, further jumps wait until a picture has been accepted (port
-monitor sub_23B068 -> sub_23E64A(port, 1) at 0x23B367, hooked to clear the
-flag): if two DP-class connectors both keep a link without video (e.g. an
-MST dock), the scan cannot alternate between them and leave out HDMI.
+After a jump, further jumps wait until a signal has been accepted on any
+port (accept counter 0x2024D0 of picture-watchdog, which this patch requires):
+if two DP-class connectors both keep a link without video (e.g. an MST dock),
+the scan cannot alternate between them and leave out HDMI.
+(v1 cleared the flag on sub_23E64A(port, 1) at 0x23B367; that is a detection
+restart, not an accept, so the guard did not hold.)
 The key-selection mode (0x4551AC bit 5) goes to sub_2653EA unchanged; the
 other scan call (0x2602FE, that mode) is not touched.
 
@@ -42,9 +44,9 @@ Limitation: in DisplayPort Mode "1.4 without DSC" the scan's attach sends no
 'HPD high' (0x20 sub 14) to the new connector (stock, section 32); if the old
 connector's source still holds its link, the front-end may keep showing it.
 
-Code in the image head zero area 0x201A00 (after diag-log-ring's code, before
-diag-fe at 0x201C00); flag at RAM 0x2024E8 (1 = jumped in this search,
-readable with diag-poke).
+Code in the image head zero area 0x201A00 (after picture-watchdog, before
+diag-fe at 0x201C00); RAM 0x2024E8 = 1 after a jump, 0x2024E9 = the accept
+counter at the jump (readable with diag-poke).
 """
 import sys, json, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aeon'))
@@ -54,10 +56,10 @@ d = open(os.environ.get('RT', 'runtime_0x200000.bin'), 'rb').read()
 def cur(a, n): return d[a - 0x200000:a - 0x200000 + n]
 
 SITE, NEXT = 0x2601EB, 0x2653EA                # scan step: jal sub_2653EA (r3 = current port -> next port)
-ACC, PSTATE = 0x23B367, 0x23E64A               # port monitor: jal sub_23E64A(port, 1) = signal accepted
 MBOX = 0x238FA5                                # mailbox_query(r3 cmd, r4 sub, r5, r6 len, r7 data, r8 reply) -> r3 1 ok
 CAVE = 0x201A00
-FLAG = 0x2024E8                                # fe-failsafe uses 0x2024E0/E1, diag-fe 0x2024F0
+FLAG, SNAP = 0x2024E8, 0x2024E9                # fe-failsafe uses 0x2024E0/E1, diag-fe 0x2024F0
+ACC = 0x2024D0                                 # picture-watchdog: signals accepted (any port, wraps)
 R0, R1, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12 = 0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
 
 assert A.decode(d, SITE - 0x200000, SITE)['target'] == NEXT
@@ -66,11 +68,9 @@ assert A.decode(d, 0x2602FE - 0x200000, 0x2602FE)['target'] == NEXT             
 assert cur(NEXT, 0x21).hex() == ('9c3c0d2100c0e008a1e8e751ad54e72020e0ce98a3206830206db05c600948a20b'
                                   ), cur(NEXT, 0x21).hex()                          # flag test, rotation 0-1-2-3-0, 4/5 -> 2
 assert cur(NEXT + 0x21, 0x0A).hex() == '50e0b040e53bc0c00761', cur(NEXT + 0x21, 0x0A).hex()   # status |= 0x0C follows
-assert A.decode(d, ACC - 0x200000, ACC)['target'] == PSTATE and cur(ACC - 2, 2).hex() == '9881'   # movi r4,1
-assert cur(PSTATE, 3).hex() == '50e0b0'                                           # ori r7,r0,0xb0 (r7 set first)
 assert cur(0x3B4281, 4).hex() == '07080b0c'                                       # front-end ids of ports 0-3
 assert cur(MBOX, 3).hex() == '1c21d4'
-assert cur(CAVE, 0x200) == b'\0' * 0x200 and cur(FLAG, 8) == b'\0' * 8
+assert cur(CAVE, 0x200) == b'\0' * 0x200 and cur(FLAG, 8) == b'\0' * 8 and cur(ACC, 4) == b'\0' * 4
 
 mh = lambda r, v: ('bg.movhi', {'D': r, 'U': v})
 mov = lambda rd, rs: ('bn.or', {'D': rd, 'A': rs, 'B': R0})
@@ -94,8 +94,11 @@ prog = [
  ('bn.add', {'D': R7, 'A': R1, 'B': R11}), ('bn.sb', {'z': 16, 'A': R7, 'B': R3}),
  ('bn.addi', {'D': R11, 'A': R11, 'O': 1}),
  ('bg.bnei', {'A': R11, 'I': 3, ';': 'as_q'}),
- mh(R7, 0x20), ('bg.lbz', {'?': R7, 'A': R7, '!': FLAG & 0xFFFF}),
- ('bg.bnei', {'A': R7, 'I': 0, ';': 'as_b0'}),             # already jumped in this search
+ mh(R7, 0x20), ('bg.lbz', {'?': R6, 'A': R7, '!': FLAG & 0xFFFF}),
+ ('bg.beqi', {'A': R6, 'I': 0, ';': 'as_a0'}),
+ ('bg.lbz', {'?': R6, 'A': R7, '!': SNAP & 0xFFFF}), ('bg.lbz', {'?': R5, 'A': R7, '!': ACC & 0xFFFF}),
+ ('bg.beq', {'A': R5, 'B': R6, ';': 'as_b0'}),             # jumped, and no signal accepted since
+ 'as_a0:',
  movi(R11, 0),
  'as_a:',                                                  # 1. first input with an active source
  ('bn.add', {'D': R7, 'A': R1, 'B': R11}), ('bn.lbz', {'?': R6, 'A': R7, 'z': 16}),
@@ -106,6 +109,7 @@ prog = [
  'as_jmp:',
  ('bg.beqi', {'A': R11, 'I': 0, ';': 'as_take'}),          # the rotation's own next input: not a jump
  movi(R6, 1), mh(R5, 0x20), ('bg.sb', {'Y': FLAG & 0xFFFF, 'A': R5, 'B': R6}),
+ ('bg.lbz', {'?': R6, 'A': R5, '!': ACC & 0xFFFF}), ('bg.sb', {'Y': SNAP & 0xFFFF, 'A': R5, 'B': R6}),
  ('bg.j', {'/': 'as_take'}),
  'as_b0:',                                                 # 2. rotation, skipping inputs that report no source
  movi(R11, 0),
@@ -166,10 +170,6 @@ prog = [
  'asq_x:',
  ('bn.lwz', {'D': R9, 'A': R1, ':': 4}), ('bn.addi', {'D': R1, 'A': R1, 'O': 8}), ('bt.jr', {'A': R9}),
 
- # ---- as_acc: a port's signal was accepted -> a new search may jump again ----
- 'as_acc:',
- mh(R7, 0x20), ('bg.sb', {'Y': FLAG & 0xFFFF, 'A': R7, 'B': R0}),
- ('bg.j', {'/': PSTATE}),
 ]
 code, L = S.assemble(prog, CAVE)
 assert CAVE + len(code) <= 0x201C00, hex(CAVE + len(code))
@@ -177,9 +177,7 @@ for a, b, x in A.disasm(code, CAVE, CAVE + len(code), CAVE):
     lab = [k for k, v in L.items() if v == a]
     print(('%-9s' % (lab[0] + ':' if lab else '')) + '%08x: %-12s %-9s %s' % (a, b.hex(' '), x['mnem'], x['ops']))
 h1 = S.encode('bg.jal', {'/': L['as_next']}, SITE)
-h2 = S.encode('bg.jal', {'/': L['as_acc']}, ACC)
-for a, b in ((SITE, h1), (ACC, h2)):
-    print('%06x: %s -> %s' % (a, cur(a, 4).hex(), b.hex()))
+print('%06x: %s -> %s' % (SITE, cur(SITE, 4).hex(), h1.hex()))
 
 patch = {
  'name': 'scan-active-first',
@@ -187,14 +185,12 @@ patch = {
              'search it goes straight to one (e.g. DP lost -> USB-C without visiting both HDMI inputs), and it skips '
              'DP / USB-C inputs that report no source; HDMI as stock'),
  'status': 'untested',
- 'requires': ['fe-failsafe'],
+ 'requires': ['fe-failsafe', 'picture-watchdog'],
  'edits': [
   {'addr': '0x%06X' % CAVE, 'old': '00' * len(code), 'new': code.hex(),
-   'asm': 'as_next / as_rot / asq / as_acc (image head zero area 0x201A00); flag RAM 0x2024E8'},
+   'asm': 'as_next / as_rot / asq (image head zero area 0x201A00); RAM 0x2024E8 jumped, 0x2024E9 accept count at the jump'},
   {'addr': '0x%06X' % SITE, 'old': cur(SITE, 4).hex(), 'new': h1.hex(),
    'asm': 'sub_25FE39 scan step: jal sub_2653EA -> jal as_next'},
-  {'addr': '0x%06X' % ACC, 'old': cur(ACC, 4).hex(), 'new': h2.hex(),
-   'asm': 'sub_23B068 signal accepted: jal sub_23E64A(port, 1) -> jal as_acc (clears the jump flag, then sub_23E64A)'},
  ],
  'notes': 'See the docstring of tools/patches_src_scan_active_first.py. Generated by tools/patches_src_scan_active_first.py.',
 }

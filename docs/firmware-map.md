@@ -1996,11 +1996,96 @@ mostly blocked.
 4. **Fallback:** a query without an answer ends the step with the stock
    `sub_2653EA`.
 
-The jump flag (RAM `0x2024E8`) is cleared when a port's signal is accepted
-(`0x23B367`, `sub_23E64A(port, 1)`, hooked). If two DP-class connectors both
-hold a link without video (e.g. an MST dock), the scan therefore still visits
-the HDMI inputs. Key-selection mode (`0x4551AC` bit 5) is stock.
+After a jump, the next jump waits until a signal has been accepted on any
+port (accept counter of `picture-watchdog`, §40; RAM `0x2024E8` = jumped,
+`0x2024E9` = the counter at the jump). If two DP-class connectors both hold a
+link without video (e.g. an MST dock), the scan therefore still visits the HDMI
+inputs. Key-selection mode (`0x4551AC` bit 5) is stock. (The first version
+cleared the flag at `sub_23E64A(port, 1)`, `0x23B367`, which is a detection
+restart, not an accept, §40; corrected before any hardware test.)
 
 Limitation (stock, §32): in "1.4 without DSC" the scan's attach sends no
 "HPD high" to the new connector; if the old connector's source still holds its
 link, the front-end may keep showing the old picture.
+
+## 40. Black screen without "No signal": detection restarts, `picture-watchdog` (2026-10-08)
+
+**Test results** (build of §39 without `pm51-powerup`):
+- Input fixed to DP, USB-C active: the wake from deep standby worked.
+- "No signal" appears noticeably faster (`port-nosignal` v4).
+
+**Incident** (input fixed to DP, after a start): black screen with the
+backlight on and no "No signal" message, for ~45 min. Keys and DDC/CI worked.
+`diag-log-ring` (the start of the episode is not in the 64-entry ring):
+- Port 1 (DP) cycled without end:
+  - no-signal decision (state 2, flags `0x22`);
+  - 0.2–7 s later a short signal (status `0x03` for 2–10 ms, then `0x0F`) made
+    the port monitor restart detection (state 1, flags `0x20`);
+  - 4–6 s later the next no-signal decision.
+- The port never reached state 3. No input selection and no mailbox commands
+  in that time.
+- Opening the menu showed the reduced menu (no video). At menu close the vendor
+  retry ran (`sub_258E5D` → `sub_2678D9(0, DP)`):
+  - `0x20` sub 0 (0, 8) (disable), `0x60` sub 6, `0x20` sub 14 (8, 1, 0);
+  - 0.2 s later the attach: (8, 1), `0x60` sub 2 (8, 1), `0x20` sub 0 (1, 8);
+  - DP status `0x13`/`0x03` at once, state 3 0.6 s later
+    (`port-accept`), then state 4 and the picture.
+- DisplayPort Mode was 1.4 (DSC) in this run (`0x60` sub 2 in the attach).
+
+**Port states** (`sub_23E64A(port, state)`, from `sub_23B068` and `sub_241D2B`;
+§17 has the same):
+
+| State | Set by | Meaning |
+|---|---|---|
+| 1 | `0x23B367` | detection restarted after a change (flags bit 0); path state 1 |
+| 1 | `0x241DC2` | the mode set after an accept failed (`sub_2417B9`); path state 1 |
+| 2 | `0x23B2E9` | no-signal decision (+0x1A passes); path state 5 |
+| 3 | `0x23B33B` | signal accepted (stable for +0x18 passes); path state 1 |
+| 4 | `0x241D91`/`0x241DCA` | mode set (`sub_241D2B`); path state 2 |
+
+**Reading:**
+- The scaler's DP receiver got no stable signal from the front-end, only
+  blips.
+- Each blip restarted the port's detection and with it the input path's
+  detection round. So the round never ended with "no signal": no "No signal",
+  no countdown, no standby.
+- A new selection (front-end port disable / enable with the switch trigger)
+  brought a stable signal at once.
+- Why the front-end output was unstable is not known. Candidates:
+  - Our start-up without any HPD-low step for DP (`wake-no-replug` with
+    `switch-no-unplug`): the stock start forces the source to retrain the link
+    with a 650 ms unplug. The PC log of 2026-10-07 (§16) shows the front-end
+    sending short pulses (IRQ_HPD) on its own after a wake.
+  - A front-end problem unrelated to the patches.
+- §30 (black screen without "No signal" after a wake, keys working) fits the
+  same pattern. There the menu retry sent no HPD command (`select-no-replug`),
+  which would explain why it did not recover (inference).
+
+**`picture-watchdog`** (untested; code at `0x201800`, RAM `0x2024D0`–`D3`):
+- **Counting:**
+  - `0x23B367` (restart) counts restarts of the main path's port (path 0 record
+    +0x28, `0x4821D4`) at `0x2024D1`;
+  - `0x23B33B` (accept) clears the count and counts accepts of all ports at
+    `0x2024D0` (used by `scan-active-first`);
+  - a different port in path 0 starts the count over;
+  - restarts after a failed mode set (`0x241DC2`) come after an accept, so they
+    do not add up.
+- **Action:** the main loop (`0x26214F`, before `sub_260ACF`, next to the OSD
+  task that runs the vendor retry) checks the count on every pass. At 3
+  restarts without an accept, outside power-save (`0x4551AC` bit 0; in
+  power-save the count is cleared):
+  - recovery 1: `sub_2678D9(0, settings +0x4F)`, the same call as the
+    start-up selection and the menu retry;
+  - recovery 2 (if the restarts continue): `sub_23EE83(port, 650)`, the vendor
+    hot-plug pulse (the source sees a ~0.7 s unplug, as at every stock wake),
+    then the selection again. `PULSE=0` in the generator leaves this step out.
+  - After that nothing more until a signal is accepted. `0x2024D2` counts the
+    recoveries.
+- **Expected effect** for the incident above: picture after about 3 restart
+  cycles (~15 s) instead of never.
+- **Not affected:** an input without a source stays in state 2 without
+  restarts. An input whose source keeps its link without video (MST dock)
+  showed no restarts in §34.
+
+**Diagnosis aid:** `tools/logread.py` names the watchdog's selections
+("picture-watchdog recovery") and those of `wake-port-first`.

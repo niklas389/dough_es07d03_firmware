@@ -59,7 +59,8 @@ INPUTS = {0: 'automatic', 1: 'USB-C', 2: 'DP', 3: 'HDMI 1', 4: 'HDMI 2'}
 SELCALLERS = {0x92C7: 'sub_258E5D (OSD/key task, applies 0x457857)', 0x7A67: 'OSD action sub_267A36',
               0x7AEC: 'OSD action sub_267A7F', 0x7C37: 'OSD action sub_267C06',
               0x84CE: 'start-up sub_268453', 0x84E2: 'start-up sub_268453 (path 1)',
-              0x9CD5: 'profile restore sub_269AA4', 0xE437: 'sub_26E279'}
+              0x9CD5: 'profile restore sub_269AA4', 0xE437: 'sub_26E279',
+              0x18B7: 'picture-watchdog recovery', 0x1338: 'wake-port-first (start-up)'}
 CALLS = P.get('calls', {})
 WATCH = P.get('watch', {})
 MILESTONES = ('m_init', 'm_dev', 'm_loop', 'm_fe', 'm_prep')

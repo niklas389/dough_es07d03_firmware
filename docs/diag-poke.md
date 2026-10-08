@@ -35,8 +35,13 @@ Patch state in RAM (page `0x2024xx`):
 - `fe-failsafe`: `0x2024E0` = 1 while the short mailbox waits are active (a
   front-end transaction timed out and none has completed since);
   `0x2024E1` = number of timed-out transactions since the start (stops at 255).
+- `picture-watchdog`: `0x2024D0` signals accepted (any port, wraps),
+  `0x2024D1` detection restarts of the selected input since its last accept,
+  `0x2024D2` recoveries since then (1 = selection repeated, 2 = hot-plug pulse
+  and selection), `0x2024D3` the port these counts belong to.
 - `scan-active-first`: `0x2024E8` = 1 after the scan jumped to a connector
-  with an active source, until a picture is accepted.
+  with an active source; `0x2024E9` = the accept count at that jump (no
+  further jump until `0x2024D0` differs).
 
 Return values of a GET on `0xEC`: `0x00`–`0xFF` value, `0xFFFF` address not
 readable (BLOCKED), `0xFFFE` three reads differed (UNSTABLE, current version
