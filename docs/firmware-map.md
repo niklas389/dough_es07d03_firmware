@@ -2549,8 +2549,22 @@ fault was on screen, then again after the 120 → 144 Hz recovery):
   2160, `dsc_slice_width` 960, `dsc_slice_height` 108, `dsc_bits_per_pixel`
   146 (9.125 bpp), link 4 × HBR3 (on the PC's side of the USB4 dock). 1920
   is probably the width per DSC engine with the GPU's 2:1 pipe combining at
-  this pixel clock (the PPS sent to the monitor would then carry 3840); not
-  verified without a correct-state reading.
+  this pixel clock (the PPS sent to the monitor would then carry 3840).
+  After recovery it also reads 1920: the PC sends the same in both states.
+- Start conditions of both occurrences: mains start, the first after a
+  flash; the PC was sending video during the flash.
+- Same-session correct state (`dp_ok`, after recovery): `0x1240`–`0x125F`
+  reads `02 00 01 00 10 00 00 … 07 07 00 00 01 10 0B 00 … 01 00 00 00`,
+  identical to the §54 picture and link-held files. Only the fault differs
+  (exact copy of `0x1220`–`0x123F`). The other differences (`0x121E`,
+  `0x1226`, `0x1234`–`0x123A`, `0x15E0`/`0x15E5`) also vary between correct
+  states. The front-end code touches this block only with single-bit
+  writes (`0x1242` bit 0: `0x4D2C7`, `0x5702E`; `0x1254` bit 0: `0x57118`;
+  `0x1256` bits 0–3: `0x4F68F`); a whole-block copy is not explained by
+  them. A read artefact is not excluded: the firmware writes every buffer
+  byte (0 on a failed read) and a lost address SET would read zeros, not
+  the neighbouring block, but the front-end's own read path was not
+  checked. Meaning of the block unknown.
 
 ## 51. Link-held standby power: where the 13 W go (2026-10-08)
 
