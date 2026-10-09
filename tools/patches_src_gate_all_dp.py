@@ -55,8 +55,21 @@ found either.
 v4.1: the routing also stores the port in settings +0x5B (path 0's current
 port, written by the scan at 0x260189 and by sub_2678D9, read by sub_26A809,
 the OSD and DDC/CI); v4 left it stale after a routing.
+v5 (2026-10-09, Option A of docs/firmware-map.md sections 51-55; build with
+HOLD=1, the default; HOLD=0 gives v4.1): when the only reason to refuse is a
+DP-class source that holds its link (all queries answered, not the routing
+tick), standby is allowed and the request is marked "hold the link": RAM
+0x2024C6 = 0x80 | connectors (bit 0 USB-C, bit 1 DP; automatic input: those
+that answered "source active", fixed input: the selected one), copied by the
+power-save entry into byte +3 of the standby block (0x48A740 + 3, hook at
+0x261425, stub 0x202500), which reaches the PM51 as XDATA 0x5E95.
+pm51-hold-link then keeps the front-end running (link held) and wakes on
+video. A query without an answer still refuses (link-held standby with the
+CPU running, as v4; RAM 0x2024C5 = 1 for that call). Requires
+pm51-hold-link: without it the PM51 sends the front-end to its standby mode
+as before, and the dock's retraining wakes the monitor again.
 Code in the image head zero area: gate 0x2016D0, link-held part 0x201900,
-tick 0x201350, query 0x201280.
+tick 0x201350, query 0x201280, v5 hold part 0x202520, block stub 0x202500.
 """
 import sys, json, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aeon'))
@@ -80,6 +93,10 @@ TICK_S = 5                           # routing check every 5 s of the "No signal
 TICK_SITE = 0x261CEB                 # sub_261C04: lbz r7,0x51a6(r10) before cnt -= 1
 PREV = 0x2024C0                      # last answer per connector (0 USB-C, 1 DP): 0 active, 1 none
 SCAN_FLAG = 0x2024E8                 # scan-active-first: jumped in this search
+HOLD = int(os.environ.get('HOLD', '1'))   # v5: allow standby with the link held (pm51-hold-link)
+FAILB, HOLDB = 0x2024C5, 0x2024C6    # this call had a query without answer; hold byte for the standby block
+CAVE_H, CAVE_B = 0x202520, 0x202500  # head zero area 0x202087-0x2037FF (diag-log data ends 0x202414)
+BLK_SITE, BLK_CONT = 0x261425, 0x261429   # power-save entry: lbz r6,0xbf(r5) after the block's +3 = 0
 R0, R1, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12, R13 = 0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 
 assert cur(GATE, 5).hex() == '9c340d2108'                           # addi r1,r1,-0xc ; sw 8(r1),r9
@@ -94,6 +111,10 @@ assert 2 <= ALT <= 15
 assert cur(TICK_SITE, 4).hex() == 'f0ea51a6' and cur(TICK_SITE + 4, 5).hex() == '9cff5ce700'   # lbz r7,cnt ; addi -1 ; extbz
 assert A.decode(d, 0x261DFD - 0x200000, 0x261DFD)['target'] == GATE and cur(0x261F89, 6).hex() == '98e5f8ea51cd'  # re-query; refusal re-arms
 assert cur(PREV, 4) == b'\0' * 4
+assert cur(FAILB, 2) == b'\0' * 2
+assert cur(0x26141B, 10).hex() == 'fce4a74018c70218070 3'.replace(' ', ''), cur(0x26141B, 10).hex()   # r7 = block; +2 = port; +3 = 0
+assert cur(BLK_SITE, 4).hex() == 'f0c500bf', cur(BLK_SITE, 4).hex()                   # lbz r6,0xbf(r5)
+assert cur(CAVE_B, 0x100) == b'\0' * 0x100
 
 mh = lambda r, v: ('bg.movhi', {'D': r, 'U': v})
 lbz = lambda rd, a, ra: ('bg.lbz', {'?': rd, 'A': ra, '!': a & 0xFFFF})
@@ -104,6 +125,7 @@ prog = [
  ('bn.sw', {':': 16, 'A': R1, 'B': R9}), ('bn.sw', {':': 12, 'A': R1, 'B': R10}), ('bn.sw', {':': 8, 'A': R1, 'B': R11}),
  ('bn.sw', {':': 4, 'A': R1, 'B': R12}), ('bn.sw', {':': 0, 'A': R1, 'B': R13}),
  mh(R7, 0x20), sb(SCAN_FLAG, R7, R0),                     # scan-active-first: a new search after any standby decision
+ sb(FAILB, R7, R0),                                       # v5: no failed query yet in this call
  mh(R7, 0x48), ('bg.lbz', {'?': R10, 'A': R7, '!': -0x50B}),          # r10 = current port (0x47FAF5)
  ('bt.movi', {'D': R11, 'I': 0}), ('bt.movi', {'D': R12, 'I': 0}),    # r11 refuse, r12 = connectors with a new source (bits)
  mh(R7, 0x3B), ('bg.lwz', {'D': R7, 'A': R7, 'W': 0x5F38}),
@@ -129,6 +151,7 @@ prog = [
  ('bg.beqi', {'A': R11, 'I': 0, ';': 'g_out'}),
  ('bg.j', {'/': CAVE_L}),                                 # link-held standby part (second block)
  'g_out:',
+ *([('bg.jal', {'/': CAVE_H})] if HOLD else []),          # v5: link held only -> allow, mark the request
  ('bn.or', {'D': R3, 'A': R11, 'B': R0}),
  ('bn.lwz', {'D': R13, 'A': R1, ':': 0}), ('bn.lwz', {'D': R12, 'A': R1, ':': 4}), ('bn.lwz', {'D': R11, 'A': R1, ':': 8}),
  ('bn.lwz', {'D': R10, 'A': R1, ':': 12}), ('bn.lwz', {'D': R9, 'A': R1, ':': 16}),
@@ -136,6 +159,7 @@ prog = [
  'g_ref:',                                                # r3 = 0 (active) or 3 (no answer): refuse
  ('bg.beqi', {'A': R3, 'I': 0, ';': 'g_r1'}),
  ('bg.bnei', {'A': R3, 'I': 3, ';': 'g_r0'}),
+ mh(R7, 0x20), ('bt.movi', {'D': R6, 'I': 1}), sb(FAILB, R7, R6),   # no answer: never hold
  'g_r1:', ('bt.movi', {'D': R11, 'I': 1}),
  'g_r0:', ('bt.jr', {'A': R9}),
 ]
@@ -224,6 +248,40 @@ prog_q = [
  'gq_x:',
  ('bn.lwz', {'D': R9, 'A': R1, ':': 4}), ('bn.addi', {'D': R1, 'A': R1, 'O': 8}), ('bt.jr', {'A': R9}),
 ]
+prog_h = [
+ # ---- v5: r11 = 1 (refuse) and r10 = current port; leaf, uses r5-r7 ----
+ 'g_hold:',
+ mh(R7, 0x20), sb(HOLDB, R7, R0),
+ ('bg.beqi', {'A': R11, 'I': 0, ';': 'h_x'}),
+ lbz(R6, FAILB, R7), ('bg.bnei', {'A': R6, 'I': 0, ';': 'h_x'}),    # a query got no answer: refuse (link-held standby)
+ lbz(R6, ROUTE, R7), ('bg.bnei', {'A': R6, 'I': 0, ';': 'h_x'}),    # routing tick: result not used
+ mh(R5, 0x3B), ('bg.lwz', {'D': R5, 'A': R5, 'W': 0x5F38}), ('bn.lbz', {'?': R5, 'A': R5, 'z': 0x4F}),
+ ('bg.beqi', {'A': R5, 'I': 0, ';': 'h_auto'}),
+ ('bg.bgtui', {'A': R10, 'I': 1, ';': 'h_x'}),            # fixed input: the selected DP-class connector
+ ('bt.movi', {'D': R6, 'I': 1}), ('bn.sll', {'D': R6, 'A': R6, 'B': R10}), ('bg.j', {'/': 'h_set'}),
+ 'h_auto:',                                               # automatic: every connector that answered "source active"
+ ('bt.movi', {'D': R6, 'I': 0}),
+ lbz(R5, PREV, R7), ('bg.bnei', {'A': R5, 'I': 0, ';': 'h_a1'}), ('bg.ori', {'D': R6, 'A': R6, 't': 1}),
+ 'h_a1:',
+ lbz(R5, PREV + 1, R7), ('bg.bnei', {'A': R5, 'I': 0, ';': 'h_a2'}), ('bg.ori', {'D': R6, 'A': R6, 't': 2}),
+ 'h_a2:',
+ ('bg.beqi', {'A': R6, 'I': 0, ';': 'h_x'}),
+ 'h_set:',
+ ('bg.ori', {'D': R6, 'A': R6, 't': 0x80}), sb(HOLDB, R7, R6),
+ ('bt.movi', {'D': R11, 'I': 0}),                         # allow standby
+ 'h_x:',
+ ('bt.jr', {'A': R9}),
+]
+code_h, LH = S.assemble(prog_h, CAVE_H)
+assert CAVE_H + len(code_h) <= CAVE_B + 0x100, hex(CAVE_H + len(code_h))
+prog_b = [
+ 'g_blk:',                                                # power-save entry, r7 = standby block 0x48A740, r5 = settings
+ mh(R6, 0x20), lbz(R6, HOLDB, R6), ('bn.sb', {'z': 3, 'A': R7, 'B': R6}),   # block +3 = hold byte (PM51 XDATA 0x5E95)
+ ('bg.lbz', {'?': R6, 'A': R5, '!': 0xBF}),               # replaced: lbz r6,0xbf(r5)
+ ('bg.j', {'/': BLK_CONT}),
+]
+code_b, LB = S.assemble(prog_b, CAVE_B)
+assert CAVE_B + len(code_b) <= CAVE_H
 code_q, LQ = S.assemble(prog_q, CAVE_Q)
 assert CAVE_Q + len(code_q) <= CAVE_Q_END, hex(CAVE_Q + len(code_q))
 assert cur(CAVE_Q, len(code_q)) == b'\0' * len(code_q)
@@ -243,7 +301,8 @@ assert CAVE_T + len(code_t) <= CAVE_T_END, hex(CAVE_T + len(code_t))
 assert cur(CAVE_T, len(code_t)) == b'\0' * len(code_t)
 assert LL['g_lhs'] == CAVE_L and CAVE_L + len(code_l) <= CAVE_L_END, hex(CAVE_L + len(code_l))
 assert cur(CAVE_L, len(code_l)) == b'\0' * len(code_l)
-for c, base, labs in ((code, CAVE, L), (code_l, CAVE_L, LL), (code_t, CAVE_T, LT), (code_q, CAVE_Q, LQ)):
+for c, base, labs in ((code, CAVE, L), (code_l, CAVE_L, LL), (code_t, CAVE_T, LT), (code_q, CAVE_Q, LQ)) + \
+                     (((code_h, CAVE_H, LH), (code_b, CAVE_B, LB)) if HOLD else ()):
     for a, b, x in A.disasm(c, base, base + len(c), base):
         lab = [k for k, v in labs.items() if v == a]
         print(('%-8s' % (lab[0] + ':' if lab else '')) + '%08x: %-12s %-9s %s' % (a, b.hex(' '), x['mnem'], x['ops']))
@@ -252,15 +311,20 @@ print('%06x: %s -> %s  (gate3 %#x-%#x)' % (GATE, cur(GATE, 4).hex(), hook.hex(),
 
 patch = {
  'name': 'gate-all-dp',
- 'summary': ('Standby gate v4: with automatic input, standby is refused while a source is active on any DP-class '
+ 'summary': (('Standby gate v5: a DP-class source that only holds its link no longer keeps the monitor awake: deep '
+              'standby with the link kept, video watched by the PM51 (pm51-hold-link). ' if HOLD else '') +
+             'Standby gate v4: with automatic input, standby is refused while a source is active on any DP-class '
              'connector (DP or USB-C), not only the current one; fixed input: the selected one; no answer from the '
              'front-end: refused. v4: in link-held standby and every 5 s of "No signal" with automatic input, the input is '
              'routed to a connector with an active link (a new one first, alternating every 30 s if both), so its video '
              'is found'),
- 'status': ('v2 hardware-tested 2026-10-08: automatic input, both outputs off -> deep standby, no wake for minutes; '
-            'after a key wake the dock held the DP link (DP: source active) -> link-held standby, deep standby as soon '
-            'as the dock released the link. v3 (edge wake) did not help (2026-10-08); v4 (routing in link-held standby) untested'),
+ 'status': ('v5 (HOLD=1) untested: link held only -> deep standby with the link kept (requires pm51-hold-link). '
+            'v4.1 hardware-tested 2026-10-08 (routing: laptop picked up during the countdown; deep standby after). '
+            'v2 hardware-tested 2026-10-08: automatic input, both outputs off -> deep standby; the dock held the DP link '
+            'after a key wake -> link-held standby. v3 (edge wake) did not help') if HOLD else
+           ('v4.1 hardware-tested 2026-10-08 (routing: laptop picked up during the countdown; deep standby after)'),
  'conflicts': ['gate-raw-id'],
+ **({'requires': ['pm51-hold-link']} if HOLD else {}),
  'edits': [
   {'addr': '0x%06X' % CAVE, 'old': '00' * len(code), 'new': code.hex(),
    'asm': 'gate3 (image head zero area 0x2016D0): automatic input -> ask ports 0 and 1 (edge wake from link-held standby), else the current port'},
@@ -274,7 +338,14 @@ patch = {
    'asm': 'sub_2612F9 entry -> j gate3'},
   {'addr': '0x%06X' % TICK_SITE, 'old': cur(TICK_SITE, 4).hex(), 'new': S.encode('bg.jal', {'/': LT['g_tick']}, TICK_SITE).hex(),
    'asm': 'sub_261C04 standby countdown: lbz r7,0x51a6(r10) -> jal g_tick (routing check every 5 s of "No signal")'},
- ],
+ ] + ([
+  {'addr': '0x%06X' % CAVE_H, 'old': '00' * len(code_h), 'new': code_h.hex(),
+   'asm': 'g_hold (head zero area 0x202520): link held only -> allow standby, hold byte 0x2024C6 = 0x80 | connectors'},
+  {'addr': '0x%06X' % CAVE_B, 'old': '00' * len(code_b), 'new': code_b.hex(),
+   'asm': 'g_blk (head zero area 0x202500): standby block +3 = hold byte'},
+  {'addr': '0x%06X' % BLK_SITE, 'old': cur(BLK_SITE, 4).hex(), 'new': S.encode('bg.j', {'/': CAVE_B}, BLK_SITE).hex(),
+   'asm': 'sub_26136B power-save entry: lbz r6,0xbf(r5) -> j g_blk'},
+ ] if HOLD else []),
  'notes': 'See the docstring of tools/patches_src_gate_all_dp.py. Generated by tools/patches_src_gate_all_dp.py.',
 }
 out = os.environ.get('OUT', 'gate-all-dp.json')

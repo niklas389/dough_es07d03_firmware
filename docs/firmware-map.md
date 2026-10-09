@@ -2720,3 +2720,65 @@ change of an output path's input mask, `0xB0008FD4 + 0x1C × path`) send the
 packed indices of the routed inputs (`0x12FDB`: one nibble per set bit) at
 payload `+0x21`/`+0x22`; `+0x20` = 1 when more than one input or when query
 `0x0C` reports 7. It follows the main firmware's input selection, not video.
+
+## 55. Option A implemented: `gate-all-dp` v5 + `pm51-hold-link` (2026-10-09, untested)
+
+**Checked before building:**
+- The main firmware's hand-off (`sub_26136B` allowed path, `sub_245787`,
+  `sub_261910`, `sub_245860`, `sub_23D512`, `sub_23D6AA`) sends no
+  front-end command (no path to `mailbox_query`).
+- The PM51's standby entry (`0x3ED9` → `0x4A29`, state 1) talks to the
+  front-end only in `0x78FF` (check: `0x20` sub `0x14` = `0xFFFFFFFF`
+  (`0x13107`), `0x20` sub `0x0B` index 2 (`0x13E4D`), echo `0xFF`/`0xFF`/0)
+  and in `0x8A25(3)` (mode 3). HPD low (`0x20` sub 3, level 0, ids 7–9) is
+  sent only for power-off (state 2). So skipping mode 3 is enough to keep
+  the front-end's normal program and the link.
+- Standby block (`0x48A740`, copied to RIU `0x103380`, PM51 copy `0x8958`:
+  byte-swapped words into XDATA `0x5E93`ff): +0/+1 → `0x5E94`/`0x5E93`
+  (request), +2/+3 → `0x5E96`/`0x5E95` (port; the PM51 never reads
+  `0x5E95`), +4/+5 → `0x5E98`/`0x5E97` (suppress mask, fixed input only).
+- PM51 sleep loop `0x9BA5`: `0x880F` (1-second task; bit `0x21.0` is the
+  timer ISR's per-second flag, `0x25E5`/`0x887B`), `0x9665`, `0x952C`,
+  classifier `0x5BAA` until it reports an event; it never halts. XDATA RAM
+  is `0x5000`–`0x7FFF` (startup `0x2AD5`); the firmware uses up to `0x634A`
+  and `0x7337`.
+- PM51 → front-end transfers: `0x64A4` (r7 command, r5 sub, r3 x; IRAM
+  `0x36/0x37` tx length, `0x38–0x3A` tx generic pointer, `0x3C/0x3D` rx
+  length, `0x3E–0x40` rx pointer; r7 = `0x10` when answered).
+
+**`gate-all-dp` v5 (main firmware):** at the end of every gate call
+(`g_hold`, `0x202520`): refused only because of active links (no failed
+query in this call, not the routing tick) → allowed, RAM `0x2024C6` =
+`0x80 | connectors` (bit 0 USB-C, bit 1 DP). The power-save entry writes it
+to block +3 (`g_blk` `0x202500`, hook `0x261425`). A failed query still
+refuses (`0x2024C5` = 1; link-held standby with the CPU running).
+
+**`pm51-hold-link` (PM51 bank 0 `0xA200`–`0xA3C3`, XDATA `0x7F00`ff):**
+- `0x4AF1` → `pre`: hold off at every standby entry.
+- `0x4B1A` → `mode`: hold byte set → no mode 3, save the wake mask, hold on.
+- `0x9BB0` → `sec`: counts seconds.
+- `0x9BB9` → `poll`: after the stock classifier, once per second in hold:
+  link query ids 7 and 8 (`0x60`/`0xFF`/`0x0B`); a new active connector
+  (not suppressed) → wake; MSA width high byte of decoders 0–2
+  (`0x11306D`/`0x11316D`/`0x11326D` via `0xFF`/`0xFF`/2) ≠ 0 → wake (port
+  of the held connector, 5 if both); no link left → `release` (mode 3 with
+  the saved mask = stock deep standby); 3 rounds with a query unanswered →
+  `release`. Wake = event 9 with the port (`0x5E89`/`0x5E8A`, `0x23` = 1).
+
+**Expected:** link-held standby at ~4 W instead of 12.5 W, no wake loop;
+picture ~1 s + start-up after the source starts video; key wake as before.
+
+**Known limits / risks:**
+- Not verified that the PM51's frames work in its standby clock mode
+  (failure → release to the stock deep standby after ~3 s, i.e. as before)
+  and that the front-end decodes MSA with the scaler unpowered (failure →
+  no wake on video; a key wakes).
+- If the release's mode 3 itself fails, only keys wake the monitor.
+- With both DP and USB-C held, only the routed input's decoder may carry
+  MSA; video on the other one is then not seen (a key wakes).
+- If a stream is present at standby entry (e.g. the black-screen cases of
+  §40), the PM51 wakes at once: a ~30 s standby/wake cycle instead of a
+  monitor stuck on.
+- Readable for tests: `0x2024C6` (hold byte of the last gate call),
+  `0x2024C5` (failed query), after a wake `0x453C74`/`0x453C78` (event 9,
+  port).
