@@ -1,10 +1,21 @@
 #!/usr/bin/env python3
 """osdtest.py - OSD font/tile experiments over DDC (needs diag-poke + diag-fe + diag-osd).
 
+Firmware-side test (diag-osd v3; seconds instead of a slow DDC upload):
+    tools/osdtest.py load                       the firmware loads its built-in 2-bit test glyphs
+    tools/osdtest.py row 11                     the firmware places the test row in row 11 (menu open)
+
+    test glyphs: 0x3B0 bands (pixel values 0,1,2,3 in 3-px bands), 0x3B4/0x3B5/0x3B6 solid value
+    1/2/3, 0x3B1-0x3B3 anti-aliased "Abg" sample, 0x3CF bands (last 2-bit code that fits)
+    test row, columns 1-28: marker (glyph 6, attribute 21); then for each attribute 21, F2, 40,
+    C8, 12: bands, solid 1, solid 2, solid 3; blank; sample (3 tiles); blank; 0x3CF; marker.
+
+Older DDC-side commands (diag-osd v2; every write checked, but about 1 s per byte):
+
     tools/osdtest.py info  > osd_info.txt       dump the OSD registers (0x101C00-1F, 0x101C60-7F, 0x101D00-FF)
     tools/osdtest.py glyphs                     load the 2-bit (4-colour) test glyphs (codes 0x3B0-0x3B3, 0x3CF)
-    tools/osdtest.py row 11                     show them in row 11 of window 1 (menu open), from column 1
-    tools/osdtest.py row 11 --col 3 --win 1
+    tools/osdtest.py ddcrow 11                  show them in row 11 of window 1 (menu open), from column 1
+    tools/osdtest.py ddcrow 11 --col 3 --win 1
     tools/osdtest.py place 1 5 11 0x3B0 0x21    one tile: window, column, row, code, attribute
     SPECCTL=./specctl MON=1 TRIES=10 tools/osdtest.py ...
 
@@ -12,7 +23,7 @@ Test glyphs (docs/firmware-map.md section 56):
   0x3B0  four vertical bands, 3 px each, pixel values 0, 1, 2, 3 (left to right)
   0x3B1-0x3B3  an anti-aliased "Abg" sample over three tiles (values 0-3)
   0x3CF  the band glyph again in the last 2-bit code that fits the OSD RAM
-'row' places: the solid base glyph 6 as a position marker, 0x3B0 eight times with the
+'ddcrow' places: the solid base glyph 6 as a position marker, 0x3B0 eight times with the
 attributes 21 12 2F F2 40 04 84 C8 (high nibble = foreground, low nibble = background in
 1-bit tiles), a gap, the sample with attribute 21, a gap, 0x3CF with attribute 21, a marker.
 
@@ -177,7 +188,9 @@ ap = argparse.ArgumentParser(description='OSD font/tile experiments (diag-osd)')
 sub = ap.add_subparsers(dest='cmd', required=True)
 sub.add_parser('info')
 sub.add_parser('glyphs')
+sub.add_parser('load')
 p = sub.add_parser('row'); p.add_argument('row', type=int)
+p = sub.add_parser('ddcrow'); p.add_argument('row', type=int)
 p.add_argument('--col', type=int, default=1); p.add_argument('--win', type=int, default=1)
 p = sub.add_parser('place')
 for n in ('win', 'col', 'row', 'code', 'attr'):
@@ -195,12 +208,29 @@ if a.cmd == 'info':
 elif a.cmd == 'glyphs':
     for code in sorted(GLYPHS):
         load_glyph(code, GLYPHS[code])
-elif a.cmd == 'row':
+elif a.cmd in ('load', 'row'):
+    val = 0x100 if a.cmd == 'load' else 0x200 | (a.row & 0x7F)
+    for _ in range(3 * TRIES):
+        c0 = rd(0x2024B2)
+        vset(0xEE, val)
+        time.sleep(0.5)
+        if rd(0x2024B2) != c0:
+            print('%s done' % a.cmd)
+            break
+    else:
+        sys.exit('%s: no reaction (diag-osd v3 in the build? DDC/CI working?)' % a.cmd)
+elif a.cmd == 'ddcrow':
     geo = window(a.win)
     print('window %d: tile base %#06x, pitch %d' % (a.win, geo[0], geo[1]))
     tiles = [(6, 0x21)]                                # marker: solid base glyph 6
     tiles += [(0x3B0, x) for x in (0x21, 0x12, 0x2F, 0xF2, 0x40, 0x04, 0x84, 0xC8)]
     tiles += [(0, 0x21)] + [(0x3B1 + k, 0x21) for k in range(3)] + [(0, 0x21), (0x3CF, 0x21), (6, 0x21)]
-    run(a.win, a.col, a.row, tiles, geo)
+    k = 0
+    while k < len(tiles):                                # one run per code-high value (the firmware never
+        n = k                                            # changes 0x101C67 within a run)
+        while n < len(tiles) and tiles[n][0] >> 8 == tiles[k][0] >> 8:
+            n += 1
+        run(a.win, a.col + k, a.row, tiles[k:n], geo)
+        k = n
 else:
     run(a.win, a.col, a.row, [(a.code, a.attr)])

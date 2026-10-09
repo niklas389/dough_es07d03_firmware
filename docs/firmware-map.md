@@ -2981,6 +2981,23 @@ v2 skips that for the diagnostic codes 0xEA–0xEE only (`osd_keep`).
   tiles are written as one run (attributes, then codes) as `0x23C635` does.
   Checked against a simulated monitor dropping 10 % of writes: glyph and
   tile byte streams arrive exactly.
+- Tool v3 on hardware: the glyph upload took over 30 minutes (slow DDC/CI);
+  `row` showed the marker at column 1 and attribute colours in columns
+  2–9 (F2 white, 40 transparent, 04/84 gray, C8 yellow-green, 2F near-black),
+  but no band patterns, and columns 10–16 only the background of attribute
+  21. The tool had changed `0x101C67` (code bits 8–11) within one code
+  run, which the firmware never does; most likely that moved the RAM
+  pointer, so most codes were not written where intended. Three unknown
+  blue tiles appeared at the right end of the "Input / Output" selection
+  bar. Not interpretable as a colour test.
+- `diag-osd` v3: firmware-side commands. SET 0xEE = `0x100` loads built-in
+  2-bit test glyphs (bands `0x3B0`, solid values 1/2/3 at `0x3B4`–`0x3B6`,
+  "Abg" sample `0x3B1`–`0x3B3`, bands `0x3CF`) with the loaders' register
+  sequence (`0x23DC0F` masked writes, `0x23DBE4` address, data bytes via
+  `0x23D9E7`); `0x200 | row` places a 28-tile test row with the firmware's
+  tile routine `0x25C8F5` (attribute RAM `0x3C5389`, code bits 8–11 RAM
+  `0x457889`, both restored afterwards). RAM `0x2024B2` counts completed
+  commands. Data tables at `0x202A00`/`0x202C00`.
 
 **Requested by the owner** (2026-10-09), after the test: anti-aliased font
 (option 2), filled selection bar instead of the white outline, finer
