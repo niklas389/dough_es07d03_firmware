@@ -2844,6 +2844,8 @@ picture ~1 s + start-up after the source starts video; key wake as before.
   Whether the hold was entered and released at once (dock released the
   link, as seen in §54) or not entered is not established. Wake by enabling
   the output worked.
+  The unstable reading is the plug: the same with no cable connected
+  (stock deep standby).
 - Menu key wake: `0x453C74` = `0x11`, port 1; quick.
 - DP cable pulled during the hold → deep standby at once (release path).
 - USB-C video (laptop, DP output of the PC disabled): MSA of **decoder 1**
