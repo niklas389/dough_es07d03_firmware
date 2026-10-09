@@ -52,9 +52,9 @@ r3 x, IRAM 0x36.. lengths and generic pointers as at 0x98B6/0x83E4).
 
 Unchanged: keys, the stock events (port activity, front-end messages),
 power-off (state 2), standby without the hold byte.
-Not verified on hardware (first build): that the PM51's frames reach the
-front-end's normal program in the standby clock mode, and that the
-front-end keeps decoding MSA while the scaler is unpowered. Both fail safe:
+Verified on hardware (2026-10-09): the PM51's frames reach the front-end in
+the standby clock mode, and the front-end keeps decoding MSA with the scaler
+unpowered. Both fail safe:
 no answer -> release to stock deep standby after 3 s; no MSA -> the monitor
 stays dark until a key (or the link is released).
 """
@@ -269,7 +269,8 @@ patch = {
  'summary': ('PM51: deep standby with the DP link kept (front-end stays in its normal mode) when the main firmware '
              'marks the standby request as link-held; the PM51 wakes on video (stream width) or a new link and drops '
              'to the stock deep standby when the link is released (Option A, ~4 W instead of 12.5 W)'),
- 'status': 'untested',
+ 'status': ('hardware-tested 2026-10-09 (DP via dock): ~4 W in hold, no wake loop or hot-plug for 3+ min, wake on '
+            'video, key wake, cable pulled -> stock deep standby (section 55)'),
  'space': 'pm51',
  'edits': edits,
  'notes': ("Addresses are PM51 code addresses (bank 0, package offset 0x10080 + addr). State in XDATA 0x7F00-0x7F10. "

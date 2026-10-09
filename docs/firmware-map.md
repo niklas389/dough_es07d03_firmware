@@ -2768,7 +2768,7 @@ packed indices of the routed inputs (`0x12FDB`: one nibble per set bit) at
 payload `+0x21`/`+0x22`; `+0x20` = 1 when more than one input or when query
 `0x0C` reports 7. It follows the main firmware's input selection, not video.
 
-## 55. Option A implemented: `gate-all-dp` v5 + `pm51-hold-link` (2026-10-09, untested)
+## 55. Option A implemented: `gate-all-dp` v5 + `pm51-hold-link` (2026-10-09, hardware-tested)
 
 **Checked before building:**
 - The main firmware's hand-off (`sub_26136B` allowed path, `sub_245787`,
@@ -2826,6 +2826,29 @@ picture ~1 s + start-up after the source starts video; key wake as before.
 - If a stream is present at standby entry (e.g. the black-screen cases of
   §40), the PM51 wakes at once: a ~30 s standby/wake cycle instead of a
   monitor stuck on.
-- Readable for tests: `0x2024C6` (hold byte of the last gate call),
-  `0x2024C5` (failed query), after a wake `0x453C74`/`0x453C78` (event 9,
-  port).
+- Readable for tests: `0x2024C6` (hold byte of the last gate call; written
+  only at the standby decision at the end of the countdown, so 0 while "No
+  signal" is shown), `0x2024C5` (failed query), after a wake
+  `0x453C74`/`0x453C78` (event 9, port).
+
+**Hardware test** (owner, 2026-10-09, build `diag_v17` = full list +
+`pm51-hold-link`; automatic input; PC → USB4 dock → DP):
+- PC output disabled, dock holds the link → after the countdown ~4 W
+  (instead of 12.2–12.7 W); no hot-plug at the PC, no wake for 3+ minutes.
+  DDC/CI no longer answers (scaler off), as in deep standby.
+- PC output enabled → picture; `0x453C74` = `0x09`, `0x453C78` = `0x01`
+  (event 9, port DP): the PM51's frames work in its standby clock mode and
+  the front-end decodes MSA with the scaler unpowered.
+- Output disabled again → this time deep standby (power reading unstable:
+  0.00 W with spikes to 2.6 W on the owner's plug; earlier 1.2 W steady).
+  Whether the hold was entered and released at once (dock released the
+  link, as seen in §54) or not entered is not established. Wake by enabling
+  the output worked.
+- Menu key wake: `0x453C74` = `0x11`, port 1; quick.
+- DP cable pulled during the hold → deep standby at once (release path).
+- USB-C video (laptop, DP output of the PC disabled): MSA of **decoder 1**
+  (`0x113168`): htotal 4400, vtotal 2250, 3840 × 2160, hstart 384, vstart
+  82, hsync 88, vsync 10 (CTA 4K 60 Hz). Decoder 1 serves the routed
+  receiver for both DP and USB-C; decoders 0 and 2 stay at the defaults.
+  Hence the limit above holds: with both connectors held, video on the
+  non-routed one is not seen by the MSA check (a new link is still seen).

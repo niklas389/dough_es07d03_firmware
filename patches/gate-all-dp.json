@@ -1,7 +1,7 @@
 {
   "name": "gate-all-dp",
   "summary": "Standby gate v5: a DP-class source that only holds its link no longer keeps the monitor awake: deep standby with the link kept, video watched by the PM51 (pm51-hold-link). Standby gate v4: with automatic input, standby is refused while a source is active on any DP-class connector (DP or USB-C), not only the current one; fixed input: the selected one; no answer from the front-end: refused. v4: in link-held standby and every 5 s of \"No signal\" with automatic input, the input is routed to a connector with an active link (a new one first, alternating every 30 s if both), so its video is found",
-  "status": "v5 (HOLD=1) untested: link held only -> deep standby with the link kept (requires pm51-hold-link). v4.1 hardware-tested 2026-10-08 (routing: laptop picked up during the countdown; deep standby after). v2 hardware-tested 2026-10-08: automatic input, both outputs off -> deep standby; the dock held the DP link after a key wake -> link-held standby. v3 (edge wake) did not help",
+  "status": "v5 (HOLD=1) hardware-tested 2026-10-09 with pm51-hold-link: link held only -> deep standby at ~4 W with the link kept, wake on video (event 9, port 1), key wake, cable pulled -> stock deep standby (section 55). v4.1 hardware-tested 2026-10-08 (routing: laptop picked up during the countdown; deep standby after). v2 hardware-tested 2026-10-08: automatic input, both outputs off -> deep standby; the dock held the DP link after a key wake -> link-held standby. v3 (edge wake) did not help",
   "conflicts": [
     "gate-raw-id"
   ],

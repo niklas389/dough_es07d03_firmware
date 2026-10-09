@@ -318,7 +318,7 @@ patch = {
              'front-end: refused. v4: in link-held standby and every 5 s of "No signal" with automatic input, the input is '
              'routed to a connector with an active link (a new one first, alternating every 30 s if both), so its video '
              'is found'),
- 'status': ('v5 (HOLD=1) untested: link held only -> deep standby with the link kept (requires pm51-hold-link). '
+ 'status': ('v5 (HOLD=1) hardware-tested 2026-10-09 with pm51-hold-link: link held only -> deep standby at ~4 W with the link kept, wake on video (event 9, port 1), key wake, cable pulled -> stock deep standby (section 55). '
             'v4.1 hardware-tested 2026-10-08 (routing: laptop picked up during the countdown; deep standby after). '
             'v2 hardware-tested 2026-10-08: automatic input, both outputs off -> deep standby; the dock held the DP link '
             'after a key wake -> link-held standby. v3 (edge wake) did not help') if HOLD else
