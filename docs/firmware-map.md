@@ -3046,3 +3046,22 @@ transparency steps between solid and the current level 1 (the menu offers
 0 = solid … 5), a multiplication sign in "3840 × 2160", rounded menu
 corners.
 
+**Other firmwares** (checked 2026-10-09 for smooth OSD text):
+- GP27U, M27T20, M27P20P use the same tile OSD driver (same mode values at
+  `0x101C68`, same loaders). Their text is 1-bit as well. They have two more
+  font-data writers (GP27U `0x26400D`, `0x268311`) that pack three planes
+  into 3 bits per pixel (8-colour glyphs) from a byte stream, apparently for
+  pictures/icons, not text.
+- The LG 28MQ780 runtime uses the OSD bank very differently (hundreds of
+  accesses to `0x101D04`, `0x101C04`, `0x101DF8`…; none of the tile-RAM
+  modes above). All four, and ours, contain the SDK's GOP (graphics plane)
+  driver strings (`MApi_GOP_*`); whether LG draws its OSD as a bitmap plane
+  is not verified. A bitmap OSD would be a rewrite of the whole menu, not a
+  font change.
+- Nothing to take over for anti-aliased tile text; the 2-bit approach of
+  this section stays the plan.
+
+**Owner decisions (2026-10-09):** the stock glyphs may be replaced; Noto Sans;
+languages English, French, Spanish, German; Chinese and Japanese may be
+dropped in the anti-aliased build (separate patch later if needed).
+
