@@ -2527,6 +2527,31 @@ If it recurs: read `tools/logread.py` and the OSD information before
 changing anything; next step would be watching port 0 and input path 1
 (`0x47FAE0`) in `diag-log-ring`.
 
+**Second occurrence** (2026-10-09, build `diag_v17`, main CRC `263009a3`,
+again the first start after flashing; OSD "1920x2160@144Hz"; read while the
+fault was on screen, then again after the 120 → 144 Hz recovery):
+- Log: same sequence as above (HDMI 1 → HDMI 2 → DP, DP attached 8.07 s,
+  port 1 state 4 at 8.84 s, nothing after 14.8 s). It does not separate the
+  fault from a correct start.
+- Front-end MSA (`fereg.sh preset msa`): identical in fault and after
+  recovery. Only decoder 1 carries a stream: 3840 × 2160, htotal 4000,
+  vtotal 2222. The front-end receives the full-width stream as one SST
+  stream. The half width arises after the decoder (front-end output to the
+  scaler, or the scaler's input set-up).
+- Link: lane status `0x77`, `0x110D32` = `0x14`. `fequery`: DP source
+  active.
+- DPCD bank `0x1200` compared with the §54 "with picture" file (another
+  session, after a wake): `0x1240`–`0x125F` is an exact copy of
+  `0x1220`–`0x123F` in the fault, but different in the §54 file; further
+  `0x121E`/`0x121F`, `0x1226`, `0x1235`, `0x15E5`. Not yet compared with a
+  correct state from the same session; meaning of the block unknown.
+- PC (amdgpu debugfs, fault state): `dsc_pic_width` 1920, `dsc_pic_height`
+  2160, `dsc_slice_width` 960, `dsc_slice_height` 108, `dsc_bits_per_pixel`
+  146 (9.125 bpp), link 4 × HBR3 (on the PC's side of the USB4 dock). 1920
+  is probably the width per DSC engine with the GPU's 2:1 pipe combining at
+  this pixel clock (the PPS sent to the monitor would then carry 3840); not
+  verified without a correct-state reading.
+
 ## 51. Link-held standby power: where the 13 W go (2026-10-08)
 
 **Wake reason after the DP toggle of the §49 test:** `0x453C74` = 9,
