@@ -2944,6 +2944,11 @@ the band glyph. Tile address = `0x101D10`+`0x20`w (16 bit) + row ×
 `0x101D12`+`0x20`w + column. Questions: which colours pixel values 1–3 take
 per attribute; whether `0x3FE` displays (font RAM size); whether the sample
 reads as smooth text.
+v1 on hardware: the menu closed at once and could not be reopened while
+the tool ran. Cause: the vendor SET path closes an open menu on every VCP
+SET (`0x26B211`: OSD state `0x457854` > `0x0D` → `0x4551A4` = 0,
+`0x453C70` bit 0 set, bit 15 cleared); the tool's address writes are SETs.
+v2 skips that for the diagnostic codes 0xEA–0xEE only (`osd_keep`).
 
 **Requested by the owner** (2026-10-09), after the test: anti-aliased font
 (option 2), filled selection bar instead of the white outline, finer
