@@ -2566,6 +2566,14 @@ fault was on screen, then again after the 120 → 144 Hz recovery):
   the neighbouring block, but the front-end's own read path was not
   checked. Meaning of the block unknown.
 
+**Plan** (owner, 2026-10-09): never seen with stock firmware, so a patch
+(or the order of input selection it causes) is the most likely trigger;
+first seen with the `nosignal-once` v3 build. At the next occurrence:
+`tools/fereg.sh 0x001220 32 0x001240 32 0x001238 16 0x001248 16`, twice,
+to confirm the block copy is real. Kept in reserve: a recovery that compares
+the scaler's measured width with the front-end MSA width after a DP accept
+and re-runs timing detection on a mismatch (no hot-plug pulse).
+
 ## 51. Link-held standby power: where the 13 W go (2026-10-08)
 
 **Wake reason after the DP toggle of the §49 test:** `0x453C74` = 9,
