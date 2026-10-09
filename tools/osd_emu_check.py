@@ -68,8 +68,12 @@ same = all(o.glyph(k, 1) == ref.osd.glyph(k, 1) for k in range(0x78) if k not in
 check(same, '1-bit glyphs 0x00-0x77 (without 0x20/0x21) identical to the build without osd-aa-font')
 check(o.glyph(0x20, 1) == ref.osd.glyph(0xFE, 1) and o.glyph(0x21, 1) == ref.osd.glyph(0xFF, 1),
       'half circles at 0x20/0x21 (vendor: 0xFE/0xFF)')
-icons = list(range(0x300, 0x310, 2)) + list(range(0x372, 0x3CA, 2))
-check(all(o.glyph(k, 2) == ref.osd.glyph(k, 2) for k in icons), '2-bit icons 0x300-0x30F, 0x372-0x3C9 unchanged')
+icons = list(range(0x372, 0x3CA, 2))
+check(all(o.glyph(k, 2) == ref.osd.glyph(k, 2) for k in icons), '2-bit icons 0x372-0x3C9 unchanged')
+run = o.glyph(0x302, 2)                                  # selection bar: top run piece (v4)
+check(all(v in (0, 1, 3) for k in range(0x300, 0x310, 2) for row in o.glyph(k, 2) for v in row)
+      and all(set(run[y]) == {0} for y in range(11)) and set(run[11]) == {1} and all(set(run[y]) == {3} for y in range(12, 18)),
+      'selection bar pieces 0x300-0x30E: values 0/1/3, top run edge at row 11, inside below')
 stock_pal = stock[0x3B74B8 - 0x200000:0x3B74B8 - 0x200000 + 4 * 0xF8]
 used = sorted({a & 0xFC for a in (0x10, 0x11, 0x14, 0x18, 0x1C, 0x20, 0x24, 0x28, 0x2C, 0xA8, 0xAC, 0xEC, 0xF1, 0xF4)})
 check(not any(0x40 <= b < 0x70 for b in used), 'text palettes 0x40-0x6F clear of the vendor 2-bit attributes %s' % ' '.join('%02X' % b for b in used))
@@ -173,8 +177,18 @@ for st in range(0x10, 0x18):
     del c.stubs[0x25CB21]
     textattrs = {g - 1 for g in c.mem[0x202D80 - 0x200000:0x202E80 - 0x200000] if g}
     icon_codes = set(range(0x300, 0x310)) | set(range(0x372, 0x3CA))
-    clash = [a for a, code in o.code.items() if o.attr.get(a, 0) in textattrs and code in icon_codes]
+    bar = lambda code, attr: 0x300 <= code < 0x310 and attr in (0x44, 0x6C)   # selection bar pieces (v4)
+    clash = [a for a, code in o.code.items() if o.attr.get(a, 0) in textattrs and code in icon_codes
+             and not bar(code, o.attr.get(a, 0))]
     check(not clash, 'page %02X with frame: no text tile on an icon code%s' % (st, '' if not clash else ' -- %d tiles' % len(clash)))
+    lefts = [a for a, code in o.code.items() if code == 0x30C]
+    inner = []
+    for a in lefts:
+        b = a + 1
+        while o.code.get(b) != 0x30E and b < a + 62:
+            inner.append(o.attr.get(b)); b += 1
+    check(lefts and inner and all(v == 0x61 for v in inner),
+          'page %02X: selection bar interior filled (attribute 0x61, %d tiles)' % (st, len(inner)))
     page = new_starts(u32(0x326C98 + 4 * st), 0)
     common = new_starts(0x3BFF18, 0)
     text = [x for x in seen if (x[0] << 8 | x[1]) >= 0x20 and x[0] < 2]   # (number fields: runtime descriptors)

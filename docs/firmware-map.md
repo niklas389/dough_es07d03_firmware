@@ -3342,6 +3342,60 @@ behind them, letters partly missing, and the information line in green.
   colours are now explained by the wrong rule; static palettes avoid the
   question).
 
+**v4 (2026-10-09): sharper text, selection bar, ×, main-window corners, transparency steps.**
+- *Sharpness:* v3 rendered with Pillow at whole-pixel positions and a bolder
+  curve (coverage^0.75); stems of ~1.6 px straddled two columns. v4 uses
+  FreeType directly (freetype-py): vertical hinting at 14 px, 8× horizontal
+  oversampling, per glyph the sub-pixel phase (±0.5 px) with the least
+  partial coverage, linear 4-level quantisation. Widths: rounded advance as
+  before (a few glyphs differ by one pixel; all pages still fit, max 223).
+- *Multiplication sign:* the resolution line is built by `0x25CE01`; its
+  separator is the capital X (font code `0x37`, `ori r7,r0,0x37` at
+  `0x25CE5A`). Font codes `0x1B`–`0x1F`, `0x55`, `0x56`, `0x5F`, `0x69`–`0x6C`,
+  `0x6F` are empty vendor glyphs used by no string; `0x1C` gets "×" and the
+  instruction points at it.
+- *Selection frame (vendor):* `sub_256144(item, mode)` (mode 0 erase, 1/2
+  draw) places pieces with `sub_25C70B(x, y, piece)` and runs with
+  `sub_25C8F5(x, y, code, count)` (both through `sub_23C71C`/`sub_23C635`;
+  bit 7 of `y` = attributes only), attribute `0x3C5389`. The eight pieces are
+  2-bit glyphs `0x300`–`0x30E` (RLE at `0x325CA6`, loader `0x27BA9E`: big-endian
+  `count << 12 | plane A`, then plane B if its top nibble is 0, else B = A;
+  pixel = A + 2B), values 1 border, 2/3 inside/outside, with per-row vendor
+  palettes (`0x10`/`0x14` top, `0x18` middle, `0x1C`/`0x24` bottom; `0x10` =
+  first item, whose top pieces continue the header band, as the separator
+  glyph 1-bit code 2 with attribute `0xF4` does in column 3). The same pieces
+  serve the value editors (`0x25528B`, `0x2555B6`, `0x255927`; bottom pieces
+  with `0xAC`, the dropdown list).
+- *Item draw order:* `sub_256597` draws an item's frame first, then its text;
+  the erase writes blank tiles with `0xFF` over the whole middle row, so the
+  text is always placed again afterwards. Value editors: frame, then text.
+- *Selection bar:* new piece glyphs (0 outside, 1 one-pixel edge ring, 3
+  inside; rounded radius 6, bar from row 11 of the top tile to row 5 of the
+  bottom tile). Item frames get the palette group of attribute `0x1F` (`0x44`:
+  [`0x0C0C0C`, ⅓, ⅔, `0x3F3F3F`]) instead of their vendor groups; the first
+  item's top pieces (vendor `0x10`) get group `0x6C` [header band, ⅓, ⅔,
+  fill]. The middle row between the side pieces (noted by hooks on the eight
+  side-piece calls) is filled at the end of the item draw (`0x256650`) with
+  attribute `0x61`: blank 1-bit tiles show entry 1 (`0x3F3F3F`), the item text
+  uses group `0x60` [fill, ⅓, ⅔, white]. Selected values in other columns keep
+  `0x2F` (white on the window background). The text pool is 10 groups
+  (`0x40`–`0x5C`, `0x64`, `0x68`), all used by the static attributes; an
+  eleventh text attribute would keep its vendor palette.
+- *Value editors* keep their vendor palettes; with the new pieces they show
+  a thin white rounded outline (vendor: 3 px outline).
+- *Main window corners* (`menu-round`): window 62 × 26 (`0x3C5386`/`0x3C5388`);
+  at both exits of the page draw (`0x256E42`, `0x256E4E`) the corner cells get
+  popup-round's 1-bit quarter circles (codes `0x1C`–`0x1F`), attribute `0x40`
+  at the top (header band) and `0xF0` at the bottom.
+- *Transparency* (`osd-transparency`): OSD page item, settings `+0x79`, adjust
+  `0x2660AB` (`sub_263D3C(value, 0, 5, 1)`), apply `sub_25C26E`: alpha =
+  `0x3F` − 8 × level to windows 1–3 (`sub_23C00F(window, 2, alpha)`), load
+  check mod 6 at `0x2631F0`, default 1. Patched to 0–10, 4 per step, mod 11,
+  default 2.
+- All checked in the emulator (renders of the main frame, Picture and OSD
+  pages, corner cells, transparency writes); hardware test pending.
+
+
 ## 57. 4K 144 Hz arrives on two links; stuck "quick input menu" flag (2026-10-09)
 
 **`tools/widthdump.sh` in the correct state** (DP, 3840×2160 at 144 Hz with
