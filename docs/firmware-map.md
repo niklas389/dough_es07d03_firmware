@@ -3013,6 +3013,32 @@ v2 skips that for the diagnostic codes 0xEA–0xEE only (`osd_keep`).
   `0x300`–`0x3FE` therefore holds at most 127 glyphs (less 52 icons) unless
   `0x101C0A` is lowered; RAM is not the limit.
 - v4: test glyphs at even codes `0x3D0`–`0x3DE` with that formula.
+- **v4 on hardware (2026-10-09): 2-bit tiles work.** The test glyphs appeared
+  where placed and the "Abg" sample was rendered in four levels, so the
+  address formula (`0x880 + 12 × c`, two code slots) is right.
+- **Colour rule for 2-bit tiles** (photo colours measured per tile and band,
+  matched against the stock palette): pixel value v of a tile with
+  attribute fg/bg nibbles shows **palette entry 16 × fg + v**; the
+  background nibble is not used. Matches all five groups: fg 2 → entries
+  32–35 (black, white, black, black: white bands, black core of the
+  sample), fg 1 → 16–19 (… v3 = `2A2A2A`), fg 4 → 64–67 (v1 = `2A2A2A`), fg
+  C → 192–195 (grays), fg F → 240–243 (`2A2A2A`, `205060`, `205060`,
+  `203040`: the cyan/slate tiles). Black `000000` shows as transparent
+  (wallpaper), as palette entry 0 does for 1-bit tiles.
+- **Palette** (256 entries): loader `0x2533CE`(sel, first index, table,
+  count): mode `0x0A` + index to `0x101C66`, mode `0x0D` + three colour
+  bytes per entry (table bytes +2, +1, +0; table order R, G, B), then mode
+  `0x0A`/`0x0C` and one flag bit per entry (table byte +3, all 0 in the
+  stock tables); sel ≠ 0 uses modes `0x14`/`0x16` (second palette?). Stock
+  table `0x3B74B8` (248 entries, loaded by `0x25354E`): 1-bit colours
+  0–15 (0 black/transparent, 1 `3F3F3F`, 2 `F1F0F5` white, 4 `2A2A2A`, 5
+  `64F4F3` cyan, 8 `9FFF00`, 12 `5596EF`, 14 `FF4A3B`, 15 `0C0C0C`, …) and
+  4-entry groups for the 2-bit icons from 16 on. Further tables `0x3B746C`
+  (19 entries) and `0x3B7898` (2 entries at 15).
+- Consequence for anti-aliased text: a 2-bit text tile with foreground
+  nibble f uses entries 16f…16f+3; loading [background, ⅓, ⅔, text colour]
+  there gives smooth edges. The background entry must not be pure black
+  (transparent key).
 
 **Requested by the owner** (2026-10-09), after the test: anti-aliased font
 (option 2), filled selection bar instead of the white outline, finer

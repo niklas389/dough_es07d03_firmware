@@ -236,7 +236,7 @@ print('SET fall-through %#x %s -> %s; GET fall-through %#x %s -> %s'
 patch = {
  'name': 'diag-osd',
  'summary': 'DIAGNOSTIC: VCP 0xEE reads/writes one byte of the OSD register bank 0x101C00-0x101DFF at the diag-poke address (font RAM, tile RAM, windows; tools/osdtest.sh)',
- 'status': 'diagnostic; v1 closed the menu on every DDC write; v2 hardware-tested 2026-10-09 (menu stays open; raw writes work but DDC/CI is too slow for glyph uploads); v3 hardware-tested (commands work; its glyph addresses were wrong); v4 (corrected addresses, codes 0x3D0-0x3DE) untested',
+ 'status': 'diagnostic; v1 closed the menu on every DDC write; v2 hardware-tested 2026-10-09 (menu stays open; raw writes work but DDC/CI is too slow for glyph uploads); v3 hardware-tested (commands work; its glyph addresses were wrong); v4 hardware-tested 2026-10-09 (2-bit tiles shown; colour = palette 16 x fg + value)',
  'requires': ['diag-poke', 'diag-fe'],
  'edits': [
   {'addr': '0x%06X' % CODE, 'old': '00' * len(code), 'new': code.hex(),
