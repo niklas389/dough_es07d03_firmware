@@ -70,6 +70,9 @@ check(o.glyph(0x20, 1) == ref.osd.glyph(0xFE, 1) and o.glyph(0x21, 1) == ref.osd
       'half circles at 0x20/0x21 (vendor: 0xFE/0xFF)')
 icons = list(range(0x300, 0x310, 2)) + list(range(0x372, 0x3CA, 2))
 check(all(o.glyph(k, 2) == ref.osd.glyph(k, 2) for k in icons), '2-bit icons 0x300-0x30F, 0x372-0x3C9 unchanged')
+stock_pal = stock[0x3B74B8 - 0x200000:0x3B74B8 - 0x200000 + 4 * 0xF8]
+used = sorted({a & 0xFC for a in (0x10, 0x11, 0x14, 0x18, 0x1C, 0x20, 0x24, 0x28, 0x2C, 0xA8, 0xAC, 0xEC, 0xF1, 0xF4)})
+check(not any(0x40 <= b < 0x70 for b in used), 'text palettes 0x40-0x6F clear of the vendor 2-bit attributes %s' % ' '.join('%02X' % b for b in used))
 
 # patched font table (set 0 = bit 0, set 1 = bit 1 for codes below 0x7E)
 F0 = bytes(img[0x3BB068 - 0x200000:0x3BB068 - 0x200000 + 0x7E * 40])
@@ -119,21 +122,21 @@ c.sb(0x3C5389, 0x3F); c.call(0x25CA96, 2, 3, D)
 codes = [o.code.get(base + i) for i in range(12)]
 check(codes == [lmap(0x20 + i) for i in range(12)], 'text tiles get 2-bit codes 0x09E, 0x0A0, ...')
 a1 = o.attr.get(base)
-check(a1 is not None and a1 & 0xF == 0xF and a1 >> 4 not in (0, 1, 2, 0xA), 'attribute 0x3F -> %#04x (own palette group)' % (a1 or 0))
+check(a1 is not None and 0x40 <= a1 < 0x70, 'attribute 0x3F -> %#04x (own 4-entry palette)' % (a1 or 0))
 c.sb(0x3C5389, 0x2F); c.call(0x25CA96, 2, 3 | 0x80, D)
 a2 = o.attr.get(base)
-check(a2 not in (None, a1) and a2 & 0xF == 0xF and all(o.attr.get(base + i) == a2 for i in range(12))
+check(a2 not in (None, a1) and 0x40 <= a2 < 0x70 and all(o.attr.get(base + i) == a2 for i in range(12))
       and [o.code.get(base + i) for i in range(12)] == codes, 'attribute-only update 0x2F -> %#04x, codes kept' % (a2 or 0))
 pal = lambda i: o.pal[i][::-1]                             # table byte order
-g1 = [pal(16 * (a1 >> 4) + k) for k in range(4)]
+g1 = [pal((a1 & 0xFC) + k) for k in range(4)]
 check(g1[0] == pal(0xF) and g1[3] == pal(3) and g1[0] < g1[1] < g1[2] < g1[3],
-      'group of 0x3F = [bg 15, 1/3, 2/3, fg 3]: %s' % ' '.join(bytes(e).hex() for e in g1))
+      'palette of 0x3F = [bg 15, 1/3, 2/3, fg 3]: %s' % ' '.join(bytes(e).hex() for e in g1))
 c.sb(D + 2, 1); c.sb(D + 3, 4); c.sb(0x3C5389, 0x21)
 c.call(0x25CA96, 2, 5, D + 2)
 b2 = 1 + 5 * 62 + 2
 check([o.code.get(b2 + i) for i in range(4)] == [1, 2, 3, 4] and o.attr.get(b2) == 0x21, 'non-text descriptor unchanged')
 c.call(0x25354E)                                           # vendor palette reload
-check([pal(16 * (a1 >> 4) + k) for k in range(4)] == g1, 'text group restored after a palette reload')
+check([pal((a1 & 0xFC) + k) for k in range(4)] == g1, 'text palette restored after a palette reload')
 
 # full page drawing 0x256C92 (English): every text descriptor placed must be a string of the page's
 # block as laid out with the new widths (first slot = string start, count = its tiles)
@@ -168,9 +171,9 @@ for st in range(0x10, 0x18):
     c.stubs[0x25CB21] = rec
     c.sb(0x457854, st); c.call(0x256C92, 0)
     del c.stubs[0x25CB21]
-    groups = {g - 1 for g in c.mem[0x202D80 - 0x200000:0x202E80 - 0x200000] if g}
+    textattrs = {g - 1 for g in c.mem[0x202D80 - 0x200000:0x202E80 - 0x200000] if g}
     icon_codes = set(range(0x300, 0x310)) | set(range(0x372, 0x3CA))
-    clash = [a for a, code in o.code.items() if o.attr.get(a, 0) >> 4 in groups and code in icon_codes]
+    clash = [a for a, code in o.code.items() if o.attr.get(a, 0) in textattrs and code in icon_codes]
     check(not clash, 'page %02X with frame: no text tile on an icon code%s' % (st, '' if not clash else ' -- %d tiles' % len(clash)))
     page = new_starts(u32(0x326C98 + 4 * st), 0)
     common = new_starts(0x3BFF18, 0)

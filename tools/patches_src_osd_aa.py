@@ -35,13 +35,15 @@ How it works:
   corners 0x1C-0x1F); the two half-circle glyphs move from 0xFE/0xFF to 0x20/0x21
   (0x2539B7, 0x254EDF, 0x254EED).
 - Text placement 0x25CA96 (all item strings): attributes and codes of text tiles are
-  rewritten (0x25CB21 -> place2): code P per tile; attribute fg nibble -> a palette
-  group of its own. A 2-bit tile shows palette entry 16 x fg + value, so each text
-  attribute (fg colour f, bg colour b of the 1-bit palette) gets a free group
-  (6, 7, 8, 9, B, C, D, E, F, 3, 4, 5; first come first served) loaded with
-  [b, (2b + f) / 3, (b + 2f) / 3, f].
-- Palette loader 0x2533CE (sel 0) is hooked: it records palette entries 0-15
-  (the 1-bit colours) and reloads all text groups after every load.
+  rewritten (0x25CB21 -> place2): code P per tile; attribute -> a 4-colour palette of
+  its own. A 2-bit tile shows palette entry (attribute & 0xFC) + value (v2 on
+  hardware; the vendor table holds 4-entry palettes at every multiple of 4), so each
+  text attribute (fg colour f, bg colour b of the 1-bit palette) gets a free
+  4-entry palette at entries 0x40-0x6F loaded with [b, (2b + f) / 3, (b + 2f) / 3, f]
+  and the tile attribute becomes that palette's first entry.
+- The known text attributes have their palettes in the vendor palette table; the
+  palette loader 0x2533CE (sel 0) is hooked: it records palette entries 0-15 (the
+  1-bit colours) and reloads all text palettes after every load.
 - Letter spacing: the renderer adds (mode byte 0x3CB81C & 3) blank columns after
   each glyph (1 for text, 2 for numbers and values); the Noto widths include the
   side bearings, so the seven reads of it in the renderer are changed to & 0.
@@ -66,12 +68,12 @@ RAM = 0x202D00                       # RAM variables (zero at boot)
 SH = RAM + 0x00                      # shadow tile buffers: plane B of buffer A (r1+0x28) and B (r1+0x4C), 0x48 bytes
 CUR_B, CUR_S = RAM + 0x48, RAM + 0x49   # bank and slot of the next flushed tile
 PAL16 = RAM + 0x50                   # palette entries 0-15, 3 bytes each (table bytes 0-2)
-TMAP = RAM + 0x80                    # attribute -> group + 1 (0 = not assigned), 256 bytes
+TMAP = RAM + 0x80                    # attribute -> text attribute + 1 (0 = not assigned), 256 bytes
 GATTR = RAM + 0x180                  # per assigned group (pool order): its attribute
 NGRP = RAM + 0x190                   # number of assigned groups
 PTAB = RAM + 0x1A0                   # 4-entry palette table for one group (R, G, B, flag)
 RAM_END = RAM + 0x1B0
-POOL = [6, 7, 8, 9, 0xB, 0xC, 0xD, 0xE, 0xF, 3, 4, 5]
+POOL = [0x40 + 4 * k for k in range(12)]       # 4-entry text palettes at entries 0x40-0x6F (attribute = first entry)
 
 FONT_TAB = 0x3BB068                  # font set 0 (pointer 0x453DE8)
 PB_OFF = 0x2800                      # plane B = set-1 record of the same code
@@ -304,7 +306,7 @@ prog = [
  mov(R3, R6), mov(R4, R10), jal('setgrp'),
  mov(R7, R11),
  'ga_ret:',
- slli(R7, R7, 4), andi(R3, R10, 0xF), orr(R3, R3, R7),
+ mov(R3, R7),                                             # text attribute = first entry of its palette
  *g_epi, jr(R9),
  'ga_full:',
  mov(R3, R10), *g_epi, jr(R9),                            # more than 12 text attributes: unchanged
@@ -324,7 +326,7 @@ prog = [
  add(R23, R3, R3), add(R23, R23, R4), muli(R23, R23, 0x5556), addi(R23, R23, 0x7FFF), srli(R23, R23, 16),
  sb(8, R7, R23),                                          # (b + 2f) / 3
  addi(R6, R6, 1), bnei(R6, 3, 'sg_ch'),
- ('bt.movi', {'D': R3, 'I': 0}), slli(R4, R10, 4), *const32(R5, PTAB), ('bt.movi', {'D': R6, 'I': 4}),
+ ('bt.movi', {'D': R3, 'I': 0}), mov(R4, R10), *const32(R5, PTAB), ('bt.movi', {'D': R6, 'I': 4}),
  jal('tramp'),
  *s_epi, jr(R9),
  # ---- palette loader hook (r3 = sel, r4 = first index, r5 = table, r6 = count)
@@ -493,12 +495,12 @@ print('common block: %d tiles' % common)
 assert max(worst.values()) <= 0x100 - 0x20, 'page text exceeds codes 0x20-0xFF'
 assert 0x20 + common <= 0x182 - 0x100, 'common block exceeds the mapped bank-1 range'
 
-# ---------------------------------------------------------------- static text palette groups
+# ---------------------------------------------------------------- static text palettes
 # Text colours known from the menu data (item records +4/+5: 3F, 2F, 21, 22, 24, 2E, BF, 01; values 1F;
-# value/info code 2C) get their palette group in the vendor palette table itself (0x3B74B8, R, G, B, flag),
-# so they are loaded with the vendor palette when the OSD opens. On hardware (2026-10-09, v1) groups that
-# the code loaded while the menu was on screen kept their vendor colours. Other attributes still get a
-# group at run time (gattr), which takes effect at the next palette load at the latest.
+# value/info code 2C) get their 4-entry palette in the vendor palette table itself (0x3B74B8, R, G, B,
+# flag), so it is loaded with the vendor palette when the OSD opens. Other attributes get a palette at run
+# time (gattr). v1/v2 on hardware: text palettes at entries 16 x fg were never used by the tiles; the
+# hardware takes entry (attribute & 0xFC) + value.
 PAL_TAB, PAL_N = 0x3B74B8, 0xF8
 STATIC_ATTRS = [0x3F, 0x2F, 0x1F, 0x21, 0x2C, 0x24, 0x2E, 0xBF, 0x22, 0x01]
 assert len(STATIC_ATTRS) <= len(POOL) and len(set(STATIC_ATTRS)) == len(STATIC_ATTRS)
@@ -510,10 +512,10 @@ for i, a in enumerate(STATIC_ATTRS):
     f, b = cur(PAL_TAB + 4 * (a >> 4), 3), cur(PAL_TAB + 4 * (a & 15), 3)
     cols = [b, bytes(third(2 * x + y) for x, y in zip(b, f)), bytes(third(x + 2 * y) for x, y in zip(b, f)), f]
     for v in range(4):
-        pal_tab[4 * (16 * g + v):4 * (16 * g + v) + 4] = cols[v] + b'\0'
+        pal_tab[4 * (g + v):4 * (g + v) + 4] = cols[v] + b'\0'
     tmap0[a], gattr0[i] = g + 1, a
 pal_tab = bytes(pal_tab)
-print('static text groups:', ', '.join('%02X->%X' % (a, POOL[i]) for i, a in enumerate(STATIC_ATTRS)))
+print('static text palettes:', ', '.join('%02X->%02X' % (a, POOL[i]) for i, a in enumerate(STATIC_ATTRS)))
 
 # ---------------------------------------------------------------- string descriptors
 # Menu items take their text as a descriptor {first slot, tile count, 2 bytes} per language from the
@@ -669,8 +671,8 @@ edits = [
  *[{'addr': '0x%06X' % a, 'old': cur(a, 3).hex(), 'new': cur(a, 2).hex() + '00',
     'asm': 'renderer letter spacing (0x3CB81C & 3) -> 0: the Noto glyph widths include the side bearings'} for a in SPACING],
  {'addr': '0x%06X' % PAL_TAB, 'old': cur(PAL_TAB, len(pal_tab)).hex(), 'new': pal_tab.hex(),
-  'asm': 'vendor palette table: text palette groups ' + ', '.join('%X' % POOL[i] for i in range(len(STATIC_ATTRS))) + ' = [bg, 1/3, 2/3, fg] of the text attributes'},
- {'addr': '0x%06X' % TMAP, 'old': '00' * 256, 'new': tmap0.hex(), 'asm': 'osd-aa RAM: attribute -> group + 1 for the static text attributes'},
+  'asm': 'vendor palette table: 4-entry text palettes at ' + ', '.join('%02X' % POOL[i] for i in range(len(STATIC_ATTRS))) + ' = [bg, 1/3, 2/3, fg] of the text attributes'},
+ {'addr': '0x%06X' % TMAP, 'old': '00' * 256, 'new': tmap0.hex(), 'asm': 'osd-aa RAM: attribute -> text attribute + 1 for the static text attributes'},
  {'addr': '0x%06X' % GATTR, 'old': '00' * 17, 'new': (gattr0 + bytes([len(STATIC_ATTRS)])).hex(), 'asm': 'osd-aa RAM: assigned groups (pool order) and their count'},
  {'addr': '0x%06X' % DESC0, 'old': cur(DESC0, len(desc)).hex(), 'new': desc.hex(),
   'asm': 'menu string descriptors (first slot, tile count per language) recomputed for the new glyph widths'},
@@ -684,13 +686,14 @@ for e in edits:
 patch = {
  'name': 'osd-aa-font',
  'summary': 'Anti-aliased OSD text: Noto Sans Condensed SemiBold 14 px rendered as 2-bit (4-level) glyphs, smooth edges in every text colour',
- 'status': 'experimental; v1 on hardware 2026-10-09: menu items showed parts of other strings, text groups kept vendor colours; v2 (descriptor tables, static palette groups, number fields) emulator-checked, hardware test pending',
+ 'status': 'experimental; v1 on hardware 2026-10-09: menu items showed parts of other strings; v2 on hardware: strings right, colours wrong (palette rule); v3 (palette entry = attribute & 0xFC + value) hardware test pending',
  'edits': edits,
  'labels': {k: '0x%06X' % v for k, v in L.items() if not k.endswith('_ref')},
  'notes': ("Text tiles become 2-bit glyphs (two code slots each). Logical codes L = bank << 8 | slot map to 2-bit codes: "
            "0x009-0x01B -> 2L+0x66, 0x020-0x150 -> 2L+0x5E, 0x151-0x181 -> 2L+0x6E, 0x1C0-0x1D9 -> 2L+0x4A; vendor icons stay at 0x300-0x30F and "
-           "0x372-0x3C9; 2-bit range from 0x078 (0x101C0A). Each text attribute gets a free palette group (6, 7, 8, 9, B-F, "
-           "3-5) with [background, 1/3, 2/3, foreground] of its 1-bit colours, reloaded after every palette load. "
+           "0x372-0x3C9; 2-bit range from 0x078 (0x101C0A). Each text attribute gets a 4-entry palette at entries 0x40-0x6F "
+           "(tile attribute = its first entry; a 2-bit tile uses entries (attribute & 0xFC) + value) with [background, 1/3, 2/3, "
+           "foreground] of its 1-bit colours, in the vendor palette table and reloaded after every palette load. "
            "Chinese and Japanese are not supported (their glyph set holds the second bit plane). "
            "Font: Noto Sans Condensed SemiBold (SIL Open Font License 1.1, docs/licenses/NotoSans-OFL.txt). "
            "Generated by tools/patches_src_osd_aa.py."),

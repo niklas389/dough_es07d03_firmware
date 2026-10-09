@@ -3260,3 +3260,26 @@ letters; the information line at the top had correct colours.
   icon code. The emulator now also stubs the vertical-blank wait
   `0x23F9EE` and needs `0x101C0B` = `0x20` and RAM `0x45788A` = `0x220`
   (set at boot) for the vendor 1-bit renderer.
+
+**v2 on hardware (owner, 2026-10-09):** every item showed its own string
+(descriptor fix confirmed), but the text tiles still showed the picture
+behind them, letters partly missing, and the information line in green.
+- Cause: the 2-bit colour rule is **palette entry = (attribute & 0xFC) +
+  pixel value**, not 16 × fg + value. The vendor palette table holds a
+  4-entry palette at every multiple of 4 (entries 4–15 of each "group" are
+  filled), and the attributes of the v4 test (0x21, 0x12, 0xF2, 0x40, 0xC8)
+  give the same or equally grey entries under both rules, so the test could
+  not tell them apart. v1/v2 loaded the text colours at 16 × fg (e.g.
+  `0x60`) while the tiles with attribute `0x6F` used entries `0x6C`–`0x6F`
+  (vendor: `000000 FFFFFF 000000 000000`).
+- v3: each text attribute gets its own 4-entry palette at entries
+  `0x40`–`0x6F` (`3F`→`40`, `2F`→`44`, `1F`→`48`, `21`→`4C`, `2C`→`50`,
+  `24`→`54`, `2E`→`58`, `BF`→`5C`, `22`→`60`, `01`→`64`; two left for
+  others), in the vendor palette table and reloaded after each palette load;
+  the tile attribute is the palette's first entry. No vendor 2-bit
+  attribute found in the code selects entries `0x40`–`0x6F`. The
+  emulator's renderer uses the corrected rule; with it the vendor selection
+  frame renders as on the monitor.
+- Open: whether palette writes during a page redraw take effect (the v1
+  colours are now explained by the wrong rule; static palettes avoid the
+  question).
