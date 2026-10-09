@@ -3065,3 +3065,26 @@ corners.
 languages English, French, Spanish, German; Chinese and Japanese may be
 dropped in the anti-aliased build (separate patch later if needed).
 
+**Text renderer structure** (step 1 of the anti-aliased font, 2026-10-09):
+- `0x27C046`(r3 = first code slot, r4 = string in font codes, r5 = length,
+  r6/r7/r8, one stack byte; font table pointer `0x453DE8`, mode bytes
+  `0x3D47E4`/`0x3D47E3`) renders a string proportionally into consecutive
+  1-bit glyphs starting at code `(0x457888 << 8) + r3` (bank byte
+  `0x457888`, e.g. 1 for the resolution line `0x25D6E0`). `0x25D952` sets
+  the font RAM address of that code (`(base + 3 × code) × 4`, mode 3);
+  `0x27BFCF` writes one 12 × 18 tile from 9 words (two 12-bit rows packed
+  into 3 bytes each, 27 bytes per tile); the data port auto-increments, so
+  tile i lands in code slot + i.
+- Callers: `0x259A0E`/`0x259A8E` (popup messages, slot `0x20`), `0x25CEEC`
+  (numbers), `0x25CFF6` (ASCII → font codes, e.g. slot `0xB8`), `0x25D6E0`
+  (input/resolution information, bank 1).
+- Tiles are placed one by one with `0x23C71C`/`0x23C635` (attribute RAM
+  `0x3C5389`, code bits 8–11 from `0x457889`).
+- For 2-bit text: `0x27BFCF` would write 54 bytes per tile from two planes,
+  tile i would occupy codes slot + 2i (the placement loops must step by 2),
+  the slots must lie in the 2-bit code range, and the palette group
+  16 × fg … +3 of every text attribute must be loaded with [background,
+  ⅓, ⅔, text colour]. Open: the full list of slot ranges per menu page
+  (static list incomplete; a logging build of `0x27C046`'s arguments would
+  give it exactly).
+
