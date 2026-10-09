@@ -3212,3 +3212,51 @@ pending; source `tools/patches_src_osd_aa.py`):
   overwritten; set-0 CJK codes still show at full intensity); information
   lines longer than 26 tiles at slot `0xC0` (unmapped tiles keep their
   vendor code); text placed by anything other than `0x25CA96` (none found).
+
+**v1 on hardware (owner, 2026-10-09):** the text was drawn with the new
+glyphs, but (a) most menu items showed parts of other strings and (b) the
+text tiles showed the picture undimmed behind the letters (palette value 0
+of their group = `000000`, transparent), with stock group colours for the
+letters; the information line at the top had correct colours.
+- (a) Menu items do not compute their tiles: each item's text function
+  returns a static descriptor {first slot, tile count, 2 bytes} for the
+  current language from the array `0x3C3EE8`–`0x3C5177` (198 tables × 6
+  languages × 4 bytes; e.g. getter `0x25B035`: `0x3C41E8` + 4 × language).
+  The vendor precomputed first/count for its glyph widths (string k of a
+  block starts at slot `0x20` + the tiles of strings 0…k−1), so new widths
+  move every string after the first. The renderer's tile rule (stock):
+  columns u = s + Σ(wᵢ + s) with spacing s also after the last glyph (not
+  before a special glyph); tiles = u div 12, plus one if u mod 12 > s.
+  With this rule all 198 tables match a block string in English, Spanish,
+  German and French (blocks: page table `0x326C98`, common block
+  `0x3BFF18`, four more 6-language tables `0x3C0084`, `0x3C2F10`,
+  `0x3C30A8`, `0x3C34BC`, and the language-independent factory text
+  `0x3C5C6C`, `0x25EBA7`). Chinese and Japanese do not follow the rule.
+- (b) Groups assigned by the code during a page redraw (the menu stays on
+  screen, `0x256C92` skips the OSD-off step `0x23F9EE` for states
+  `0x10`–`0x18`) kept their vendor colours; the information line's group,
+  loaded while the OSD was being opened, was right. Most likely the palette
+  only takes writes while the OSD is off or being enabled; not verified.
+- Also found in the emulator: menu numbers (volume etc., `0x25CEEC`) are
+  rendered into bank-0 slots 9, 12, 15, 18, 21, 24 (≤ 3 tiles each), i.e.
+  below `0x20`; v1 did not map them, so they stayed blank.
+
+**v2** (`osd-aa-font`, emulator-checked):
+- String descriptors recomputed for the new widths (first slot and count
+  of all six languages; bytes 2–3 unchanged, not used by the placement).
+- Static palette groups: the text attributes of the menu data (item
+  records `+4`/`+5`: `3F`, `2F`, `21`, `22`, `24`, `2E`, `BF`, `01`;
+  values `1F`; value/information code `2C`) get groups 6, 7, 8, 9, B, C,
+  D, E, F, 3 in the vendor palette table `0x3B74B8` itself, so they load
+  with the vendor palette; the attribute map in RAM starts with them.
+  Unknown attributes still get a group at run time.
+- Code map with the number fields: L `0x009`–`0x01B` → `2L + 0x66`,
+  `0x020`–`0x150` → `2L + 0x5E`, `0x151`–`0x181` → `2L + 0x6E`,
+  `0x1C0`–`0x1D9` → `2L + 0x4A` (398 of the 399 free 2-bit glyphs).
+- Emulator: the menu frame `0x0E` and the pages `0x10`–`0x17` drawn with
+  the vendor code render like the stock firmware (labels, values, numbers,
+  disabled items in group 8, selected item in group 7); every text
+  placement starts on a string of the new layout; no text tile uses an
+  icon code. The emulator now also stubs the vertical-blank wait
+  `0x23F9EE` and needs `0x101C0B` = `0x20` and RAM `0x45788A` = `0x220`
+  (set at boot) for the vendor 1-bit renderer.

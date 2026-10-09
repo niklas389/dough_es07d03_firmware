@@ -8,7 +8,7 @@ is mapped at its link address 0x200000 together with RAM up to 0x500000.
 Register access (RIU) is not emulated at the bus level: the firmware's accessors
 are replaced by Python stubs (byte write 0x23D9E7, byte read 0x23D972, masked
 write 0x23DC0F, 16-bit read 0x23DBB3; the delay helpers 0x241708 and 0x20E375
-return at once). Writes to the OSD bank go to a model of the OSD engine (OSD
+and the vertical-blank wait 0x23F9EE return at once). Writes to the OSD bank go to a model of the OSD engine (OSD
 class): mode register 0x101C68, data port 0x101C66/0x101C67, font RAM as an
 18-bit-word bit stream, tile code/attribute RAM and the 256-entry palette, as
 described in docs/firmware-map.md section 56. The model reflects what was
@@ -46,7 +46,7 @@ class OSD:
         self.addr = 0
         self.codehi = 0
         self.font = bytearray(0x4000 * 18 // 8)      # 0x4000 words of 18 bits as one bit stream
-        self.fptr = 0
+        self.fptr = 0                                 # byte position in `font` (address words x 18 / 8)
         self.fontw = 0                                # font data bytes written
         self.code = {}                                # tile word -> code (12 bit)
         self.attr = {}                                # tile word -> attribute
@@ -58,14 +58,11 @@ class OSD:
         val &= 0xFF
         if reg == 0x101C68:
             self.mode = val & 0x1F
-            if self.mode == 3:
-                if self.addr % 4:
-                    raise Stop('font address %#x not 4-word aligned' % self.addr)
-                self.fptr = self.addr * 18 // 8
         elif reg == 0x101C66:
             m = self.mode
             if m == 0:
                 self.addr = (self.addr & 0xFF00) | val
+                self.fptr = self.addr * 18 // 8        # font data pointer (auto-increments in mode 3)
             elif m == 3:
                 self.font[self.fptr] = val
                 self.fptr += 1
@@ -86,6 +83,7 @@ class OSD:
         elif reg == 0x101C67:
             if self.mode == 0:
                 self.addr = (self.addr & 0xFF) | (val << 8)
+                self.fptr = self.addr * 18 // 8
             elif self.mode == 1:
                 self.codehi = val & 0xF
         self.regs[reg] = val
@@ -150,7 +148,8 @@ class CPU:
             c.osd.write(reg, (c.osd.read(reg) & ~m) | (v & m)); ret(c)
         def rd16(c): c.r[3] = c.osd.read(c.r[3]) | c.osd.read(c.r[3] + 1) << 8; ret(c)
         self.stubs.update({0x23D9E7: wr, 0x23D972: rd, 0x23DC0F: wmask, 0x23DBB3: rd16,
-                           0x241708: ret, 0x20E375: ret})
+                           0x241708: ret, 0x20E375: ret,
+                           0x23F9EE: ret})   # OSD off + wait for vertical blank (0x101CD3 bit 7, ISR timeout)
 
     # ---- execution
     def call(self, addr, *args, sp=0x4F0000, limit=20_000_000):
@@ -198,10 +197,10 @@ class CPU:
         elif op == 'andi': setd('D', R('A') & (imm & 0xFFFF))
         elif op == 'xori': setd('D', R('A') ^ (imm & M32))
         elif op == 'muli': setd('D', s32(R('A')) * imm)
-        elif op in ('add', 'sub', 'and', 'or', 'xor', 'mul', 'mulu', 'div', 'divu', 'sll', 'srl', 'sra'):
+        elif op in ('add', 'sub', 'and', 'or', 'xor', 'nand', 'andn', 'mul', 'mulu', 'div', 'divu', 'sll', 'srl', 'sra'):
             a, b = (R('A'), R('B')) if 'B' in v else (r[v['D'][1]], R('A'))
             res = {'add': lambda: a + b, 'sub': lambda: a - b, 'and': lambda: a & b, 'or': lambda: a | b,
-                   'xor': lambda: a ^ b, 'mul': lambda: s32(a) * s32(b), 'mulu': lambda: a * b,
+                   'xor': lambda: a ^ b, 'nand': lambda: ~(a & b), 'andn': lambda: a & ~b, 'mul': lambda: s32(a) * s32(b), 'mulu': lambda: a * b,
                    'div': lambda: int(s32(a) / s32(b)) if b else 0, 'divu': lambda: a // b if b else 0,
                    'sll': lambda: a << (b & 31), 'srl': lambda: a >> (b & 31), 'sra': lambda: s32(a) >> (b & 31)}[op]()
             setd('D', res)

@@ -25,9 +25,11 @@ How it works:
   glyph (54 bytes, mode 3) to its own RAM address instead of relying on the
   auto-increment of 1-bit glyphs.
 - Code map: a rendered tile of logical code L = (bank 0x457888 << 8) + slot goes to
-  the 2-bit code P: L 0x020-0x163 -> 2L + 0x38 (0x078-0x2FF), L 0x164-0x194 ->
-  2L + 0x48 (0x310-0x371), L 0x1C0-0x1D9 -> 2L + 0x4A (0x3CA-0x3FD); the vendor
-  2-bit icons stay at 0x300-0x30F and 0x372-0x3C9. Other L are not text.
+  the 2-bit code P: L 0x009-0x01B (number fields, slots 9, 12, ..., 24) -> 2L + 0x66
+  (0x078-0x09C), L 0x020-0x150 (page text, information line 1, common block) ->
+  2L + 0x5E (0x09E-0x2FE), L 0x151-0x181 -> 2L + 0x6E (0x310-0x370), L 0x1C0-0x1D9
+  (information line 2) -> 2L + 0x4A (0x3CA-0x3FC); the vendor 2-bit icons stay at
+  0x300-0x30F and 0x372-0x3C9. Other L are not text.
 - 2-bit range start 0x101C0A: 0x300 -> 0x078 (0x253A6B). The vendor 1-bit sets
   stay below (base glyphs 0-8, overlay and crosshair sets 0x00-0x77, popup-round
   corners 0x1C-0x1F); the two half-circle glyphs move from 0xFE/0xFF to 0x20/0x21
@@ -235,15 +237,18 @@ prog = [
  'fl_done:',
  *f_epi, jr(R9),
  # ---- logical code r3 -> 2-bit code r3 (0 = not text); r7 only
- 'lmap:',
+ 'lmap:',                                                 # (number slots 0x09-0x1B, page/common/info 0x20-0x181, info 0x1C0-0x1D9)
+ ori(R7, R0, 0x09), bgtu(R7, R3, 'lm_no'),
+ ori(R7, R0, 0x1C), bgtu(R7, R3, 'lm_n'),
  ori(R7, R0, 0x20), bgtu(R7, R3, 'lm_no'),
- ori(R7, R0, 0x164), bgtu(R7, R3, 'lm_a'),
- ori(R7, R0, 0x195), bgtu(R7, R3, 'lm_b'),
+ ori(R7, R0, 0x151), bgtu(R7, R3, 'lm_a'),
+ ori(R7, R0, 0x182), bgtu(R7, R3, 'lm_b'),
  ori(R7, R0, 0x1C0), bgtu(R7, R3, 'lm_no'),
  ori(R7, R0, 0x1DA), bgtu(R7, R3, 'lm_c'),
  'lm_no:', ('bt.movi', {'D': R3, 'I': 0}), jr(R9),
- 'lm_a:', add(R3, R3, R3), addi(R3, R3, 0x38), jr(R9),
- 'lm_b:', add(R3, R3, R3), addi(R3, R3, 0x48), jr(R9),
+ 'lm_n:', add(R3, R3, R3), addi(R3, R3, 0x66), jr(R9),
+ 'lm_a:', add(R3, R3, R3), addi(R3, R3, 0x5E), jr(R9),
+ 'lm_b:', add(R3, R3, R3), addi(R3, R3, 0x6E), jr(R9),
  'lm_c:', add(R3, R3, R3), addi(R3, R3, 0x4A), jr(R9),
  # ---- text placement (from 0x25CB21: mode 2 and tile address r16 set; r13 = &count, r14 = &first,
  #      r15 bit 7 = attributes only). r10-r16 are saved by 0x25CA96.
@@ -379,6 +384,16 @@ for a, b, x in A.disasm(code[:pool_addr - CODE - len(vbody)], CODE, pool_addr - 
     print(('%-11s' % (lab[0] + ':' if lab else '')) + '%08x: %-12s %-9s %s' % (a, b.hex(' '), x['mnem'], x['ops']))
 print('vbody %#x, pool %#x, end %#x' % (L['vbody'], pool_addr, CODE + len(code)))
 
+def lmap_py(L):
+    if 0x09 <= L < 0x1C: return 2 * L + 0x66
+    if 0x20 <= L < 0x151: return 2 * L + 0x5E
+    if 0x151 <= L < 0x182: return 2 * L + 0x6E
+    if 0x1C0 <= L < 0x1DA: return 2 * L + 0x4A
+    return 0
+_ps = [lmap_py(L) for L in range(0x200) if lmap_py(L)]
+_icons = set(range(0x300, 0x310)) | set(range(0x372, 0x3CA))
+assert len(set(_ps)) == len(_ps) and all(p % 2 == 0 and TWO_BIT_START <= p and p + 1 <= 0x3FE and p not in _icons and p + 1 not in _icons for p in _ps)
+
 # ---------------------------------------------------------------- font data
 FONT = os.environ.get('FONT', 'NotoSans-CondensedSemiBold.ttf')
 SIZE, BASELINE = 14, 14              # px per em; first row below the baseline (vendor: caps on rows 4-13)
@@ -476,7 +491,134 @@ common = max(tiles(cur(u32(0x3BFF18 + 8 * l), u16(0x3BFF18 + 8 * l + 4))) for l 
 print('page blocks (tiles, max of EN/ES/DE/FR):', ' '.join('%02X:%d' % kv for kv in sorted(worst.items())))
 print('common block: %d tiles' % common)
 assert max(worst.values()) <= 0x100 - 0x20, 'page text exceeds codes 0x20-0xFF'
-assert 0x20 + common <= 0x195 - 0x100, 'common block exceeds the mapped bank-1 range'
+assert 0x20 + common <= 0x182 - 0x100, 'common block exceeds the mapped bank-1 range'
+
+# ---------------------------------------------------------------- static text palette groups
+# Text colours known from the menu data (item records +4/+5: 3F, 2F, 21, 22, 24, 2E, BF, 01; values 1F;
+# value/info code 2C) get their palette group in the vendor palette table itself (0x3B74B8, R, G, B, flag),
+# so they are loaded with the vendor palette when the OSD opens. On hardware (2026-10-09, v1) groups that
+# the code loaded while the menu was on screen kept their vendor colours. Other attributes still get a
+# group at run time (gattr), which takes effect at the next palette load at the latest.
+PAL_TAB, PAL_N = 0x3B74B8, 0xF8
+STATIC_ATTRS = [0x3F, 0x2F, 0x1F, 0x21, 0x2C, 0x24, 0x2E, 0xBF, 0x22, 0x01]
+assert len(STATIC_ATTRS) <= len(POOL) and len(set(STATIC_ATTRS)) == len(STATIC_ATTRS)
+def third(x): return (x * 0x5556 + 0x7FFF) >> 16                 # as setgrp
+pal_tab = bytearray(cur(PAL_TAB, 4 * PAL_N))
+tmap0, gattr0 = bytearray(256), bytearray(16)
+for i, a in enumerate(STATIC_ATTRS):
+    g = POOL[i]
+    f, b = cur(PAL_TAB + 4 * (a >> 4), 3), cur(PAL_TAB + 4 * (a & 15), 3)
+    cols = [b, bytes(third(2 * x + y) for x, y in zip(b, f)), bytes(third(x + 2 * y) for x, y in zip(b, f)), f]
+    for v in range(4):
+        pal_tab[4 * (16 * g + v):4 * (16 * g + v) + 4] = cols[v] + b'\0'
+    tmap0[a], gattr0[i] = g + 1, a
+pal_tab = bytes(pal_tab)
+print('static text groups:', ', '.join('%02X->%X' % (a, POOL[i]) for i, a in enumerate(STATIC_ATTRS)))
+
+# ---------------------------------------------------------------- string descriptors
+# Menu items take their text as a descriptor {first slot, tile count, 2 bytes} per language from the
+# array 0x3C3EE8-0x3C5177 (198 x 6 x 4 bytes, getters index it with the language 0x4824D0+0x78).
+# The vendor precomputed first/count from its glyph widths: string k of a text block starts at slot
+# 0x20 + the tiles of strings 0..k-1. With other widths every table is recomputed: a table is matched
+# to (block, string) by its vendor values in English, Spanish, German and French, then all six
+# languages get the slots of the new layout. Bytes 2-3 are not used by the placement code; unchanged.
+DESC0, DESC1 = 0x3C3EE8, 0x3C5178
+FIXED_BLOCK = 0x3C5C6C                 # {ptr, len}: language-independent block (0x25EBA7, factory screen)
+LATIN = (0, 2, 3, 4)
+def text_blocks():
+    bl = set()
+    for stt in range(0x40):
+        q = u32(0x326C98 + 4 * stt)
+        if 0x300000 <= q < 0x3D0000:
+            bl.add(q)
+    bl.add(0x3BFF18)
+    for o in range(0x3BF000, DESC0, 4):      # other 6-language tables {u32 ptr, u16 len, u16} in the text data
+        if all(0x300000 <= u32(o + 8 * l) < 0x3D0000 and 2 <= u16(o + 8 * l + 4) < 5000 for l in range(6)):
+            bl.add(o)
+    return sorted(bl)
+def block_strings(q, lang):
+    if q == FIXED_BLOCK:
+        sp, n = u32(q), u16(q + 4)
+    else:
+        sp, n = u32(q + 8 * lang), u16(q + 8 * lang + 4)
+    if not (0x300000 <= sp < 0x3D0000) or n > 5000:
+        return []
+    b, out, cur_s, i = cur(sp, n), [], bytearray(), 0
+    while i < len(b):
+        if b[i] == 0xFF:
+            cur_s += bytes([0xFF, b[i + 1] if i + 1 < len(b) else 0]); i += 2; continue
+        if b[i] == 0:
+            out.append(bytes(cur_s)); cur_s = bytearray()
+        else:
+            cur_s.append(b[i])
+        i += 1
+    if cur_s:
+        out.append(bytes(cur_s))
+    return out
+def tiles_of(img, s, sp):
+    """Tiles of one string as the renderer 0x27C046 lays it out (left aligned, letter spacing sp)."""
+    hdr = lambda code, st: img[FONT_TAB - 0x200000 + 40 * ((st << 8) + code)]
+    toks, st, i = [], 0, 0
+    while i < len(s):
+        if s[i] == 0xFF:
+            st = s[i + 1]; i += 2; continue
+        toks.append((s[i], st)); i += 1
+    if not toks:
+        return 0
+    u = sp                                    # first glyph starts after the spacing
+    for k, (c, st_) in enumerate(toks):
+        h = hdr(c, st_)
+        w = (h & 15) if h & 0xF0 == 0xF0 else 12 - (h & 15) - (h >> 4)
+        hn = hdr(*(toks[k + 1] if k + 1 < len(toks) else (0, st_)))   # spacing before every non-special next glyph
+        u += w + (0 if hn & 0xF0 == 0xF0 else sp)
+    return u // 12 + (1 if u % 12 > sp else 0)  # a last tile holding only spacing is not flushed
+def layout(img, sp, blocks):
+    res = {}
+    for q in blocks:
+        for lang in range(6):
+            slot, lst = 0x20, []
+            for s_ in block_strings(q, lang):
+                n_ = tiles_of(img, s_, sp)
+                lst.append((slot, n_)); slot += n_
+            res[(q, lang)] = lst
+    return res
+patched = bytearray(d)
+patched[FONT_TAB - 0x200000:FONT_TAB - 0x200000 + len(set0)] = set0
+patched[FONT_TAB + PB_OFF - 0x200000:FONT_TAB + PB_OFF - 0x200000 + len(set1)] = set1
+blocks = text_blocks() + [FIXED_BLOCK]
+old_lay, new_lay = layout(d, 1, blocks), layout(bytes(patched), 0, blocks)
+nk = {q: max(len(old_lay[(q, l)]) for l in range(6)) for q in blocks}
+desc = bytearray(cur(DESC0, DESC1 - DESC0))
+match = {}
+for a in range(DESC0, DESC1, 24):
+    t = [tuple(cur(a + 4 * l, 2)) for l in range(6)]
+    match[a] = [(q, k) for q in blocks for k in range(nk[q])
+                if all(k < len(old_lay[(q, l)]) and old_lay[(q, l)][k] == t[l] for l in LATIN)]
+unresolved = []
+for a in range(DESC0, DESC1, 24):
+    m = match[a]
+    if len(m) > 1:                             # same values from several blocks: identical result, or the neighbour's block
+        outs = {tuple(tuple(new_lay[(q, l)][k]) if k < len(new_lay[(q, l)]) else None for l in range(6)) for q, k in m}
+        if len(outs) > 1:
+            nb = {q for b in (a - 24, a + 24) if len(match.get(b, [])) == 1 for q, _ in match[b]}
+            m = [x for x in m if x[0] in nb]
+    if len(m) != 1 and not (len(m) > 1 and len({tuple(tuple(new_lay[(q, l)][k]) if k < len(new_lay[(q, l)]) else None
+                                                     for l in range(6)) for q, k in m}) == 1):
+        unresolved.append(a)
+        continue
+    q, k = m[0]
+    for l in range(6):
+        if k < len(new_lay[(q, l)]):
+            desc[a - DESC0 + 4 * l:a - DESC0 + 4 * l + 2] = bytes(new_lay[(q, l)][k])
+desc = bytes(desc)
+print('string descriptors: %d tables, %d rewritten, unresolved %s' % ((DESC1 - DESC0) // 24, (DESC1 - DESC0) // 24 - len(unresolved),
+      [hex(a) for a in unresolved]))
+assert not unresolved
+for q in blocks:                               # every recomputed Latin page fits its slots
+    for l in LATIN:
+        if new_lay[(q, l)]:
+            f_, n_ = new_lay[(q, l)][-1]
+            assert f_ + n_ <= 0x100, (hex(q), l)
 
 # ---------------------------------------------------------------- checks of the vendor code relied on
 def insn(a): return A.decode(d, a - 0x200000, a)
@@ -526,6 +668,12 @@ edits = [
   'new': S.encode('bn.ori', {'D': R5, 'A': R0, 'N': HALF_CODE + 1}, HALF_PUT2).hex(), 'asm': 'sub_254ED0: right half circle code 0xFF -> 0x%02X' % (HALF_CODE + 1)},
  *[{'addr': '0x%06X' % a, 'old': cur(a, 3).hex(), 'new': cur(a, 2).hex() + '00',
     'asm': 'renderer letter spacing (0x3CB81C & 3) -> 0: the Noto glyph widths include the side bearings'} for a in SPACING],
+ {'addr': '0x%06X' % PAL_TAB, 'old': cur(PAL_TAB, len(pal_tab)).hex(), 'new': pal_tab.hex(),
+  'asm': 'vendor palette table: text palette groups ' + ', '.join('%X' % POOL[i] for i in range(len(STATIC_ATTRS))) + ' = [bg, 1/3, 2/3, fg] of the text attributes'},
+ {'addr': '0x%06X' % TMAP, 'old': '00' * 256, 'new': tmap0.hex(), 'asm': 'osd-aa RAM: attribute -> group + 1 for the static text attributes'},
+ {'addr': '0x%06X' % GATTR, 'old': '00' * 17, 'new': (gattr0 + bytes([len(STATIC_ATTRS)])).hex(), 'asm': 'osd-aa RAM: assigned groups (pool order) and their count'},
+ {'addr': '0x%06X' % DESC0, 'old': cur(DESC0, len(desc)).hex(), 'new': desc.hex(),
+  'asm': 'menu string descriptors (first slot, tile count per language) recomputed for the new glyph widths'},
  {'addr': '0x%06X' % FONT_TAB, 'old': cur(FONT_TAB, len(set0)).hex(), 'new': set0.hex(),
   'asm': 'font set 0 codes 0x00-0x7D: Noto Sans Condensed SemiBold 14 px, pixel bit 0 (Latin codes; others unchanged)'},
  {'addr': '0x%06X' % (FONT_TAB + PB_OFF), 'old': cur(FONT_TAB + PB_OFF, len(set1)).hex(), 'new': set1.hex(),
@@ -536,11 +684,11 @@ for e in edits:
 patch = {
  'name': 'osd-aa-font',
  'summary': 'Anti-aliased OSD text: Noto Sans Condensed SemiBold 14 px rendered as 2-bit (4-level) glyphs, smooth edges in every text colour',
- 'status': 'experimental, hardware test pending (prototype v1)',
+ 'status': 'experimental; v1 on hardware 2026-10-09: menu items showed parts of other strings, text groups kept vendor colours; v2 (descriptor tables, static palette groups, number fields) emulator-checked, hardware test pending',
  'edits': edits,
  'labels': {k: '0x%06X' % v for k, v in L.items() if not k.endswith('_ref')},
  'notes': ("Text tiles become 2-bit glyphs (two code slots each). Logical codes L = bank << 8 | slot map to 2-bit codes: "
-           "0x020-0x163 -> 2L+0x38, 0x164-0x194 -> 2L+0x48, 0x1C0-0x1D9 -> 2L+0x4A; vendor icons stay at 0x300-0x30F and "
+           "0x009-0x01B -> 2L+0x66, 0x020-0x150 -> 2L+0x5E, 0x151-0x181 -> 2L+0x6E, 0x1C0-0x1D9 -> 2L+0x4A; vendor icons stay at 0x300-0x30F and "
            "0x372-0x3C9; 2-bit range from 0x078 (0x101C0A). Each text attribute gets a free palette group (6, 7, 8, 9, B-F, "
            "3-5) with [background, 1/3, 2/3, foreground] of its 1-bit colours, reloaded after every palette load. "
            "Chinese and Japanese are not supported (their glyph set holds the second bit plane). "

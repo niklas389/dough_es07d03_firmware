@@ -13,7 +13,9 @@ Runs the vendor code of the patched runtime image in tools/aeon/aeonemu.py:
   with their widths (each string starts on a new tile), and the page must end at slot 0xFF
   or below;
 - text placement 0x25CA96: codes, attributes (palette groups), attribute-only updates,
-  non-text descriptors, and the group colours after a palette reload.
+  non-text descriptors, and the group colours after a palette reload;
+- the page drawing 0x256C92 of the menu pages 0x10-0x17 (English): every text descriptor
+  placed (string descriptor tables 0x3C3EE8) must start on a string of the new layout.
 Exit status 1 on any failure.
 """
 import json, math, os, struct, sys
@@ -45,6 +47,8 @@ def image(names):
 def boot(img):
     c = CPU(bytes(img))
     c.osd.regs.update({0x101D30: 1, 0x101D31: 0, 0x101D32: 62})   # window 1: tile base 1, pitch 62
+    c.osd.regs[0x101C0B] = 0x20                                    # 1-bit glyph = 3 units (as set at boot)
+    c.sh(0x45788A, 0x220)                                          # font RAM base (sub_2592D6)
     c.sb(0x3C538A, 1)
     c.call(0x253991)
     return c
@@ -77,7 +81,7 @@ def fglyph(cd):
         a, b = struct.unpack_from('<H', F0, 40 * cd + 2 + 2 * y)[0], struct.unpack_from('<H', F1, 40 * cd + 2 + 2 * y)[0]
         rows.append([((a >> (11 - x)) & 1) | (((b >> (11 - x)) & 1) << 1) for x in range(12)])
     return 12 - (h & 15) - (h >> 4), rows
-lmap = lambda L: 2 * L + (0x38 if L < 0x164 else 0x48 if L < 0x195 else 0x4A)
+lmap = lambda L: 2 * L + (0x66 if L < 0x1C else 0x5E if L < 0x151 else 0x6E if L < 0x182 else 0x4A)
 
 last = None
 for lang in (0, 2, 3, 4):
@@ -113,7 +117,7 @@ c.sb(D, 0x20); c.sb(D + 1, 12); c.sb(0x457889, 0)
 base = 1 + 3 * 62 + 2
 c.sb(0x3C5389, 0x3F); c.call(0x25CA96, 2, 3, D)
 codes = [o.code.get(base + i) for i in range(12)]
-check(codes == [lmap(0x20 + i) for i in range(12)], 'text tiles get 2-bit codes 0x078, 0x07A, ...')
+check(codes == [lmap(0x20 + i) for i in range(12)], 'text tiles get 2-bit codes 0x09E, 0x0A0, ...')
 a1 = o.attr.get(base)
 check(a1 is not None and a1 & 0xF == 0xF and a1 >> 4 not in (0, 1, 2, 0xA), 'attribute 0x3F -> %#04x (own palette group)' % (a1 or 0))
 c.sb(0x3C5389, 0x2F); c.call(0x25CA96, 2, 3 | 0x80, D)
@@ -130,6 +134,50 @@ b2 = 1 + 5 * 62 + 2
 check([o.code.get(b2 + i) for i in range(4)] == [1, 2, 3, 4] and o.attr.get(b2) == 0x21, 'non-text descriptor unchanged')
 c.call(0x25354E)                                           # vendor palette reload
 check([pal(16 * (a1 >> 4) + k) for k in range(4)] == g1, 'text group restored after a palette reload')
+
+# full page drawing 0x256C92 (English): every text descriptor placed must be a string of the page's
+# block as laid out with the new widths (first slot = string start, count = its tiles)
+def new_starts(q, lang):
+    sp, n = u32(q + 8 * lang), u16(q + 8 * lang + 4)
+    b, out, slot, cur_s, i = stock[sp - 0x200000:sp - 0x200000 + n], set(), 0x20, bytearray(), 0
+    def close(sx, slot):
+        w = sum(fglyph(cd)[0] if cd < 0x7E else 12 for cd in sx if cd < 0xF0)
+        t = math.ceil(w / 12)
+        if t:
+            out.add((slot, t))
+        return slot + t
+    while i < len(b):
+        if b[i] == 0xFF:
+            i += 2; continue
+        if b[i] == 0:
+            slot = close(cur_s, slot); cur_s = bytearray()
+        else:
+            cur_s.append(b[i])
+        i += 1
+    close(cur_s, slot)
+    return out
+c.sb(u32(0x3B5F38) + 0x78, 0)
+for st in range(0x10, 0x18):
+    seen = []
+    def rec(cpu):
+        seen.append((cpu.lb(0x457889) & 15, cpu.lb(cpu.r[14]), cpu.lb(cpu.r[14] + 1)))
+        del cpu.stubs[0x25CB21]; cpu.step(); cpu.stubs[0x25CB21] = rec
+    c.stubs[0x2714B4] = lambda cpu: setattr(cpu, 'pc', cpu.r[9])   # RTOS message (its pointer is set at boot)
+    c.call(0x253991)
+    c.sb(0x457854, 0x0E); c.call(0x256C92, 0)                      # menu frame: left list, information line
+    c.stubs[0x25CB21] = rec
+    c.sb(0x457854, st); c.call(0x256C92, 0)
+    del c.stubs[0x25CB21]
+    groups = {g - 1 for g in c.mem[0x202D80 - 0x200000:0x202E80 - 0x200000] if g}
+    icon_codes = set(range(0x300, 0x310)) | set(range(0x372, 0x3CA))
+    clash = [a for a, code in o.code.items() if o.attr.get(a, 0) >> 4 in groups and code in icon_codes]
+    check(not clash, 'page %02X with frame: no text tile on an icon code%s' % (st, '' if not clash else ' -- %d tiles' % len(clash)))
+    page = new_starts(u32(0x326C98 + 4 * st), 0)
+    common = new_starts(0x3BFF18, 0)
+    text = [x for x in seen if (x[0] << 8 | x[1]) >= 0x20 and x[0] < 2]   # (number fields: runtime descriptors)
+    bad = [x for x in text if (x[1], x[2]) not in (page if x[0] == 0 else common)]
+    check(text and not bad, 'page %02X drawn: %d text placements, all on string boundaries%s'
+          % (st, len(text), '' if not bad else ' -- off: %s' % bad[:4]))
 
 if png:
     from PIL import Image
