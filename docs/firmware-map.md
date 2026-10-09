@@ -2998,6 +2998,21 @@ v2 skips that for the diagnostic codes 0xEA–0xEE only (`osd_keep`).
   tile routine `0x25C8F5` (attribute RAM `0x3C5389`, code bits 8–11 RAM
   `0x457889`, both restored afterwards). RAM `0x2024B2` counts completed
   commands. Data tables at `0x202A00`/`0x202C00`.
+- v3 on hardware: both commands worked; the markers appeared at columns
+  1 and 28. The test tiles (codes `0x3B0`–`0x3B6`) showed recurring UI
+  shapes (corner, diagonal, dots, line; white, dark and transparent
+  pixels in one tile), not the test patterns, and nothing else in the menu
+  changed. So the hardware does show codes ≥ `0x300` as multi-colour
+  tiles, but my address formula was wrong. Consistent reading: a 2-bit
+  code c starts at the same word as a 1-bit glyph, `0x880 + 12 × c`, and
+  occupies two code slots (24 words). Then the firmware's icon loads at
+  `0x2C80` and `0x31D8` are codes `0x300`–`0x30F` (8 icons) and
+  `0x372`–`0x3C9` (44 icons); `0x3B0` is icon 31 of the second set (what the
+  photo showed), and v3's own data went to words `0x3D00`+, beyond the last
+  code (`0x3FF` ends at `0x3874`), hence invisible. The 2-bit range
+  `0x300`–`0x3FE` therefore holds at most 127 glyphs (less 52 icons) unless
+  `0x101C0A` is lowered; RAM is not the limit.
+- v4: test glyphs at even codes `0x3D0`–`0x3DE` with that formula.
 
 **Requested by the owner** (2026-10-09), after the test: anti-aliased font
 (option 2), filled selection bar instead of the white outline, finer

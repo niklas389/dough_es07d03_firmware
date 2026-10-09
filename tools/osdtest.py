@@ -5,12 +5,14 @@ Firmware-side test (diag-osd v3; seconds instead of a slow DDC upload):
     tools/osdtest.py load                       the firmware loads its built-in 2-bit test glyphs
     tools/osdtest.py row 11                     the firmware places the test row in row 11 (menu open)
 
-    test glyphs: 0x3B0 bands (pixel values 0,1,2,3 in 3-px bands), 0x3B4/0x3B5/0x3B6 solid value
-    1/2/3, 0x3B1-0x3B3 anti-aliased "Abg" sample, 0x3CF bands (last 2-bit code that fits)
+    test glyphs (diag-osd v4; a 2-bit glyph uses two code slots): 0x3D0 bands (pixel values
+    0,1,2,3 in 3-px bands), 0x3D2/0x3D4/0x3D6 solid value 1/2/3, 0x3D8/0x3DA/0x3DC anti-aliased
+    "Abg" sample, 0x3DE bands
     test row, columns 1-28: marker (glyph 6, attribute 21); then for each attribute 21, F2, 40,
-    C8, 12: bands, solid 1, solid 2, solid 3; blank; sample (3 tiles); blank; 0x3CF; marker.
+    C8, 12: bands, solid 1, solid 2, solid 3; blank; sample (3 tiles); blank; 0x3DE; marker.
 
-Older DDC-side commands (diag-osd v2; every write checked, but about 1 s per byte):
+Older DDC-side commands (diag-osd v2; every write checked, but about 1 s per byte; their glyph
+address formula below is the disproved one, see section 56):
 
     tools/osdtest.py info  > osd_info.txt       dump the OSD registers (0x101C00-1F, 0x101C60-7F, 0x101D00-FF)
     tools/osdtest.py glyphs                     load the 2-bit (4-colour) test glyphs (codes 0x3B0-0x3B3, 0x3CF)
