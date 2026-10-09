@@ -2972,6 +2972,15 @@ v2 skips that for the diagnostic codes 0xEA–0xEE only (`osd_keep`).
   2-bit code (e.g. 2-bit from `0x40`: 560 codes).
 - Tool v2: test codes `0x3B0`–`0x3B3` and `0x3CF` (inside the RAM), solid
   base glyph 6 as a position marker before and after the test tiles.
+- Tool v2 on hardware: DDC/CI lost about one write in ten (glyph 0x3B0: 52–56
+  of 61 writes arrived in four tries); the marker (glyph 6, white) appeared
+  at column 1 of row 11, which is the "Picture" line of the left list, so
+  tile addressing (base + row × pitch + column) is right. Tool v3: every
+  write is checked against the write counter `0x2024B0` and resent when
+  lost (data-port writes only advance the RAM pointer when they arrive);
+  tiles are written as one run (attributes, then codes) as `0x23C635` does.
+  Checked against a simulated monitor dropping 10 % of writes: glyph and
+  tile byte streams arrive exactly.
 
 **Requested by the owner** (2026-10-09), after the test: anti-aliased font
 (option 2), filled selection bar instead of the white outline, finer

@@ -22,6 +22,11 @@ a 1-bit glyph takes 12 words, a 2-bit glyph 24 (18-bit words). With the stock ra
 codes start at word 0x2C80, so only 0x300-0x3CF fit; v1 of this tool used 0x3F0-0x3FE, whose
 addresses wrapped to word 0x300 and overwrote menu tiles (row 12) instead.
 
+Every write is checked against diag-osd's write counter (RAM 0x2024B0) and resent if
+DDC/CI dropped it (v1 of this tool lost about one write in ten). Load the glyphs first (the
+menu may be closed; the font RAM keeps them), then open the menu and run 'row' (about 45
+writes, well inside the 120 s menu timeout).
+
 Everything written is OSD display state only: closing and reopening the menu redraws the
 tiles; the font RAM keeps the test glyphs until the next power cycle (codes 0x3B0-0x3CF are
 not used by the firmware's text). The firmware's own OSD activity can interleave with these
@@ -48,7 +53,7 @@ def setaddr(a):
     """diag-poke address variable (VCP 0xEA/0xEB), verified."""
     global _hi
     hi, lo = (a >> 16) & 0xFFFF, a & 0xFFFF
-    for _ in range(TRIES):
+    for _ in range(max(10, 3 * TRIES)):                # hundreds of address changes per run
         if _hi != hi:
             vset(0xEA, hi)
         vset(0xEB, lo)
@@ -56,7 +61,7 @@ def setaddr(a):
             _hi = hi
             return
         _hi = None
-        time.sleep(0.3)
+        time.sleep(0.1)
     sys.exit('address %#x not accepted (diag-poke in the build? DDC/CI working?)' % a)
 
 def rd(a):
@@ -71,23 +76,24 @@ def rd(a):
             return v
     sys.exit('read of %#x failed' % a)
 
+_cnt = None
 def wr(a, v):
-    setaddr(a)
-    vset(0xEE, v & 0xFF)
-
-def counter():
-    return rd(0x2024B0)
-
-def checked(fn, n, what):
-    """run fn() (n accepted writes expected); retry when DDC/CI dropped one."""
-    for t in range(TRIES):
-        c0 = counter()
-        fn()
-        c1 = counter()
-        if (c1 - c0) & 0xFF == n:
+    """one verified write: diag-osd counts accepted writes at RAM 0x2024B0; a write that DDC/CI
+    dropped (counter unchanged) is sent again. Data-port writes advance the RAM pointer only
+    when they arrive, so resending keeps glyph and tile data in step."""
+    global _cnt
+    if _cnt is None:
+        _cnt = rd(0x2024B0)
+    for _ in range(3 * TRIES):
+        setaddr(a)
+        vset(0xEE, v & 0xFF)
+        c = rd(0x2024B0)
+        d, _cnt = (c - _cnt) & 0xFF, c
+        if d == 1:
             return
-        print('  %s: %d of %d writes arrived, again' % (what, (c1 - c0) & 0xFF, n), file=sys.stderr)
-    sys.exit('%s: DDC/CI kept dropping writes' % what)
+        if d != 0:
+            sys.exit('write counter jumped by %d at %#x (another DDC/CI writer?)' % (d, a))
+    sys.exit('write %#x = %#x kept getting lost on DDC/CI' % (a, v))
 
 # ---- glyph data: 18 rows x 12 pixel values 0-3 -> 3 bytes per row (pixel 0 in bits 23-22) ----
 def pack(rows):
@@ -125,44 +131,47 @@ def font_addr(code):
 def load_glyph(code, data):
     m68, m6d = rd(0x101C68), rd(0x101C6D)
     a = font_addr(code)
-    def go():
-        wr(0x101C6D, m6d & 0x3F)                       # as both firmware loaders
-        wr(0x101C68, m68 & 0xE0)                       # mode 0: address
-        wr(0x101C66, a & 0xFC)
-        wr(0x101C67, a >> 8)
-        wr(0x101C68, (m68 & 0xE0) | 3)                 # mode 3: font data
-        setaddr(0x101C66)
-        for b in data:
-            vset(0xEE, b)
-        wr(0x101C68, m68)
-        wr(0x101C6D, m6d)
-    checked(go, 7 + len(data), 'glyph %#x' % code)
-    print('glyph %#05x loaded at font address %#06x' % (code, a))
+    wr(0x101C6D, m6d & 0x3F)                           # as both firmware loaders
+    wr(0x101C68, m68 & 0xE0)                           # mode 0: address
+    wr(0x101C66, a & 0xFC)
+    wr(0x101C67, a >> 8)
+    wr(0x101C68, (m68 & 0xE0) | 3)                     # mode 3: font data
+    for b in data:
+        wr(0x101C66, b)
+    wr(0x101C68, m68)
+    wr(0x101C6D, m6d)
+    print('glyph %#05x loaded at font address %#06x' % (code, a), flush=True)
 
 def window(w):
     b = 0x101D00 + 0x20 * w
     return rd(b + 0x10) | rd(b + 0x11) << 8, rd(b + 0x12)
 
-def place(w, col, row, code, attr, geo=None):
+def run(w, col, row, tiles, geo=None):
+    """consecutive tiles [(code, attr), ...] from (col, row): attributes in one burst (mode 2),
+    then codes (mode 1), as sub_23C635 does for a row."""
     base, pitch = geo or window(w)
     t = (base + row * pitch + col) & 0xFFFF
     m68 = rd(0x101C68)
-    def go():
-        wr(0x101C68, m68 & 0xE0)                       # mode 0: tile address
-        wr(0x101C66, t & 0xFF)
-        wr(0x101C67, t >> 8)
-        wr(0x101C68, (m68 & 0xE0) | 2)                 # mode 2: attribute
+    wr(0x101C68, m68 & 0xE0)                           # mode 0: tile address
+    wr(0x101C66, t & 0xFF)
+    wr(0x101C67, t >> 8)
+    wr(0x101C68, (m68 & 0xE0) | 2)                     # mode 2: attributes
+    for code, attr in tiles:
         wr(0x101C66, attr)
-        wr(0x101C68, m68 & 0xE0)
-        wr(0x101C66, t & 0xFF)
-        wr(0x101C67, t >> 8)
-        wr(0x101C68, (m68 & 0xE0) | 1)                 # mode 1: code (bits 8-11 in 0x101C67 low nibble)
-        hi = rd(0x101C67)
-        wr(0x101C67, (hi & 0xF0) | (code >> 8))
+    wr(0x101C68, m68 & 0xE0)
+    wr(0x101C66, t & 0xFF)
+    wr(0x101C67, t >> 8)
+    wr(0x101C68, (m68 & 0xE0) | 1)                     # mode 1: codes (bits 8-11 in 0x101C67 low nibble)
+    hi0 = rd(0x101C67) & 0xF0
+    cur_hi = None
+    for code, attr in tiles:
+        if code >> 8 != cur_hi:
+            cur_hi = code >> 8
+            wr(0x101C67, hi0 | cur_hi)
         wr(0x101C66, code & 0xFF)
-        wr(0x101C68, m68)
-    checked(go, 12, 'tile %d/%d' % (col, row))
-    print('window %d col %d row %d: code %#05x attribute %02X (tile address %#06x)' % (w, col, row, code, attr, t))
+    wr(0x101C68, m68)
+    for k, (code, attr) in enumerate(tiles):
+        print('window %d col %d row %d: code %#05x attribute %02X' % (w, col + k, row, code, attr))
 
 ap = argparse.ArgumentParser(description='OSD font/tile experiments (diag-osd)')
 sub = ap.add_subparsers(dest='cmd', required=True)
@@ -189,15 +198,9 @@ elif a.cmd == 'glyphs':
 elif a.cmd == 'row':
     geo = window(a.win)
     print('window %d: tile base %#06x, pitch %d' % (a.win, geo[0], geo[1]))
-    c = a.col
-    place(a.win, c, a.row, 6, 0x21, geo); c += 1          # marker: solid base glyph 6
-    for attr in (0x21, 0x12, 0x2F, 0xF2, 0x40, 0x04, 0x84, 0xC8):
-        place(a.win, c, a.row, 0x3B0, attr, geo); c += 1
-    c += 1
-    for k in range(3):
-        place(a.win, c, a.row, 0x3B1 + k, 0x21, geo); c += 1
-    c += 1
-    place(a.win, c, a.row, 0x3CF, 0x21, geo); c += 1
-    place(a.win, c, a.row, 6, 0x21, geo)
+    tiles = [(6, 0x21)]                                # marker: solid base glyph 6
+    tiles += [(0x3B0, x) for x in (0x21, 0x12, 0x2F, 0xF2, 0x40, 0x04, 0x84, 0xC8)]
+    tiles += [(0, 0x21)] + [(0x3B1 + k, 0x21) for k in range(3)] + [(0, 0x21), (0x3CF, 0x21), (6, 0x21)]
+    run(a.win, a.col, a.row, tiles, geo)
 else:
-    place(a.win, a.col, a.row, a.code, a.attr)
+    run(a.win, a.col, a.row, [(a.code, a.attr)])
