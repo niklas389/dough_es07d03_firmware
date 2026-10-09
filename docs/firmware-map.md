@@ -3088,3 +3088,36 @@ dropped in the anti-aliased build (separate patch later if needed).
   (static list incomplete; a logging build of `0x27C046`'s arguments would
   give it exactly).
 
+**Menu text and cell budget** (static, 2026-10-09):
+- Item text: text items (12-byte entries: +0 flags, +4 column, +5 row, +8
+  text function) are placed by `0x255C98` → `0x25CA96`(column, row,
+  descriptor): descriptor byte 0 = first code, byte 1 = tile count; the
+  tiles get codes first … first + count − 1 (attribute `0x3C5389`, code
+  bits 8–11 `0x457889`; flag bit 1 selects bank 1). For 2-bit text the
+  loop at `0x25CB9A` must step by 2.
+- Page text: `0x259A0E` renders the whole text block of the current OSD
+  state (`0x457854`) into consecutive codes from `0x20`: table `0x326C98`
+  (per state a pointer to 6 × {u32 string, u16 length}; language order
+  English, Chinese, Spanish, German, French, Japanese), strings separated
+  by 0, each starting on a new tile. All option values of a page are in
+  the block (e.g. state `0x08`, Input/Output: "Select video input source",
+  "Select automatically", "USB Type-C", …).
+- Tiles per page block (stock widths from the font bitmaps / Noto Sans
+  SemiBold 14 px): Input/Output (`0x08`) EN 216/265, ES 215/270, DE
+  223/271, FR 217/260; `0x11` 188–208/236–262; `0x14` 152–183/186–226;
+  others smaller. Longest single string 15 tiles stock, 16–18 with Noto
+  (label column about 20 tiles).
+- Budget: 2-bit tiles take two codes; codes from `0x3FF` are the 8/16-colour
+  ranges (`0x101C0C`/`0x101C0E`, 10-bit), so 2-bit text must lie below
+  `0x3FF`. With the 2-bit range starting at `0x40` there are 958 codes =
+  479 tiles; the largest page needs about 270 plus the left list, header
+  and values (rendered separately, bank 1). Fits, but the stock 2-bit
+  icons at `0x300`–`0x30F` (selection frame, `0x256144`, code bits 8–11 =
+  3) and `0x372`–`0x3C9`, and the 1-bit glyphs at `0xFE`/`0xFF` and the
+  overlay sets (`0x2A`–`0x77`) must be relocated or kept outside the text
+  slots.
+- Boot logo (owner's question): the logo glyphs are 1-bit RLE data at
+  `0x324CBC` (100 glyphs) in the image; removing them frees image space,
+  not OSD RAM. Image space is not the limit for the new font (dropping the
+  CJK glyphs frees about 19 KB of font table).
+
