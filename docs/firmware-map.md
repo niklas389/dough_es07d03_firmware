@@ -3121,3 +3121,27 @@ dropped in the anti-aliased build (separate patch later if needed).
   not OSD RAM. Image space is not the limit for the new font (dropping the
   CJK glyphs frees about 14 KB of font table: about 360 glyphs × 40 bytes).
 
+**Design constraints found while preparing the prototype** (2026-10-09):
+- Page text has a hard limit of 224 tiles: it is rendered into codes
+  `0x20`–`0xFF` of bank 0 (descriptor byte 0 is 8-bit). Stock widths need
+  up to 223 (German Input/Output page). Largest page with Noto Sans
+  (integer advances, each string on a new tile): SemiBold 14 px 272,
+  SemiBold 13 px 252, SemiCondensed SemiBold 14 px 245 / 13 px 232,
+  Condensed SemiBold 14 px 224 (222 with the space 1 px narrower). Only
+  **Condensed SemiBold 14 px** fits without squeezing the letter spacing.
+- Bank 1 holds the common block (`0x259ACB`: table `0x3BFF18`, slot `0x20`
+  → codes `0x120`–`0x17F`, stock 87–95 tiles, Condensed 90–98) and the
+  information lines (`0x25D78C` with slots `0x00` and `0xC0` → `0x100`ff,
+  `0x1C0`ff).
+- Other code users: the 2-bit icons (`0x300`–`0x30F`, `0x372`–`0x3C9`;
+  placed with code bits 8–11 = 3 at `0x2552B1`, `0x255386`, `0x2556DD`,
+  `0x255A4E`, `0x2561FB`, `0x2562CA`, `0x2597C2`, e.g. the selection frame
+  `0x256144`), code bits 8–11 = 2 and 4 at `0x25C6F9`/`0x25C705`, the
+  1-bit base glyphs `0`–`0x1F`, and the overlay/logo sets.
+- 2-bit text needs two codes per tile; all needs together (page 448 +
+  common about 200 + information lines about 80 + icons 104 codes) fit
+  into `0x40`–`0x3FE` (958 codes), but not with a single linear mapping:
+  a logical → physical code map has to be applied wherever tile codes are
+  written (`0x25CA96` loop, `0x23C635`, `0x23C71C`) and wherever glyphs are
+  loaded (renderer `0x25D952`, icon loads in `0x253991`).
+
