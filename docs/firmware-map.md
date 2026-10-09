@@ -2681,3 +2681,41 @@ video) and compare. If the MSA timing (or another register) separates the
 two, the PM51 can poll it in Option A's state (front-end in mode 0, main
 supply off) with the same command, together with the link query `0x0B` to
 notice the link being released (then mode 3, real deep standby).
+
+## 54. Video signal for Option A found: the receiver's MSA registers (2026-10-09)
+
+**Measurement** (`diag-fe` v3, `tools/fereg.sh`; DP from the dock, 4K 144 Hz
+with DSC; then the PC's DP output disabled → deep standby (the dock had
+released the link), key wake → link-held standby, `fequery r8` = source
+active). Files of the owner, 2026-10-09 01:42–01:58.
+- MSA block of decoder 1 (`0x113168`), with picture: htotal `0x0FA0` (4000),
+  vtotal `0x08AE` (2222), width `0x0F00` (3840), height `0x0870` (2160),
+  hstart `0x70`, vstart `0x3B`, hsync `0x40`, vsync `0x8005` (bit 15 =
+  polarity). Field order is therefore htotal, vtotal, width, height, hstart,
+  vstart, hsync, vsync (the §53 names for +4…+0xE were wrong).
+  4000 × 2222 × 144 Hz = 1.28 GHz pixel clock (CVT-RB2 4K 144 Hz).
+- Link held without video: decoder 1 reads `78 00 4B 00 50 00 3C 00 12 00
+  05 00 0C 00 02 00` (120, 75, 80, 60, 18, 5, 12, 2), identical to the
+  unused decoders 0 and 2 in both states, i.e. the register defaults.
+  Decoder 3 reads 0.
+- Link block: lane status `0x110D2E`/`0x110D2F` = `0x77` in both states
+  (link trained also without video). `0x110D32` and `0x110F40` = `0x14`
+  with picture, `0x1E` without: the dock trained HBR2 for the stream and
+  HBR3 for the empty link.
+- DPCD banks: differences at `0x121C`, `0x1226` (3 → 5), `0x1234`/`0x1235`,
+  `0x1238`, `0x123A` (`0x0D` → 1), `0x1278`, `0x151B`/`0x151D`, `0x15A9`,
+  `0x15E0` (5 → 8). Which of them is DPCD `0x600` is not established.
+
+**Signal:** "video on a DP receiver" = an MSA block with a width above the
+default (e.g. > 256): readable with the front-end's debug read
+(`0xFF`/`0xFF`/2) from the main firmware and, in principle, the PM51. Not yet
+verified: that the front-end keeps decoding MSA while the scaler (the
+transmitter's sink) is off, and which decoder USB-C uses (all blocks can be
+checked).
+
+**Message type 8** (§52/§53), decoded: routing report. `0x8631D` (on a
+change of the front-end's active receiver, `0x25AC1`) and `0x862A4` (on a
+change of an output path's input mask, `0xB0008FD4 + 0x1C × path`) send the
+packed indices of the routed inputs (`0x12FDB`: one nibble per set bit) at
+payload `+0x21`/`+0x22`; `+0x20` = 1 when more than one input or when query
+`0x0C` reports 7. It follows the main firmware's input selection, not video.
