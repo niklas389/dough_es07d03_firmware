@@ -117,6 +117,7 @@ class CPU:
         self.mem[:len(image)] = image
         self.r = [0] * 32
         self.f = False
+        self.spr = {}            # special-purpose registers (SR = 0x11), plain storage
         self.pc = 0
         self.osd = OSD()
         self.stubs = {}
@@ -246,6 +247,8 @@ class CPU:
         elif op in ('sb', 'sh', 'sw'):
             off = next(v[ch][1] for ch in v if ch not in ('A', 'B'))
             {'sb': self.sb, 'sh': self.sh, 'sw': self.sw}[op]((R('A') + off) & M32, R('B'))
+        elif op == 'mfspr': setd('D', self.spr.get(R('A') | v['|'][1], 0))
+        elif op == 'mtspr': self.spr[R('A') | v['|'][1]] = R('B')
         elif op == 'nop':
             pass
         else:

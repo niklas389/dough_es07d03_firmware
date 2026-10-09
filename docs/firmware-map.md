@@ -2405,6 +2405,8 @@ logged. It now watches `0x453C71`.
   this bit: in §40 it went to `0x00` exactly at the menu-close retry. It is
   watched again, next to `0x453C71`.
 - To be confirmed by reading `0x453C72` (bit 0) in the stuck state.
+- Confirmed for a later episode (2026-10-09, §57): bit 16 left set by a
+  quick input menu closed with a key; fix `menu-flag-clear`.
 
 ## 48. Recovery from the stuck state; `+0x5B` not updated by the routing (2026-10-08)
 
@@ -2618,6 +2620,8 @@ standby; builds identical apart from the OSD font patch). Code findings:
   (set by `sub_258AB1` together with OSD state `0x0D` after a DP link event
   in state 4/6, cleared by `sub_265EAE`). It stayed clear in the fault, so
   that pause is not the cause.
+- Superseded by §57: the correct state does not use 4:2:0; the picture comes
+  as two halves on two links. Kept for the record:
 - Not established: whether the correct state uses the 4:2:0 doubling at all
   (it would fit: 3840×2160 at 144 Hz, htotal 4000 × vtotal 2222, is
   1.28 Gpixel/s; as 4:2:0, 12 bit per pixel, that is 15.4 Gbit/s, within four
@@ -3337,3 +3341,66 @@ behind them, letters partly missing, and the information line in green.
 - Open: whether palette writes during a page redraw take effect (the v1
   colours are now explained by the wrong rule; static palettes avoid the
   question).
+
+## 57. 4K 144 Hz arrives on two links; stuck "quick input menu" flag (2026-10-09)
+
+**`tools/widthdump.sh` in the correct state** (DP, 3840×2160 at 144 Hz with
+DSC, testing monitor):
+- Windows 0 and 1 (the scaler-side ports 0 = USB-C link and 1 = DP link of
+  the scan, `0x3B4950 + 0xB0 × port`) are both in state 4, sources 5 and 6,
+  each with a 1920×2160 rectangle.
+- Both scaler DP receivers (records 0 and 1) carry a stream with htotal 2000,
+  vtotal 2222, 1920×2160, RGB (MISC0 `0x20`, MISC1 `0x00`); receiver 2 is
+  idle.
+- Path 0: width 3840, `+0x94` = 1, window mask `+0x98` = 3.
+- Window `+0x88` (4:2:0 doubling) = 0 in both windows.
+- So the front-end sends the 4K 144 Hz picture as two halves, one on each of
+  its two links to the scaler, and path 0 joins windows 0 and 1. The factor
+  2 of `sub_22ED5D` comes from `sub_222EAE` (path `+0x94` set, window `+0x80`
+  = 1), not from 4:2:0. The 4:2:0 hypothesis of §50 is ruled out.
+
+**Half-width fault, reinterpreted:** the picture is the half on the DP link
+(window 1) alone, 1920 wide, scaled to the full panel width.
+- In the second fault log (§50) window 0 has no state change at all after
+  5.9 s, while window 1 goes 1 → 3 → 4.
+- In correct starts (this log, after the boot selection) window 0 goes
+  1 → 3 → 4 about 0.25–1 s after window 1.
+- In that fault run, DP was attached by the automatic scan (from HDMI, with
+  `scan-active-first`'s jump past USB-C), not by the start-up selection
+  (`sub_2678D9`). Whether the scan's attach (`sub_2653EA` path) leaves the
+  USB-C link's window out of the pair, or the front-end did not send the
+  second half, is not established. The third occurrence (wake from
+  link-held standby) has no log.
+- `+0x94` is cleared by the path reset `0x23E4CE`; its setter was not found
+  by a store scan (same situation as `+0xA3`). How the pair is formed is not
+  traced yet.
+- Next: a `widthdump.sh` with the fault on screen (window 0 state, receiver
+  0 timing, path `+0x94`/`+0x98`).
+
+**Stuck black screen without standby (same run):**
+- 45.13 s: quick input menu (OSD state 8); `0x453C72` → `0x01`
+  (`0x453C70` bit 16 set by `key_process`, `0x257E34`).
+- 45.64 s: menu left by a key (state 6). Bit 16 stays set: it is cleared
+  only at the menu-timer end while the menu is still open (`0x2590B0`) and by
+  `power_soft_off`. The watcher shows no change for the rest of the run.
+- 1449.7 s: the laptop slept; window 1 status `0x0F`, state 1, window 0
+  state 0; 1452.2 s window 1 no-signal decision (state 2).
+- No "No signal" and no standby for 35 minutes: with bit 16 set, the
+  automatic scan's no-signal branch (`sub_25FE39`, `0x2600DF`) does not call
+  `sub_26A809` (§47). This confirms the §47 candidate for this episode (in
+  §48 the bit was clear, so that episode had another cause).
+- 3544.9 s: the laptop woke; window 1 accepted at 3545.49 s, lost 0.76 s
+  later (status `0x4F`, flags `0x2B`, restart) and stayed in state 1 without
+  a no-signal decision; window 0 accepted at 3547.93 s. Black screen. Why
+  window 1 then got neither a signal nor a no-signal decision is open.
+- Stock behaviour: bit 16 handling is unchanged by our patches (set by
+  `key_process`, cleared only as above), so stock would block "No signal" in
+  the same way after a key-closed quick input menu.
+- Fix `menu-flag-clear`: main loop (hook on `jal sub_20BD37` at
+  `0x262128`), if OSD state is 6 and bit 16 is set, clear bit 16
+  (read-modify-write with interrupts masked). States 8/9/`0x1A` (menu open)
+  are not touched, so the vendor's menu-timer retry is unchanged.
+  Emulator-checked; hardware test pending.
+- The `widthdump.sh` run in the stuck state returned only `ERR` (no DDC/CI
+  answer to any read, including pages that were readable before); cause not
+  established (wrong `SPECCTL`/`MON`, or DDC/CI not answering in that state).
