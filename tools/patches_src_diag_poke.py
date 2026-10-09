@@ -27,10 +27,12 @@ Safety:
   PWM unit 0x103Cxx/0x103Dxx, RAM 0x2022xx-0x2024xx for the diag-log data,
   RAM 0x2039xx for older diag-log versions, RAM 0x453Cxx for the wake event and
   wake port that the PM51 reports (0x453C74 / 0x453C78), RAM 0x4824xx-0x4825xx
-  for the settings mirror at 0x4824D0); no data-port or controller registers
-  whose read could have side effects.
-- Addresses 0x20xxxx, 0x45xxxx and 0x48xxxx are RAM and are read with a plain
-  byte load.
+  for the settings mirror at 0x4824D0; for the half-width DP picture: RAM
+  0x3B49xx-0x3B4Bxx window records, 0x47F7xx-0x47F9xx scaler DP receiver
+  records, 0x4821xx-0x4823xx input path records); no data-port or controller
+  registers whose read could have side effects.
+- Addresses 0x20xxxx, 0x3Bxxxx, 0x45xxxx, 0x47xxxx and 0x48xxxx are RAM and are
+  read with a plain byte load.
 - The two allowlist tables are in the zero area of the image head (TABLES,
   0x201F00), so the code cave 0x203DC0 ends before wake-no-replug (0x203FB8).
 - A read runs with interrupts masked (SR IEE/TEE, as the firmware's own
@@ -66,7 +68,12 @@ WRITE_OK = [0x00000422, 0x00000426, 0x00000428, 0x00000434, 0x00000436, 0x000004
                                         # slow-mailbox test (write the mains value 00 after a wake).
 READ_PAGES = [0x000300, 0x000400, 0x000500, 0x101E00, 0x102F00, 0x103C00, 0x103D00, 0x202200, 0x202300, 0x202400, 0x203900,
               0x453C00,                 # RAM 0x453C74-0x453C7B: wake info from the PM51 (event +0, port +4), copied at start by sub_20E254
-              0x482400, 0x482500]       # RAM settings mirror 0x4824D0 (+0x4F input 0x48251F, +0x59 0x482529, +0xA5 0x482575)
+              0x482400, 0x482500,       # RAM settings mirror 0x4824D0 (+0x4F input 0x48251F, +0x59 0x482529, +0xA5 0x482575)
+              # half-width DP picture (docs/firmware-map.md section 50), read-only RAM:
+              0x3B4900, 0x3B4A00, 0x3B4B00,       # window records 0x3B4950 + 0xB0*w (w 0, 1): +0x0C state, +0x1C flags, +0x88 doubling
+              0x47F700, 0x47F800, 0x47F900,       # scaler DP receiver records 0x47F7D8 + 0x74*rx (+0x36 colour format, +0x5C/+0x5D MISC0/1),
+                                                  # timing records 0x47F934 + 0x30*rx
+              0x482100, 0x482200, 0x482300]       # input path records 0x4821AC + 0xA8*p (+0x0C/+0x0E width/height shown in the OSD)
 TABLES = 0x201F00                       # allowlist tables in the image head zero area (diag-log code ends ~0x201610)  # (addr & 0x7FFF00); top byte only for 0x102F00
 
 R0, R1, R3, R4, R5, R6, R7, R8, R9, R23 = 0, 1, 3, 4, 5, 6, 7, 8, 9, 23
@@ -179,7 +186,9 @@ rd_prog = [
  'rd_cave:',
  mh(R7, 0x20), lwz(R3, ADDR_VAR, R7), srli(R6, R3, 16), ori(R5, R0, 0x20), beq(R6, R5, 'rd_ram'),
  ori(R5, R0, 0x45), beq(R6, R5, 'rd_ram'),                            # RAM 0x45xxxx (only page 0x453C00 passes the check)
- ori(R5, R0, 0x48), beq(R6, R5, 'rd_ram'),                            # RAM 0x48xxxx (settings mirror pages only)
+ ori(R5, R0, 0x48), beq(R6, R5, 'rd_ram'),                            # RAM 0x48xxxx (settings mirror and path record pages only)
+ ori(R5, R0, 0x47), beq(R6, R5, 'rd_ram'),                            # RAM 0x47xxxx (DP receiver record pages only)
+ ori(R5, R0, 0x3B), beq(R6, R5, 'rd_ram'),                            # RAM 0x3Bxxxx (window record pages only)
  ori(R7, R0, 0x11), ('bg.mfspr', {'D': R8, 'A': R7, '|': 0}),       # r8 = SR
  ('bt.movi', {'D': R5, 'I': -7}), andr(R6, R8, R5), ('bg.mtspr', {'A': R7, 'B': R6, '|': 0}),   # IEE/TEE off
  mh(R7, 0x20), lwz(R3, ADDR_VAR, R7), jal(RIU_RD), ('bn.or', {'D': R4, 'A': R3, 'B': R0}),
@@ -187,7 +196,7 @@ rd_prog = [
  mh(R7, 0x20), lwz(R3, ADDR_VAR, R7), jal(RIU_RD), bne(R3, R4, 'rd_uns'),
  ori(R7, R0, 0x11), ('bg.mtspr', {'A': R7, 'B': R8, '|': 0}),       # SR restored
  ori(R7, R0, 0xFF), andr(R4, R4, R7), j(L['g_ret']),
- 'rd_ram:',                                                           # RAM 0x20xxxx / 0x45xxxx: plain byte load
+ 'rd_ram:',                                                           # RAM 0x20/0x3B/0x45/0x47/0x48xxxx: plain byte load
  ('bg.lbz', {'?': R4, 'A': R3, '!': 0}), j(L['g_ret']),
  'rd_uns:',
  ori(R7, R0, 0x11), ('bg.mtspr', {'A': R7, 'B': R8, '|': 0}),
@@ -219,7 +228,7 @@ patch = {
  'edits': edits,
  'notes': ("VCP 0xEA/0xEB set the register address (high/low 16 bits), VCP 0xEC reads (GET) or writes (SET, value <= 0xFF) "
            "one byte through the firmware's register helpers. Writes are limited to: %s. Reads are limited to the pages "
-           "0x0003xx, 0x0004xx, 0x0005xx, 0x101Exx, 0x103Cxx, 0x103Dxx, RAM 0x2022xx-0x2024xx, 0x2039xx, 0x453Cxx and the settings mirror 0x4824xx-0x4825xx (plain load) and the scaler bank 0x102Fxx (any sub-bank), with interrupts masked and three agreeing reads; blocked reads return 0xFFFF, unstable reads (three reads differ) 0xFFFE. "
+           "0x0003xx, 0x0004xx, 0x0005xx, 0x101Exx, 0x103Cxx, 0x103Dxx, RAM 0x2022xx-0x2024xx, 0x2039xx, 0x453Cxx, the settings mirror 0x4824xx-0x4825xx, the window records 0x3B49xx-0x3B4Bxx, the scaler DP receiver records 0x47F7xx-0x47F9xx and the input path records 0x4821xx-0x4823xx (plain load) and the scaler bank 0x102Fxx (any sub-bank), with interrupts masked and three agreeing reads; blocked reads return 0xFFFF, unstable reads (three reads differ) 0xFFFE. "
            "No EEPROM, flash, PM51 or factory-data access; all writes are volatile (power-cycle to undo). "
            "Generated by tools/patches_src_diag_poke.py." % ', '.join('0x%08X' % a for a in WRITE_OK)),
 }

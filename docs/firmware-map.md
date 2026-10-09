@@ -2588,18 +2588,56 @@ and re-runs timing detection on a mismatch (no hot-plug pulse).
 **Third occurrence** (2026-10-09, both monitors at once, wake from link-held
 standby; builds identical apart from the OSD font patch). Code findings:
 - The OSD information line for DP (`0x2598D5`) shows the width from the
-  input path record (`0x4821AC + 0xA8 × input`, `+0x0C`), doubled when byte
-  `+0xA3` is set; height `+0x0E`. "1920x2160" in the fault therefore means
-  `+0xA3` = 0 with `+0x0C` = 1920 (normal: the same 1920 with `+0xA3` = 1),
-  i.e. the scaler took the input as 1920 pixels wide instead of two pixels
-  per clock. `+0xA3` is cleared by the path resets `0x23E4CE`/`0x23E590`;
-  its setter is not found yet (no direct store; probably a block copy).
-- The stability check `sub_23A7CB` compares only the line period (`+0x22`,
-  ±10) and the line count (`+0x26`, ±4), so a wrong width/`+0xA3` decision
-  is never revised while the timing stays the same.
+  input path record (`0x4821AC + 0xA8 × settings[+0x5A]`, `+0x0C`), doubled
+  when byte `+0xA3` is set; height `+0x0E`.
+- Correction (later the same day): `+0xA3` (and `+0xA2`) are only ever
+  cleared (path resets `0x23E422`/`0x23E4CE`; a linear scan of the image
+  finds no other store, direct or through a derived pointer), so the OSD
+  width is `+0x0C` itself: 1920 in the fault, 3840 normally.
+- `+0x0C` is written only by the reset (`0x23E4CE`) and by `sub_22ED5D`
+  (mode set): width = window rectangle width (`0x3B4950 + 0xB0 × window`,
+  `+0x4C + 8 × path`, from the layout code) × (window `+0x88` + 1) ×
+  (`sub_222EAE` + 1). The fault is therefore a factor 2 missing in one of
+  the two multipliers (or a halved rectangle).
+- Window `+0x88` is set by `sub_23B068` (port monitor of `sub_22F2C7`,
+  called for window states 1, 2 and 4, every 20 passes and at once when
+  window flags `+0x1C` bit 0 is set): `+0x88` = 1 when the colour format of
+  the input (`sub_20F12E`; DP: scaler DP receiver record
+  `0x47F7D8 + 0x74 × rx`, `+0x36`) is 3. `sub_2113DB` decodes `+0x36` on
+  every main-loop pass while the receiver reports video (`0x161Dxx` MISC0/1;
+  with MISC1 bit 6 the VSC SDP, packet buffer 5 at `0x162730`): 0 RGB,
+  1 YCbCr 4:4:4, 2 4:2:2, 3 4:2:0 (DP pixel encoding). A change of `+0x88`
+  sets window flags `+0x1C` bit 0, which restarts detection
+  (`sub_23E64A(port, 1)`) and so redoes the mode set.
+- Reading of the second fault log: the bytes logged as "port 1 +0x1C
+  flags"/"+0x20 status" (`0x3B4A1C`/`0x3B4A20`) are window 1's record. After
+  the accept (8.84 s) the flags never showed bit 0 again (no `0x2B`), and
+  `0x453C71` stayed `0x00`. So `+0x88` did not change during the 4 minutes
+  of the fault, although it is re-evaluated continuously in state 4.
+- `sub_23B068` returns without doing anything while `0x453C70` bit 13 is set
+  (set by `sub_258AB1` together with OSD state `0x0D` after a DP link event
+  in state 4/6, cleared by `sub_265EAE`). It stayed clear in the fault, so
+  that pause is not the cause.
+- Not established: whether the correct state uses the 4:2:0 doubling at all
+  (it would fit: 3840×2160 at 144 Hz, htotal 4000 × vtotal 2222, is
+  1.28 Gpixel/s; as 4:2:0, 12 bit per pixel, that is 15.4 Gbit/s, within four
+  HBR2 lanes from the front-end to the scaler, RGB would not be). If it does,
+  the fault means the scaler's DP receiver reported a format other than
+  4:2:0 throughout, i.e. the cause is on the front-end output / receiver
+  side, not in the scaler's width logic. The stability check `sub_23A7CB`
+  compares only the line period (`+0x22`, ±10) and the line count (`+0x26`,
+  ±4), which both stay the same.
+- `diag-poke` now allows plain reads of the window records
+  (`0x3B49xx`–`0x3B4Bxx`), the scaler DP receiver and timing records
+  (`0x47F7xx`–`0x47F9xx`) and the path records (`0x4821xx`–`0x4823xx`);
+  `tools/widthdump.sh` reads and decodes all of the values above. A dump in
+  the correct state and one with the fault on screen decide where the factor
+  2 is lost; the recovery is designed after that.
 - Recovery idea (owner): the front-end reports the stream width (MSA,
   3840) and the path holds what the scaler uses; on a mismatch after the
-  accept, re-run the detection.
+  accept, re-run the detection. Only useful if a re-detection reads a
+  different format; the PC-side mode change that fixed it so far also
+  restarted the stream.
 
 ## 51. Link-held standby power: where the 13 W go (2026-10-08)
 
