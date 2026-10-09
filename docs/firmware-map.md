@@ -2607,6 +2607,8 @@ the mask is sent shifted by 8. Port n there is front-end id n + 5
 detector event with nothing connected. Which detector type fired (and
 whether a flag latched from the scan's HDMI 1 HPD pulses, §49 log 6.97 s,
 is the source) is not established. Only one occurrence so far.
+Owner (2026-10-09): the monitor has woken from deep standby without a
+source change now and then (from memory); to be observed before any change.
 PC kernel log (amdgpu, through the dock) at the deep-standby entry: one
 `DMUB HPD RX IRQ` (short pulse), no disconnect; KDE kept the output.
 
@@ -2898,6 +2900,28 @@ glyphs: two 12-bit planes per row are interleaved into 24 bits (3 bytes)
 per row, written with access mode 3 (`0x101C68`). Used for 8 glyphs from
 `0x325CA6` and `0x2C` from `0x3251C2` (`sub_253991`). How the four colours
 of such a glyph map to the palette is not traced.
+
+**Font RAM and colour-depth ranges** (`sub_2592D6`, `sub_253991`,
+loaders `0x27BC9C`/`0x27BA9E`):
+- `0x101C08` = `0x220` (also RAM `0x45788A`): font RAM base, in units of 4
+  address steps. `0x101C0B` bits 4–5 = 2: a 1-bit glyph takes 3 units
+  (18 rows × 12 bits). Address of code c: `(0x220 + 3 × c) × 4` at
+  `0x101C66`/`0x101C67`, then mode 3 at `0x101C68` and the data bytes to
+  `0x101C66`.
+- Code ranges: `0x101C0A` = `0x300`, `0x101C0C` = `0x101C0E` = `0x3FF`
+  (`0x23C24F`). Read as: codes below `0x300` 1 bit per pixel, `0x300`–`0x3FE`
+  2 bits (4 colours), none with more. The 2-bit icon loads match: 8 glyphs at
+  code `0x300`, `0x2C` glyphs at `0x339` (6 units each, address
+  `0x220 + 3 × 0x300 + 6 × (c − 0x300)`; inferred from the two load
+  addresses, not verified). During the boot logo the 2-bit range starts at
+  `0x100` (`0x2538EE`).
+- Tile writes (`0x23C635`): tile address to `0x101C66`/`0x67` (mode 0),
+  attribute bytes with mode 2, code bytes with mode 1; the code's high bits
+  (above 8) come from `0x101C67` bits 0–3 (RAM `0x457889`).
+- Open for anti-aliased text: how a 4-colour tile's pixel values 1–3 map to
+  the palette (attribute nibbles or fixed entries), the font RAM size (how
+  many 2-bit codes fit), and which code slots the text renderer allocates
+  per screen.
 
 **Options:**
 1. Replace the 1-bit Latin glyphs (about 100) with a better-drawn bitmap
