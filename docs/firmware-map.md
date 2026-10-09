@@ -2182,6 +2182,17 @@ after the main loop started.
 The 5 s gap of §42 is therefore specific to the USB-C wake (cause still
 open).
 
+**Not reproduced** (2026-10-09, build `diag_v17`, DP cable unplugged, laptop
+USB-C output disabled → deep standby, then enabled; stopwatch enable →
+picture ~6.7 s): main init 0.11 s, start-up selection 1.53 s ("by
+wake-port-first", USB-C), main loop 1.65 s, port enable (`0x20` sub 0) 2.04
+s, signal 2.71 s (one short no-signal reading 2.75 s), accepted 3.37 s,
+backlight 3.43 s. Same as the DP wake above (3.38/3.46 s). The ~3.3 s
+before the firmware clock starts (laptop output enable, front-end activity
+detection, PM51 wake, power-up and boot loader) matches the ~2.6 s of §18
+plus the laptop's own enable time; not split further. The §42 gap is not
+explained; it did not occur in this wake.
+
 **`gate-all-dp` v3 did not help** (automatic input; DP output disabled, the dock
 held the DP link; the laptop's USB-C output enabled ~3 s after "No signal"
 disappeared):
