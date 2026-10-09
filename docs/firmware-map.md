@@ -2592,9 +2592,21 @@ and re-runs timing detection on a mismatch (no hot-plug pulse).
 port in `0x69B3`: the first port (0, 1, …) of its own id table (XDATA
 `0x6202+port`) whose front-end id matches a bit set in the front-end's message
 (byte 0: bit 0 → id 7, bit 1 → 8, bit 2 → 9, bit 3 → `0x0F`, bit 4 → `0x10`;
-byte 1: bits 0–4 → ids 1–5; …). Whether port 2's id in that table is HDMI 1's
-or the table is ordered differently from the main firmware's is not traced.
-`wake-port-first` therefore started the scan on HDMI 1 in that run.
+byte 1: bits 0–4 → ids 1–5; …). `wake-port-first` therefore started the
+scan on HDMI 1 in that run.
+Traced 2026-10-09: the table is a Keil initialised-data record (PM51 image
+`0x248F`: `46 62 02 | 07 08 0B 0C 00 00`), so port 0 = id 7 (USB-C), 1 = 8
+(DP), 2 = `0x0B` (HDMI 1), 3 = `0x0C` (HDMI 2). `0x69B3` returns the first
+port whose id bit is set, so the message carried HDMI 1's bit (byte 1 bit 6)
+and neither USB-C's nor DP's. In the front-end's low-power program the
+detector event (`0xA32C2`) of kind 2 takes per-port flags from PM status
+`0x3C4` bits 7–12 and `0x3C6` bits 3–7 (`0xA1DF7`), checked per port
+6–10 (`0xA2458`) with the enabled detector types (`0xB0000608` bits 0–2);
+the mask is sent shifted by 8. Port n there is front-end id n + 5
+(`0xA1ED4`), so n = 6 is id `0x0B`: the front-end itself reported an HDMI 1
+detector event with nothing connected. Which detector type fired (and
+whether a flag latched from the scan's HDMI 1 HPD pulses, §49 log 6.97 s,
+is the source) is not established. Only one occurrence so far.
 PC kernel log (amdgpu, through the dock) at the deep-standby entry: one
 `DMUB HPD RX IRQ` (short pulse), no disconnect; KDE kept the output.
 
@@ -2865,3 +2877,34 @@ picture ~1 s + start-up after the source starts video; key wake as before.
   receiver for both DP and USB-C; decoders 0 and 2 stay at the defaults.
   Hence the limit above holds: with both connectors held, video on the
   non-routed one is not seen by the MSA check (a new link is still seen).
+
+## 56. OSD font: format and options for a replacement (2026-10-09)
+
+**Text glyphs** (proportional text, rendered into font RAM by `0x27C046`):
+- Font table in RAM `0x3BB068` (pointer `0x453DE8`, set at `0x25980B` and
+  others), 40 bytes per glyph, index `(set << 8) + code`. Byte 0: high
+  nibble 1–3 (0xF = special), low nibble = blank columns to the right of
+  the glyph (advance); byte 1: unknown (0 for Latin, small values for CJK);
+  then 19 rows of 16 bits, little-endian, MSB = leftmost pixel. 1 bit per
+  pixel, strokes 1 px wide.
+- Set 0: digits, punctuation, A–Z (`0x20`–`0x39`), a–z (`0x3A`–`0x53`),
+  accented Latin (`0x64`–`0x7D`), CJK from `0x60`; set 1: further CJK and
+  kana up to `0xDE`; data after that is not glyphs.
+- Latin metrics: cap height 10 px (rows 4–13), x-height 7, descenders to
+  row 16; widths 5–10 px.
+
+**Icon glyphs** (`0x27BA9E`): the font RAM also takes 2-bit (4-colour)
+glyphs: two 12-bit planes per row are interleaved into 24 bits (3 bytes)
+per row, written with access mode 3 (`0x101C68`). Used for 8 glyphs from
+`0x325CA6` and `0x2C` from `0x3251C2` (`sub_253991`). How the four colours
+of such a glyph map to the palette is not traced.
+
+**Options:**
+1. Replace the 1-bit Latin glyphs (about 100) with a better-drawn bitmap
+   font in the same box (16 × 19, same codes and advance nibble): heavier,
+   even strokes; no code change, data only. CJK glyphs unchanged.
+2. Anti-aliased text: the renderer would have to write 2-bit tiles (mode 3)
+   and the palette would need intermediate shades per text colour; larger
+   change to `0x27C046` and the tile set-up, font RAM use doubles. Not
+   assessed in detail.
+
