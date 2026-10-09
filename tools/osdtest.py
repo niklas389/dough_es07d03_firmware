@@ -2,22 +2,28 @@
 """osdtest.py - OSD font/tile experiments over DDC (needs diag-poke + diag-fe + diag-osd).
 
     tools/osdtest.py info  > osd_info.txt       dump the OSD registers (0x101C00-1F, 0x101C60-7F, 0x101D00-FF)
-    tools/osdtest.py glyphs                     load the 2-bit (4-colour) test glyphs (codes 0x3F0-0x3F3, 0x3FE)
+    tools/osdtest.py glyphs                     load the 2-bit (4-colour) test glyphs (codes 0x3B0-0x3B3, 0x3CF)
     tools/osdtest.py row 11                     show them in row 11 of window 1 (menu open), from column 1
     tools/osdtest.py row 11 --col 3 --win 1
-    tools/osdtest.py place 1 5 11 0x3F0 0x21    one tile: window, column, row, code, attribute
+    tools/osdtest.py place 1 5 11 0x3B0 0x21    one tile: window, column, row, code, attribute
     SPECCTL=./specctl MON=1 TRIES=10 tools/osdtest.py ...
 
 Test glyphs (docs/firmware-map.md section 56):
-  0x3F0  four vertical bands, 3 px each, pixel values 0, 1, 2, 3 (left to right)
-  0x3F1-0x3F3  an anti-aliased "Abg" sample over three tiles (values 0-3)
-  0x3FE  the band glyph again at the top of the 2-bit code range (does the font RAM reach that far?)
-'row' places: 0x3F0 eight times with the attributes 21 12 2F F2 40 04 84 C8 (high nibble =
-foreground, low nibble = background in 1-bit tiles), a gap, the sample with attribute 21,
-a gap, 0x3FE with attribute 21.
+  0x3B0  four vertical bands, 3 px each, pixel values 0, 1, 2, 3 (left to right)
+  0x3B1-0x3B3  an anti-aliased "Abg" sample over three tiles (values 0-3)
+  0x3CF  the band glyph again in the last 2-bit code that fits the OSD RAM
+'row' places: the solid base glyph 6 as a position marker, 0x3B0 eight times with the
+attributes 21 12 2F F2 40 04 84 C8 (high nibble = foreground, low nibble = background in
+1-bit tiles), a gap, the sample with attribute 21, a gap, 0x3CF with attribute 21, a marker.
+
+OSD RAM (hardware test 2026-10-09, section 56): one address space of 0x4000 words for tiles
+and glyphs; tiles at the bottom (tile address = word), glyphs from word 0x880 (0x101C08 x 4);
+a 1-bit glyph takes 12 words, a 2-bit glyph 24 (18-bit words). With the stock ranges the 2-bit
+codes start at word 0x2C80, so only 0x300-0x3CF fit; v1 of this tool used 0x3F0-0x3FE, whose
+addresses wrapped to word 0x300 and overwrote menu tiles (row 12) instead.
 
 Everything written is OSD display state only: closing and reopening the menu redraws the
-tiles; the font RAM keeps the test glyphs until the next power cycle (codes 0x3F0-0x3FE are
+tiles; the font RAM keeps the test glyphs until the next power cycle (codes 0x3B0-0x3CF are
 not used by the firmware's text). The firmware's own OSD activity can interleave with these
 writes; then just run the command again.
 """
@@ -104,16 +110,17 @@ SAMPLE = ['000000000000000000000000000000000000', '00000000000000000000000000000
           '013100000320232002300013101330000000', '023000000230222332100002332130000000',
           '000000000000000000000000000130000000', '000000000000000000000012001320000000',
           '000000000000000000000001333100000000', '000000000000000000000000000000000000']
-GLYPHS = {0x3F0: pack(BANDS), 0x3FE: pack(BANDS)}
+GLYPHS = {0x3B0: pack(BANDS), 0x3CF: pack(BANDS)}
 for k in range(3):
-    GLYPHS[0x3F1 + k] = pack([r[12 * k:12 * k + 12] for r in SAMPLE])
+    GLYPHS[0x3B1 + k] = pack([r[12 * k:12 * k + 12] for r in SAMPLE])
 
 BASE_UNIT, MONO_UNITS, FOUR_START = 0x220, 3, 0x300     # 0x101C08, 0x101C0B bits 4-5 + 1, 0x101C0A
 
 def font_addr(code):
     """font RAM address (value for 0x101C66/67) of a 2-bit code; inferred from the firmware's two loads."""
-    assert FOUR_START <= code <= 0x3FE
-    return ((BASE_UNIT + MONO_UNITS * FOUR_START + 2 * MONO_UNITS * (code - FOUR_START)) * 4) & 0xFFFF
+    a = (BASE_UNIT + MONO_UNITS * FOUR_START + 2 * MONO_UNITS * (code - FOUR_START)) * 4
+    assert FOUR_START <= code and a + 24 <= 0x4000, 'code %#x does not fit the OSD RAM' % code
+    return a
 
 def load_glyph(code, data):
     m68, m6d = rd(0x101C68), rd(0x101C6D)
@@ -183,12 +190,14 @@ elif a.cmd == 'row':
     geo = window(a.win)
     print('window %d: tile base %#06x, pitch %d' % (a.win, geo[0], geo[1]))
     c = a.col
+    place(a.win, c, a.row, 6, 0x21, geo); c += 1          # marker: solid base glyph 6
     for attr in (0x21, 0x12, 0x2F, 0xF2, 0x40, 0x04, 0x84, 0xC8):
-        place(a.win, c, a.row, 0x3F0, attr, geo); c += 1
+        place(a.win, c, a.row, 0x3B0, attr, geo); c += 1
     c += 1
     for k in range(3):
-        place(a.win, c, a.row, 0x3F1 + k, 0x21, geo); c += 1
+        place(a.win, c, a.row, 0x3B1 + k, 0x21, geo); c += 1
     c += 1
-    place(a.win, c, a.row, 0x3FE, 0x21, geo)
+    place(a.win, c, a.row, 0x3CF, 0x21, geo); c += 1
+    place(a.win, c, a.row, 6, 0x21, geo)
 else:
     place(a.win, a.col, a.row, a.code, a.attr)

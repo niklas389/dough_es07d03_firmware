@@ -2950,6 +2950,29 @@ SET (`0x26B211`: OSD state `0x457854` > `0x0D` → `0x4551A4` = 0,
 `0x453C70` bit 0 set, bit 15 cleared); the tool's address writes are SETs.
 v2 skips that for the diagnostic codes 0xEA–0xEE only (`osd_keep`).
 
+**v2 result** (owner, 2026-10-09; register dump `osd_info.txt`, photo):
+- Registers as expected: `0x101C08` = `0x220`, `0x101C0A`/`0B` = `0x300`
+  (10 bits; `0x101C0B` bits 4–5 = 2), `0x101C0C` = `0x101C0E` = `0x3FF`.
+  Only window 1 (`0x101D20`) is set up: tile base 1 (`0x101D30`), pitch
+  62 (`0x101D32`), pixel box `0x2D6`/`0x2EE`–`0x5BE`/`0x4C2` (744 × 468 =
+  62 × 26 tiles of 12 × 18). Windows 2, 3 and 7 have no tile area.
+- `glyphs` garbled the menu: about 25 tiles of row 12 from column 23 showed
+  coloured noise and "0" shapes. The load address of code `0x3F0`
+  (`0x4300`) had wrapped to `0x0300` = tile 768 = 1 + 12 × 62 + 23, i.e.
+  the glyph bytes were written into the tile entries. `row` (codes
+  `0x3F0`–`0x3FE`) showed nothing recognisable.
+- Conclusion: tiles and glyphs share one OSD RAM of `0x4000` words; a word
+  holds one tile entry (attribute + code, 18 bits) and the address register
+  counts words. Tiles occupy the bottom (`0x000`–`0x87F`, 2176 tiles for
+  62 × 26 = 1612 used); glyphs start at `0x101C08` × 4 = `0x880`. A 1-bit
+  glyph is 12 words (18 rows × 12 bits = 216 bits), a 2-bit glyph 24. With
+  the stock ranges the 1-bit codes `0`–`0x2FF` end at `0x2C80` (= the
+  firmware's first 2-bit load address), leaving room for 208 2-bit codes
+  (`0x300`–`0x3CF`). Moving `0x101C0A` down trades two 1-bit codes for one
+  2-bit code (e.g. 2-bit from `0x40`: 560 codes).
+- Tool v2: test codes `0x3B0`–`0x3B3` and `0x3CF` (inside the RAM), solid
+  base glyph 6 as a position marker before and after the test tiles.
+
 **Requested by the owner** (2026-10-09), after the test: anti-aliased font
 (option 2), filled selection bar instead of the white outline, finer
 transparency steps between solid and the current level 1 (the menu offers
