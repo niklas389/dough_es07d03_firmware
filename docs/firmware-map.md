@@ -3145,3 +3145,70 @@ dropped in the anti-aliased build (separate patch later if needed).
   written (`0x25CA96` loop, `0x23C635`, `0x23C71C`) and wherever glyphs are
   loaded (renderer `0x25D952`, icon loads in `0x253991`).
 
+
+**Prototype v1: `osd-aa-font`** (2026-10-09, emulator-checked, hardware test
+pending; source `tools/patches_src_osd_aa.py`):
+- Findings while building it (they correct the plan above):
+  - The vendor 1-bit sets reach up to code `0x77`: the overlay loader
+    `0x2537EB` loads 96 glyphs from code 0 (tables `0x3B78A0`/`0x3B7BB4`/
+    `0x3B7A2A`), `0x2535CB` 85 glyphs from 0, the crosshair image set
+    (`0x32644A`) 78 glyphs from `0x2A`; the crosshair is a 12 × 7 tile image
+    placed by `0x2595E5` (descriptors `0x3BAFB5`/`0x3BB00E`). The 2-bit range
+    can therefore start at `0x78` at the lowest, not `0x40`; with `0x78` all
+    vendor 1-bit sets keep working and no range switching is needed.
+  - All string placements go through `0x25CA96` (the neighbours `0x25CBBE`,
+    `0x25CBE8`, `0x25CCBA` end in a jump to it). With bit 7 of the row
+    argument it rewrites only the attributes (selection changes).
+  - 1-bit tiles: set pixels take the attribute's high nibble, clear pixels
+    the low nibble (palette entries 0–15). 2-bit tiles use only the high
+    nibble (entries 16 × f + v), so a text tile needs a palette group that
+    holds its background colour as value 0.
+  - Letter spacing: the renderer adds `mode & 3` blank columns after each
+    glyph (mode byte `0x3CB81C`, written as `movhi 0x3D` / offset `-0x47E4`;
+    earlier notes called it `0x3D47E4`): 1 for text, 2 for numbers (mode 2)
+    and values (mode 6). Bits 2–3 select left / right (4) / centred (8)
+    alignment via the width function `0x27BF37`.
+  - Font set 0 codes `0x80`–`0xFE` hold CJK glyphs as well (set 0 has nine
+    more at `0x60`–`0x68`, five of them used by the language names).
+- Design: font set 0 keeps the vendor record format and holds bit 0 of
+  each pixel; the records of set 1 (vendor CJK) hold bit 1 for codes
+  `0x00`–`0x7D`. Latin codes get Noto Sans Condensed SemiBold 14 px glyphs
+  (width = rounded advance, left blank 0, baseline row 14, coverage → level
+  `round(3 × a^0.75)`, faint overhang columns below 0.6 px of ink dropped);
+  other codes below `0x7E` keep the vendor bitmap in both planes. The
+  renderer's tile helpers (blit, clear, vertical shift, merge, flush) keep a
+  shadow buffer for bit 1; the flush writes one 54-byte 2-bit glyph per tile
+  at its own address. Logical code L = (bank `0x457888` << 8) + slot maps to
+  `2L + 0x38` (L `0x020`–`0x163`), `2L + 0x48` (`0x164`–`0x194`) or
+  `2L + 0x4A` (`0x1C0`–`0x1D9`); the icons stay at `0x300`–`0x30F` and
+  `0x372`–`0x3C9`. Range start `0x101C0A` = `0x78`; half circles at
+  `0x20`/`0x21`. The placement loop writes the mapped codes (a new
+  address/mode/code-high run whenever bits 8–11 change) and replaces a text
+  tile's attribute fg nibble by a palette group assigned on first use
+  (pool 6, 7, 8, 9, B–F, 3–5; not 0, 1, 2, A, which the icons use), loaded
+  with [bg, (2bg + fg)/3, (bg + 2fg)/3, fg] of the attribute's 1-bit
+  colours. The palette loader `0x2533CE` (sel 0) is hooked: it records
+  entries 0–15 and reloads all text groups after each load. The seven
+  spacing reads in the renderer are set to `& 0` (Noto advances include the
+  side bearings). Code `0x203000`–`0x20371D`, RAM `0x202D00`–`0x202EAF`.
+- Page budget with these widths (strings start on new tiles): largest page
+  223 of 224 tiles (German Input/Output), common block 97 tiles.
+- **Emulator check** (`tools/aeon/aeonemu.py`, `tools/osd_emu_check.py`):
+  the vendor init loader, page text renderer and placement loop of the
+  patched image run in a small AEON emulator with an OSD register model
+  (font RAM bit stream, tile RAM, palette). Result with `popup-flat` and
+  `popup-round`: range `0x78`; all 1-bit glyphs below `0x78` and the 2-bit
+  icons identical to the build without the patch (half circles moved);
+  eight pages in English, Spanish, German and French rendered with every
+  tile equal to the expected glyph layout (German Input/Output uses slots
+  `0x20`–`0xFE`); text codes `0x078`, `0x07A`, …; attribute `0x3F` → `0x6F`
+  (group 6 = `0C0C0C`, `323232`, `595959`, `7F7F7F`), `0x2F` → `0x7F`;
+  attribute-only updates keep the codes; non-text descriptors unchanged;
+  groups restored after a vendor palette reload; right-aligned values and
+  numbers laid out as intended. The emulator stubs the register accessors
+  and models the OSD from the hardware tests above; it does not prove the
+  hardware behaviour (e.g. timing, the code-high register).
+- Not covered: Chinese and Japanese (set-1 glyphs below `0x7E` are
+  overwritten; set-0 CJK codes still show at full intensity); information
+  lines longer than 26 tiles at slot `0xC0` (unmapped tiles keep their
+  vendor code); text placed by anything other than `0x25CA96` (none found).
