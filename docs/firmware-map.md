@@ -2932,3 +2932,22 @@ loaders `0x27BC9C`/`0x27BA9E`):
    change to `0x27C046` and the tile set-up, font RAM use doubles. Not
    assessed in detail.
 
+**Test build** (`diag-osd` + `tools/osdtest.py`, 2026-10-09, untested):
+VCP 0xEE writes/reads one OSD register (`0x101C00`–`0x101DFF` only) at the
+diag-poke address. `osdtest.py glyphs` loads 2-bit glyphs (band test
+`0x3F0`: pixel values 0–3 in 3-px bands; an anti-aliased "Abg" sample
+`0x3F1`–`0x3F3`; the band glyph again at `0x3FE`) with the firmware's
+loader sequence (`0x101C6D` bits 6–7 cleared, mode 0, address, mode 3, 54
+data bytes); `osdtest.py row R` places them in window 1 (the OSD's window,
+RAM `0x3C538A` = 1 at init) with the attributes 21 12 2F F2 40 04 84 C8 for
+the band glyph. Tile address = `0x101D10`+`0x20`w (16 bit) + row ×
+`0x101D12`+`0x20`w + column. Questions: which colours pixel values 1–3 take
+per attribute; whether `0x3FE` displays (font RAM size); whether the sample
+reads as smooth text.
+
+**Requested by the owner** (2026-10-09), after the test: anti-aliased font
+(option 2), filled selection bar instead of the white outline, finer
+transparency steps between solid and the current level 1 (the menu offers
+0 = solid … 5), a multiplication sign in "3840 × 2160", rounded menu
+corners.
+
