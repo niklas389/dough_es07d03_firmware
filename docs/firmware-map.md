@@ -3404,3 +3404,54 @@ DSC, testing monitor):
 - The `widthdump.sh` run in the stuck state returned only `ERR` (no DDC/CI
   answer to any read, including pages that were readable before); cause not
   established (wrong `SPECCTL`/`MON`, or DDC/CI not answering in that state).
+
+## 58. How the two links are paired; lost routing report (2026-10-09)
+
+**Pairing comes from the front-end.** Path 0 `+0x94` (two-link pair) has
+exactly one setter, `sub_23E34A(path, value)` (`0x23E35A`), outside the
+function database. It is called only by `sub_238CDE`, the scaler's handler
+for front-end message type 8 (the routing report of §54):
+- Messages are collected whenever the mailbox flag `0x1033F1` is set
+  (`sub_238F40`, called in `mailbox_query` and from `sub_260487`):
+  `sub_238EB4` copies the frame and `sub_238E50` dispatches by type (table
+  `0x2AEC9C`; 7 → `sub_238DB9`, 8 → `sub_238CDE`).
+- `sub_238CDE(payload)`: byte 0 ≠ 0 → `+0x94` = 1, the nibbles of bytes
+  1–2 are mapped to scaler ports (`sub_2388E1`) and set up with
+  `sub_23E7BE(3, …)`, then `sub_22E694(0)` and the layout (`sub_2271B1`);
+  byte 0 = 0 → `+0x94` = 0.
+- Front-end side (`0x8631D` on a change of its active receiver, `0x862A4`
+  on a change of an output path's input mask, pending bit `0x100` of
+  `0xB0018FD0`): byte 0 = 1 when more than one input is routed or the
+  receiver's stream class (`0x140C7`) is 7. Sent only on a change.
+
+**The reset that loses it:** the layout set-up `sub_25F0D3(layout, …)`
+(layout = settings `+0x59`; table `0x326F28`, case 0 = single window at
+`0x25F1A9`) resets paths 0–3 (`sub_23E4CE` clears `+0x94`) and initialises
+path 0 with settings `+0x5B`. It runs at every start (`sub_261FDE`: front-end
+set-up `sub_261FA8` at `0x26209C`, then `sub_25FD58` at `0x2620AA`) and on
+layout changes (`0x269CB6`, `0x26A285`). The front-end set-up's mailbox
+traffic also collects messages. If the source's 4K 144 Hz stream is already
+there when the monitor starts, the "pair" report arrives during that
+set-up, the reset clears it, and the front-end does not send it again (its
+routing does not change). This matches all three occurrences:
+- first start after a flash, with the PC sending video during the flash
+  (twice);
+- wake from link-held standby, link held by `pm51-hold-link` (once).
+With stock firmware the wake replugs HPD, so the PC retrains later and the
+report comes after the reset. This is the patch-related part the owner
+suspected: the patches make "stream present at the start" common; the race
+itself is in the vendor code.
+
+**Split screen:** with two inputs side by side each input gets one link, so
+a 4K 144 Hz source shows its left half (1920×2160), as observed by the
+owner. This is by design, not the fault.
+
+**Fix `pair-replay`:** keeps a copy of the last routing report (hook on the
+type-8 call at `0x238E95`, RAM `0x2024A0`–`A2`, valid `0x2024A3`). Main
+loop (hook `0x262124`): in a single-window layout, with a "pair" report and
+path 0 `+0x94` = 0, call `sub_238CDE` with the copy once (count
+`0x2024A4`; `0x2024A5` = replayed, cleared again when path 0 is seen
+paired). The real handler runs cleanly in the emulator (pair report →
+`+0x94` = 1, single report → 0); the decision logic is emulator-checked.
+Hardware test pending. If the fault recurs with this patch,
+`widthdump.sh` shows the report copy and the replay count.

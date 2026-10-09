@@ -6,7 +6,8 @@
 #   MON=1 SPECCTL=./specctl tools/widthdump.sh > width_fault.txt   (with the fault on screen)
 #
 # Read-only (plain RAM loads through diag-poke; needs the diag-poke version with
-# the window / DP receiver / path record pages). About 220 reads, 1-2 minutes.
+# the window / DP receiver / path record pages). About 230 reads, 1-2 minutes.
+# Path 0 "+0x94 01, +0x98 03" = the two links are paired (4K 144 Hz, section 57/58).
 # The raw "addr value" lines are printed first, the decoded summary after them.
 set -u
 here=$(dirname "$0")
@@ -16,6 +17,8 @@ trap 'rm -f "$raw"' EXIT
 ranges=(
   0x453C70-0x453C73                          # flags (bit 13: DP link-event pause)
   0x48252A-0x48252F                          # settings +0x5A..+0x5F (path index, window map)
+  0x482529-0x482529                          # settings +0x59 (layout: 0 = single window)
+  0x2024A0-0x2024A5                          # pair-replay: last front-end routing report, valid, replays
 )
 for w in 0 1; do                             # window records 0x3B4950 + 0xB0*w
   b=$(( 0x3B4950 + 0xB0 * w ))
@@ -59,6 +62,8 @@ def bit(a, n):
 
 print('0x453C70 bit 13 (DP link-event pause): %s   settings +0x5A..+0x5F: %s' %
       (bit(0x453C71, 5), ' '.join(b(0x48252A + i) for i in range(6))))
+print('layout settings +0x59: %s   pair-replay: last routing report %s %s %s (valid %s)  replays %s  replayed since last paired %s' %
+      (b(0x482529), b(0x2024A0), b(0x2024A1), b(0x2024A2), b(0x2024A3), b(0x2024A4), b(0x2024A5)))
 for w in (0, 1):
     B = 0x3B4950 + 0xB0 * w
     print('window %d: source %s  state %s  flags +0x1C %s  status +0x20 %s  +0x70 %s  +0x80 %s  '
