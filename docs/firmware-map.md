@@ -3119,5 +3119,5 @@ dropped in the anti-aliased build (separate patch later if needed).
 - Boot logo (owner's question): the logo glyphs are 1-bit RLE data at
   `0x324CBC` (100 glyphs) in the image; removing them frees image space,
   not OSD RAM. Image space is not the limit for the new font (dropping the
-  CJK glyphs frees about 19 KB of font table).
+  CJK glyphs frees about 14 KB of font table: about 360 glyphs × 40 bytes).
 
