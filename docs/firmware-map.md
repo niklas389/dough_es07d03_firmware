@@ -2664,8 +2664,9 @@ handler `0x88D0E` calls `0x142BD(mode, mask)`):
 - Link block `0x110000 + 0xA00 × rx`: lane status `+0x32E`/`+0x32F`
   (DPCD `0x202`/`0x203`), training state `+0x541` (low bits).
 - Stream timing (MSA) of DP decoder d: 16-bit at `0x113068 + 0x100 × d`:
-  `+0` htotal, `+2` vtotal, `+4` hstart, `+6` vstart, `+8` hsync, `+0xA`
-  vsync, `+0xC` width, `+0xE` height (15 bits; `0x39CD1`). The decoder of a
+  `+0` htotal, `+2` vtotal, `+4` width, `+6` height, `+8` hstart, `+0xA`
+  vstart, `+0xC` hsync, `+0xE` vsync (15 bits; `0x39CD1`; order measured,
+  §54). The decoder of a
   receiver comes from RAM (`0x4DEE1`), so all four blocks are read.
 - Where the source's DPCD `0x600` (D0/D3) lands is not identified (the
   `0x600` constants in the code belong to the transmitter side, `0x42D1C`ff).

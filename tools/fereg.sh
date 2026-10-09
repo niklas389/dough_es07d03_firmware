@@ -17,8 +17,8 @@
 #   dp    DP receiver: DPCD banks 0x1200-0x12FF and 0x1500-0x15FF, link block 0x110D20-0x110D3F,
 #         0x110F40-0x110F4F, stream timing (MSA) of decoders 0-3 at 0x113068/0x113168/0x113268/0x113368
 #   usbc  the same for receiver 0 (0x1100.., 0x1400.., 0x110320.., 0x110540..) plus the MSA blocks
-#   msa   only the four MSA blocks (16 bytes each: htotal, vtotal, hstart, vstart, hsync, vsync,
-#         hwidth, vheight; 16-bit little-endian, 15 bits used)
+#   msa   only the four MSA blocks (16 bytes each: htotal, vtotal, width, height, hstart, vstart,
+#         hsync, vsync; 16-bit little-endian, 15 bits used; section 54)
 set -u
 SPECCTL=${SPECCTL:-specctl}
 MON=${MON:-0}
