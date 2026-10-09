@@ -2585,6 +2585,22 @@ to confirm the block copy is real. Kept in reserve: a recovery that compares
 the scaler's measured width with the front-end MSA width after a DP accept
 and re-runs timing detection on a mismatch (no hot-plug pulse).
 
+**Third occurrence** (2026-10-09, both monitors at once, wake from link-held
+standby; builds identical apart from the OSD font patch). Code findings:
+- The OSD information line for DP (`0x2598D5`) shows the width from the
+  input path record (`0x4821AC + 0xA8 × input`, `+0x0C`), doubled when byte
+  `+0xA3` is set; height `+0x0E`. "1920x2160" in the fault therefore means
+  `+0xA3` = 0 with `+0x0C` = 1920 (normal: the same 1920 with `+0xA3` = 1),
+  i.e. the scaler took the input as 1920 pixels wide instead of two pixels
+  per clock. `+0xA3` is cleared by the path resets `0x23E4CE`/`0x23E590`;
+  its setter is not found yet (no direct store; probably a block copy).
+- The stability check `sub_23A7CB` compares only the line period (`+0x22`,
+  ±10) and the line count (`+0x26`, ±4), so a wrong width/`+0xA3` decision
+  is never revised while the timing stays the same.
+- Recovery idea (owner): the front-end reports the stream width (MSA,
+  3840) and the path holds what the scaler uses; on a mismatch after the
+  accept, re-run the detection.
+
 ## 51. Link-held standby power: where the 13 W go (2026-10-08)
 
 **Wake reason after the DP toggle of the §49 test:** `0x453C74` = 9,
