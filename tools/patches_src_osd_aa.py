@@ -894,6 +894,7 @@ patch = {
  'name': 'osd-aa-font',
  'summary': 'Anti-aliased OSD text: Noto Sans Condensed SemiBold 14 px rendered as 2-bit (4-level) glyphs, smooth edges in every text colour; filled rounded selection bar; multiplication sign in the resolution line',
  'status': 'experimental; v1 on hardware 2026-10-09: menu items showed parts of other strings; v2 on hardware: strings right, colours wrong (palette rule); v3 (palette entry = attribute & 0xFC + value) hardware-tested: correct, text slightly blurry; v4 (stems on pixel edges, selection bar, ×) on hardware: text sharper; first item\'s bar touched the header band, item text on the bar had a transparent background (2-bit tiles with attribute 0x61); v5 (text on the bar with attribute 0x60, 3 px gap below the header band) hardware test pending',
+ 'requires': ['lang-latin'],                # Chinese / Japanese are not readable with this patch
  'edits': edits,
  'labels': {k: '0x%06X' % v for k, v in sorted({**L, **L2}.items(), key=lambda kv: kv[1]) if not k.endswith('_ref')},
  'notes': ("Text tiles become 2-bit glyphs (two code slots each). Logical codes L = bank << 8 | slot map to 2-bit codes: "

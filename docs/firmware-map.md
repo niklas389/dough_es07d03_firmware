@@ -3426,6 +3426,13 @@ behind them, letters partly missing, and the information line in green.
   `0x2A2A2A`, 0] so the band continues above them as with the vendor glyphs.
 - Code: the bar routines (`fl_left`, `fl_right`, `it_end`) moved to a second
   cave `0x202EC0`–`0x202FAF` (main cave full).
+- *Language:* settings `+0x78` (0 English, 1 Chinese, 2 Spanish, 3 German,
+  4 French, 5 Japanese). Writers: settings/factory reset (0), settings load
+  `0x2631C9` (> 5 → 0), menu confirm `sub_265D2B` (`0x265D49`, list choice
+  `0x457857`), DDC/CI `sub_26AD19` (`0x26CC73`, value mod 6), profile restore
+  `sub_269AA4` (`0x269F5B`). Nothing blocked Chinese/Japanese with
+  `osd-aa-font` before; `lang-latin` (required by it) refuses 1 and 5 at the
+  menu and DDC/CI and maps them to English at load and profile restore.
 - The whole OSD, bar included, is blended with the picture by the
   transparency setting (photo: the header band and the bar show the picture
   through them alike).
