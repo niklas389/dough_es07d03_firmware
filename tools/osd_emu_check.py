@@ -15,7 +15,10 @@ Runs the vendor code of the patched runtime image in tools/aeon/aeonemu.py:
 - text placement 0x25CA96: codes, attributes (palette groups), attribute-only updates,
   non-text descriptors, and the group colours after a palette reload;
 - the page drawing 0x256C92 of the menu pages 0x10-0x17 (English): every text descriptor
-  placed (string descriptor tables 0x3C3EE8) must start on a string of the new layout.
+  placed (string descriptor tables 0x3C3EE8) must start on a string of the new layout;
+  every 2-bit tile has an attribute with bits 1-0 = 0 (on the monitor bit 0 made pixel
+  value 0 transparent); the selection bar interior has its text tiles at 0x60 and its
+  blank 1-bit tiles at 0x61.
 Exit status 1 on any failure.
 """
 import json, math, os, struct, sys
@@ -70,13 +73,15 @@ check(o.glyph(0x20, 1) == ref.osd.glyph(0xFE, 1) and o.glyph(0x21, 1) == ref.osd
       'half circles at 0x20/0x21 (vendor: 0xFE/0xFF)')
 icons = list(range(0x372, 0x3CA, 2))
 check(all(o.glyph(k, 2) == ref.osd.glyph(k, 2) for k in icons), '2-bit icons 0x372-0x3C9 unchanged')
-run = o.glyph(0x302, 2)                                  # selection bar: top run piece (v4)
-check(all(v in (0, 1, 3) for k in range(0x300, 0x310, 2) for row in o.glyph(k, 2) for v in row)
-      and all(set(run[y]) == {0} for y in range(11)) and set(run[11]) == {1} and all(set(run[y]) == {3} for y in range(12, 18)),
-      'selection bar pieces 0x300-0x30E: values 0/1/3, top run edge at row 11, inside below')
+run = o.glyph(0x302, 2)                                  # selection bar: top run piece (v5)
+check(all(v in (0, 1, 2, 3) for k in range(0x300, 0x310, 2) for row in o.glyph(k, 2) for v in row)
+      and all(set(run[y]) == {2} for y in range(9)) and all(set(run[y]) == {0} for y in range(9, 12))
+      and set(run[12]) == {1} and all(set(run[y]) == {3} for y in range(13, 18)),
+      'selection bar pieces 0x300-0x30E: top run rows 0-8 value 2 (header band), 9-11 gap, edge at row 12, inside below')
 stock_pal = stock[0x3B74B8 - 0x200000:0x3B74B8 - 0x200000 + 4 * 0xF8]
 used = sorted({a & 0xFC for a in (0x10, 0x11, 0x14, 0x18, 0x1C, 0x20, 0x24, 0x28, 0x2C, 0xA8, 0xAC, 0xEC, 0xF1, 0xF4)})
-check(not any(0x40 <= b < 0x70 for b in used), 'text palettes 0x40-0x6F clear of the vendor 2-bit attributes %s' % ' '.join('%02X' % b for b in used))
+check(not any(0x40 <= b < 0x70 or b == 0x78 for b in used),
+      'text and bar palettes 0x40-0x6F, 0x78 clear of the vendor 2-bit attributes %s' % ' '.join('%02X' % b for b in used))
 
 # patched font table (set 0 = bit 0, set 1 = bit 1 for codes below 0x7E)
 F0 = bytes(img[0x3BB068 - 0x200000:0x3BB068 - 0x200000 + 0x7E * 40])
@@ -177,18 +182,23 @@ for st in range(0x10, 0x18):
     del c.stubs[0x25CB21]
     textattrs = {g - 1 for g in c.mem[0x202D80 - 0x200000:0x202E80 - 0x200000] if g}
     icon_codes = set(range(0x300, 0x310)) | set(range(0x372, 0x3CA))
-    bar = lambda code, attr: 0x300 <= code < 0x310 and attr in (0x44, 0x6C)   # selection bar pieces (v4)
+    bar = lambda code, attr: 0x300 <= code < 0x310 and attr in (0x78, 0x6C)   # selection bar pieces (v5)
     clash = [a for a, code in o.code.items() if o.attr.get(a, 0) in textattrs and code in icon_codes
              and not bar(code, o.attr.get(a, 0))]
     check(not clash, 'page %02X with frame: no text tile on an icon code%s' % (st, '' if not clash else ' -- %d tiles' % len(clash)))
+    # on the monitor a 2-bit tile whose attribute has bit 0 set showed pixel value 0 transparent (v4 photo)
+    odd = [a for a, code in o.code.items() if code >= 0x78 and o.attr.get(a, 0) & 3]
+    check(not odd, 'page %02X: every 2-bit tile has an attribute with bits 1-0 = 0%s' % (st, '' if not odd else ' -- %d tiles' % len(odd)))
     lefts = [a for a, code in o.code.items() if code == 0x30C]
     inner = []
     for a in lefts:
         b = a + 1
         while o.code.get(b) != 0x30E and b < a + 62:
-            inner.append(o.attr.get(b)); b += 1
-    check(lefts and inner and all(v == 0x61 for v in inner),
-          'page %02X: selection bar interior filled (attribute 0x61, %d tiles)' % (st, len(inner)))
+            inner.append((o.code.get(b, 0), o.attr.get(b))); b += 1
+    text = [at for cd, at in inner if cd >= 0x78]
+    check(lefts and text and all(at == (0x60 if cd >= 0x78 else 0x61) for cd, at in inner),
+          'page %02X: selection bar interior: %d text tiles attribute 0x60, %d blank tiles 0x61'
+          % (st, len(text), len(inner) - len(text)))
     page = new_starts(u32(0x326C98 + 4 * st), 0)
     common = new_starts(0x3BFF18, 0)
     text = [x for x in seen if (x[0] << 8 | x[1]) >= 0x20 and x[0] < 2]   # (number fields: runtime descriptors)

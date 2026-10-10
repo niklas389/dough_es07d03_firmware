@@ -48,7 +48,7 @@ How it works:
 - Letter spacing: the renderer adds (mode byte 0x3CB81C & 3) blank columns after
   each glyph (1 for text, 2 for numbers and values); the Noto widths include the
   side bearings, so the seven reads of it in the renderer are changed to & 0.
-Code and RAM in the image head zero area (code 0x203000, RAM 0x202D00-0x202EAF).
+Code and RAM in the image head zero area (code 0x203000, RAM 0x202D00-0x202EB4).
 Checked in an emulator with tools/osd_emu_check.py (section 56).
 """
 import sys, json, os, math
@@ -73,22 +73,27 @@ TMAP = RAM + 0x80                    # attribute -> text attribute + 1 (0 = not 
 GATTR = RAM + 0x180                  # per assigned group (pool order): its attribute
 NGRP = RAM + 0x190                   # number of assigned groups
 PTAB = RAM + 0x1A0                   # 4-entry palette table for one group (R, G, B, flag)
-RAM_END = RAM + 0x1B3
+RAM_END = RAM + 0x1B5
 POOL = [0x40, 0x44, 0x48, 0x4C, 0x50, 0x54, 0x58, 0x5C, 0x64, 0x68]   # 4-entry text palettes (attribute = first entry)
 # Selection bar (item frames of 0x256144): fill = vendor entry 1 (0x3F3F3F).
+# A 2-bit tile needs an attribute with bits 1-0 = 0: on the monitor (v4 photo) the item text on the bar, 2-bit
+# tiles with attribute 0x61, showed pixel value 0 transparent although entry 0x60 is the fill (the emulator
+# model takes entry (attribute & 0xFC) + value); the vendor uses only multiples of 4 on 2-bit tiles.
 FILL_ENTRY = 1
-BAR_TEXT = 0x60                      # group of selected text on the bar: [fill, 1/3, 2/3, white]; not in the pool
-FILL_ATTR = BAR_TEXT | FILL_ENTRY    # 0x61: 1-bit blanks -> entry 1 (fill), 2-bit text -> group 0x60
+BAR_TEXT = 0x60                      # 2-bit text on the bar: group [fill, 1/3, 2/3, white]; not in the pool
+FILL_ATTR = BAR_TEXT | FILL_ENTRY    # 0x61: only for the 1-bit blank tiles of the bar (background entry 1 = fill)
 SEL_ATTR = 0x2F                      # vendor attribute of selected text (its own group keeps the window background)
-FRAME_SRC = 0x1F                     # pieces use this attribute's group: [entry 15 bg, 1/3, 2/3, entry 1 = fill]
-FRAME_G2 = 0x6C                      # first item's top pieces (vendor attribute 0x10): [header band, 1/3, 2/3, fill]
-FL_X, FL_Y, FL_N = 0x202EB0, 0x202EB1, 0x202EB2   # pending bar fill (first column, row, count; count 0 = none)
+FRAME_G = 0x78                       # bar pieces: [window background, edge, window background, fill] (vendor 0x78-0x7B: zeros, unused)
+FRAME_G2 = 0x6C                      # first item's top pieces (vendor attribute 0x10): [window background, edge, header band, fill]
+VE_FIRST = 0x10                      # value editors keep vendor 0x10 for first-row top pieces: [0, white, header band, 0]
+FL_X, FL_Y, FL_N = 0x202EB0, 0x202EB1, 0x202EB2   # pending bar fill (first column, row, interior count; count 0 = none)
+FL_LO, FL_HI = 0x202EB3, 0x202EB4    # interior tiles [FL_LO, FL_HI) hold text placed on the bar (FL_LO 0xFF = none)
+ADDR_FN = 0x23C3E5                   # (window, x, y) -> tile address (row base + x; base depends on the OSD rotation)
 PIECE, ROW_WRITE = 0x25C70B, 0x25C8F5   # (x, y, piece) one frame piece; (x, y | 0x80 = attributes only, code, count)
 FRAME_DATA, FRAME_DATA_LEN = 0x325CA6, 152   # RLE 2-plane glyphs of the 8 frame pieces, loaded to 0x300-0x30F (0x253A1B)
 FL_LEFT = [0x25624A, 0x256316, 0x2564F4, 0x256576]    # item frame routine 0x256144: jal 0x25C70B (x, y, 0x0C)
 FL_RIGHT = [0x256255, 0x256321, 0x2564FF, 0x256581]   # ... jal 0x25C70B (x, y, 0x0E)
 FRAME_ATTR_SITES = [0x256207, 0x256236, 0x256264, 0x2562D6, 0x256303, 0x256330, 0x2564B7, 0x2564E6, 0x25653C, 0x256569]
-FRAME_G = POOL[[0x3F, 0x1F].index(FRAME_SRC)]   # = group of FRAME_SRC in STATIC_ATTRS order (checked below)
 frame_group = lambda vendor_attr: FRAME_G2 if vendor_attr == 0x10 else FRAME_G
 ITEM_END = 0x256650                  # item draw sub_256597: epilogue (r14..r9 from 0..0x14(r1), addi r1,0x18, jr r9)
                                      # ori r7,r0,attr before sb 0x3C5389 on the draw paths of 0x256144 (erase paths unchanged)
@@ -177,6 +182,45 @@ f_pro, f_epi = frame([R10, R11, R12, R13, R14])
 g_pro, g_epi = frame([R10, R11])
 s_pro, s_epi = frame([R10, R11, R12])
 h_pro, h_epi = frame([R10, R11, R12, R13])
+
+# ---------------------------------------------------------------- selection bar code (second cave)
+CODE2, CODE2_END = 0x202EC0, 0x203000   # image head zero area after the RAM variables
+assert cur(CODE2, CODE2_END - CODE2) == bytes(CODE2_END - CODE2)
+bar_prog = [
+ # ---- selection bar: attribute-only fill between the middle pieces of an item frame (0x256144)
+ 'fl_left:',                                               # jal 0x25C70B (x, y, 0x0C): remember column and row
+ *ram(R7), sb(lo(FL_X), R7, R3), sb(lo(FL_Y), R7, R4), j(PIECE),
+ 'fl_right:',                                              # jal 0x25C70B (x, y, 0x0E): note the interior for it_end
+ *ram(R7), lbz(R6, lo(FL_Y), R7), bne(R6, R4, 'fl_x'),
+ lbz(R6, lo(FL_X), R7), sub(R6, R3, R6), addi(R6, R6, -1), blesi(R6, 0, 'fl_x'),
+ sb(lo(FL_N), R7, R6),
+ ori(R6, R0, 0xFF), sb(lo(FL_LO), R7, R6), sb(lo(FL_HI), R7, R0),   # no text on the bar yet
+ 'fl_x:',
+ j(PIECE),
+ 'it_end:',                                                # item draw done (its text is placed): fill the bar blanks
+ *ram(R7), lbz(R12, lo(FL_N), R7), beqi(R12, 0, 'it_x'),  # r10-r14 are restored by the epilogue below
+ sb(lo(FL_N), R7, R0),
+ addi(R1, R1, -4), sw(0, R1, R3),
+ mh(R7, 0x3C), lbz(R10, 0x5389, R7), ori(R5, R0, FILL_ATTR), sb(0x5389, R7, R5),
+ *ram(R7), lbz(R11, lo(FL_LO), R7), bleu(R11, R12, 'ie_lo'), mov(R11, R12),   # r11 = text start (count: none)
+ 'ie_lo:',
+ lbz(R13, lo(FL_HI), R7), bleu(R11, R13, 'ie_hi'), mov(R13, R11),            # r13 = text end
+ 'ie_hi:',
+ lbz(R14, lo(FL_X), R7), addi(R14, R14, 1),
+ beqi(R11, 0, 'ie_b'),                                    # blanks before the text (attributes only)
+ mov(R3, R14), lbz(R4, lo(FL_Y), R7), ori(R4, R4, 0x80), ori(R5, R0, 0), mov(R6, R11), jal(ROW_WRITE),
+ 'ie_b:',
+ bleu(R12, R13, 'ie_done'),                               # blanks after the text
+ add(R3, R14, R13), *ram(R7), lbz(R4, lo(FL_Y), R7), ori(R4, R4, 0x80), ori(R5, R0, 0), sub(R6, R12, R13),
+ jal(ROW_WRITE),
+ 'ie_done:',
+ mh(R7, 0x3C), sb(0x5389, R7, R10),
+ lw(R3, 0, R1), addi(R1, R1, 4),
+ 'it_x:',
+ *[lw(r, 4 * k, R1) for k, r in enumerate((R14, R13, R12, R11, R10, R9))], addi(R1, R1, 0x18), jr(R9),
+]
+code2, L2 = S.assemble(bar_prog, CODE2)
+assert CODE2 + len(code2) <= CODE2_END, hex(CODE2 + len(code2))
 
 prog = [
  # ---- renderer start (jal from 0x27C091, r3 = first slot): remember bank and slot, then the vendor set-up
@@ -277,6 +321,8 @@ prog = [
  mh(R7, 0x3C), lbz(R11, 0x5389, R7),                      # r11 = attribute
  lbz(R3, 0, R14), orr(R3, R3, R12), jal('lmap'), beqi(R3, 0, 'pl_attr'),
  mov(R3, R11), jal('gattr'), mov(R11, R3),                # text: attribute with its palette group
+ jal('onbar'), beqi(R3, 0, 'pl_attr'),
+ ori(R11, R0, BAR_TEXT),                                  # text inside the pending selection bar: bar text group
  'pl_attr:',
  *call(WMASK, ('c', MODE), ('c', 0), ('c', 0x1F)),
  *call(W16, ('c', PORT), ('r', R16)),
@@ -374,27 +420,26 @@ prog = [
  addi(R10, R10, 1), j('ph_grp'),
  'ph_ret:',
  *h_epi, jr(R9),
- # ---- selection bar: attribute-only fill between the middle pieces of an item frame (0x256144)
- 'fl_left:',                                               # jal 0x25C70B (x, y, 0x0C): remember column and row
- *ram(R7), sb(lo(FL_X), R7, R3), sb(lo(FL_Y), R7, R4), j(PIECE),
- 'fl_right:',                                              # jal 0x25C70B (x, y, 0x0E): note the interior for it_end
- *ram(R7), lbz(R6, lo(FL_Y), R7), bne(R6, R4, 'fl_x'),
- lbz(R6, lo(FL_X), R7), sub(R6, R3, R6), addi(R6, R6, -1), blesi(R6, 0, 'fl_x'),
- sb(lo(FL_N), R7, R6),
- 'fl_x:',
- j(PIECE),
- 'it_end:',                                                # item draw done (its text is placed): fill the bar
- *ram(R7), lbz(R6, lo(FL_N), R7), beqi(R6, 0, 'it_x'),
- sb(lo(FL_N), R7, R0),
- addi(R1, R1, -8), sw(0, R1, R3), sw(4, R1, R10),
- lbz(R4, lo(FL_Y), R7), ori(R4, R4, 0x80),                # attributes only
- lbz(R3, lo(FL_X), R7), addi(R3, R3, 1),
- mh(R7, 0x3C), lbz(R10, 0x5389, R7), ori(R5, R0, FILL_ATTR), sb(0x5389, R7, R5),
- ori(R5, R0, 0), jal(ROW_WRITE),                          # blanks -> fill, selected text -> group BAR_TEXT
- mh(R7, 0x3C), sb(0x5389, R7, R10),
- lw(R3, 0, R1), lw(R10, 4, R1), addi(R1, R1, 8),
- 'it_x:',
- *[lw(r, 4 * k, R1) for k, r in enumerate((R14, R13, R12, R11, R10, R9))], addi(R1, R1, 0x18), jr(R9),
+ # ---- r3 = 1 if the text run of place2 (tile address r16, row r15 & 0x7F, count 0(r13)) starts inside the
+ #      pending bar; records the interior tiles it covers. r3-r7 only (0x23C3E5 keeps r10-r16).
+ 'onbar:',
+ *ram(R7), lbz(R6, lo(FL_N), R7), beqi(R6, 0, 'ob_no'),
+ lbz(R5, lo(FL_Y), R7), andi(R4, R15, 0x7F), bne(R4, R5, 'ob_no'),
+ addi(R1, R1, -4), sw(0, R1, R9),
+ lbz(R4, lo(FL_X), R7), addi(R4, R4, 1),
+ mh(R7, 0x3C), lbz(R3, 0x538A, R7), jal(ADDR_FN),          # r3 = address of the first interior tile
+ lw(R9, 0, R1), addi(R1, R1, 4),
+ sub(R6, R16, R3),                                        # k0 = offset of the run in the interior
+ *ram(R7), lbz(R5, lo(FL_N), R7), bleu(R5, R6, 'ob_no'),  # outside (unsigned: also left of the bar)
+ lbz(R4, lo(FL_LO), R7), bleu(R4, R6, 'ob_lo'), sb(lo(FL_LO), R7, R6),
+ 'ob_lo:',
+ lbz(R4, 0, R13), add(R4, R4, R6), bleu(R4, R5, 'ob_n'), mov(R4, R5),   # k1 = min(k0 + count, interior count)
+ 'ob_n:',
+ lbz(R3, lo(FL_HI), R7), bleu(R4, R3, 'ob_yes'), sb(lo(FL_HI), R7, R4),
+ 'ob_yes:',
+ ori(R3, R0, 1), jr(R9),
+ 'ob_no:',
+ ori(R3, R0, 0), jr(R9),
  # ---- vendor palette loader without the hook
  'tramp:',
  addi(R1, R1, -0x20), sw(0x1C, R1, R9), j(PAL_CONT),
@@ -424,6 +469,10 @@ for a, b, x in A.disasm(code[:pool_addr - CODE - len(vbody)], CODE, pool_addr - 
     lab = [k for k, v in L.items() if v == a and not k.endswith('_ref')]
     print(('%-11s' % (lab[0] + ':' if lab else '')) + '%08x: %-12s %-9s %s' % (a, b.hex(' '), x['mnem'], x['ops']))
 print('vbody %#x, pool %#x, end %#x' % (L['vbody'], pool_addr, CODE + len(code)))
+for a, b, x in A.disasm(code2, CODE2, CODE2 + len(code2), CODE2):
+    lab = [k for k, v in L2.items() if v == a]
+    print(('%-11s' % (lab[0] + ':' if lab else '')) + '%08x: %-12s %-9s %s' % (a, b.hex(' '), x['mnem'], x['ops']))
+print('selection bar code %#x-%#x' % (CODE2, CODE2 + len(code2)))
 
 def lmap_py(L):
     if 0x09 <= L < 0x1C: return 2 * L + 0x66
@@ -568,7 +617,7 @@ assert 0x20 + common <= 0x182 - 0x100, 'common block exceeds the mapped bank-1 r
 # time (gattr). v1/v2 on hardware: text palettes at entries 16 x fg were never used by the tiles; the
 # hardware takes entry (attribute & 0xFC) + value.
 PAL_TAB, PAL_N = 0x3B74B8, 0xF8
-STATIC_ATTRS = [0x3F, 0x1F, 0x2F, 0x21, 0x2C, 0x24, 0x2E, 0xBF, 0x22, 0x01]   # 0x1F second: its group = FRAME_G
+STATIC_ATTRS = [0x3F, 0x1F, 0x2F, 0x21, 0x2C, 0x24, 0x2E, 0xBF, 0x22, 0x01]   # pool order
 assert len(STATIC_ATTRS) <= len(POOL) and len(set(STATIC_ATTRS)) == len(STATIC_ATTRS)
 def third(x): return (x * 0x5556 + 0x7FFF) >> 16                 # as setgrp
 pal_tab = bytearray(cur(PAL_TAB, 4 * PAL_N))
@@ -581,11 +630,17 @@ for i, a in enumerate(STATIC_ATTRS):
         pal_tab[4 * (g + v):4 * (g + v) + 4] = cols[v] + b'\0'
     tmap0[a], gattr0[i] = g + 1, a
 fill, white = cur(PAL_TAB + 4 * FILL_ENTRY, 3), cur(PAL_TAB + 4 * (SEL_ATTR >> 4), 3)
+bg = cur(PAL_TAB + 4 * 15, 3)                                   # entry 15: window background
 band = cur(PAL_TAB + 4 * 0x13, 3)                               # vendor group 0x10, value 3: header band continuation
 ramp = lambda b, f: [b, bytes(third(2 * x + y) for x, y in zip(b, f)), bytes(third(x + 2 * y) for x, y in zip(b, f)), f]
-assert STATIC_ATTRS[POOL.index(FRAME_G)] == FRAME_SRC and FRAME_SRC & 15 == 15 and FRAME_SRC >> 4 == FILL_ENTRY
-for grp, cols in ((BAR_TEXT, ramp(fill, white)), (FRAME_G2, ramp(band, fill))):
-    assert grp not in POOL
+edge = ramp(bg, fill)[1]                                        # one-pixel edge ring of the bar
+nul = bytes(3)                                                  # black: transparent on the monitor
+assert band == cur(PAL_TAB + 4 * 4, 3) and cur(PAL_TAB + 4 * FRAME_G, 16) == bytes(16)
+assert cur(PAL_TAB + 4 * VE_FIRST, 16).hex() == '00000000ffffff0000000000' + band.hex() + '00'
+bar_groups = ((BAR_TEXT, ramp(fill, white)), (FRAME_G, [bg, edge, bg, fill]), (FRAME_G2, [bg, edge, band, fill]),
+              (VE_FIRST, [nul, cur(PAL_TAB + 4 * (VE_FIRST + 1), 3), band, nul]))
+for grp, cols in bar_groups:
+    assert grp not in POOL and grp & 3 == 0
     for v in range(4):
         pal_tab[4 * (grp + v):4 * (grp + v) + 4] = cols[v] + b'\0'
 pal_tab = bytes(pal_tab)
@@ -749,7 +804,9 @@ def frame_encode(glyphs):
                 out += b.to_bytes(2, 'big')
             i += n
     return bytes(out)
-BAR_TOP, BAR_BOT, BAR_MARGIN, BAR_R = 11, 6, 2, 6     # bar: rows TOP-17 of the top tile .. rows 0-(BOT-1) of the bottom one
+BAR_TOP, BAR_BOT, BAR_MARGIN, BAR_R = 12, 6, 2, 6     # bar: rows TOP-17 of the top tile .. rows 0-(BOT-1) of the bottom one
+BAND_ROWS = 9                                         # top pieces rows 0-8: value 2 (first item: the header band, which ends
+                                                      # there in that tile row, vendor glyph 2 with 0xF4; else background)
 def bar_glyphs():
     W, H = 36, 54                                         # left piece, one interior tile, right piece x 3 tile rows
     x0, x1, y0, y1 = BAR_MARGIN, W - BAR_MARGIN, BAR_TOP, 36 + BAR_BOT
@@ -765,6 +822,9 @@ def bar_glyphs():
         return 1 if any(cov[y + dy][x + dx] <= 0.5 for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))
                         if 0 <= x + dx < W and 0 <= y + dy < H) else 3
     cv = [[val(x, y) for x in range(W)] for y in range(H)]
+    for y in range(BAND_ROWS):
+        assert not any(cv[y])
+        cv[y] = [2] * W
     tile = lambda tx, ty: [row[12 * tx:12 * tx + 12] for row in cv[18 * ty:18 * ty + 18]]
     return [tile(0, 0), tile(1, 0), tile(2, 0), tile(0, 2), tile(1, 2), tile(2, 2), tile(0, 1), tile(2, 1)]
 _vendor_frames, _n = frame_decode(cur(FRAME_DATA, FRAME_DATA_LEN))
@@ -781,7 +841,9 @@ for sites, piece in ((FL_LEFT, 0x0C), (FL_RIGHT, 0x0E)):
 
 edits = [
  {'addr': '0x%06X' % CODE, 'old': '00' * len(code), 'new': code.hex(),
-  'asm': 'osd-aa code (image head zero area 0x203000): renderer helpers for 2-bit glyphs, code map, text placement, palette groups; RAM 0x202D00-0x202EAF'},
+  'asm': 'osd-aa code (image head zero area 0x203000): renderer helpers for 2-bit glyphs, code map, text placement, palette groups; RAM 0x202D00-0x202EB4'},
+ {'addr': '0x%06X' % CODE2, 'old': '00' * len(code2), 'new': code2.hex(),
+  'asm': 'osd-aa selection bar code (image head zero area 0x202EC0): side-piece hooks, text-on-bar test for place2, blank fill after the item draw'},
  {'addr': '0x%06X' % RENDER_START, 'old': cur(RENDER_START, 4).hex(),
   'new': S.encode('bg.jal', {'/': L['start2']}, RENDER_START).hex(), 'asm': 'renderer 0x27C046: jal 0x25D952 -> jal start2 (remember bank and first slot)'},
  hook('blit 0x27BF05 -> j blit2 (both glyph planes)', BLIT, 'blit2'),
@@ -804,18 +866,18 @@ edits = [
  *[{'addr': '0x%06X' % a, 'old': cur(a, 3).hex(), 'new': cur(a, 2).hex() + '00',
     'asm': 'renderer letter spacing (0x3CB81C & 3) -> 0: the Noto glyph widths include the side bearings'} for a in SPACING],
  {'addr': '0x%06X' % PAL_TAB, 'old': cur(PAL_TAB, len(pal_tab)).hex(), 'new': pal_tab.hex(),
-  'asm': 'vendor palette table: 4-entry text palettes at ' + ', '.join('%02X' % POOL[i] for i in range(len(STATIC_ATTRS))) + ' = [bg, 1/3, 2/3, fg] of the text attributes'},
+  'asm': 'vendor palette table: 4-entry text palettes at ' + ', '.join('%02X' % POOL[i] for i in range(len(STATIC_ATTRS))) + ' = [bg, 1/3, 2/3, fg] of the text attributes; selection bar groups 60 (text on the bar), 78 (pieces), 6C (first item\'s top pieces), 10 (value editors\' first-row top pieces: header band in value 2)'},
  {'addr': '0x%06X' % TMAP, 'old': '00' * 256, 'new': tmap0.hex(), 'asm': 'osd-aa RAM: attribute -> text attribute + 1 for the static text attributes'},
  {'addr': '0x%06X' % GATTR, 'old': '00' * 17, 'new': (gattr0 + bytes([len(STATIC_ATTRS)])).hex(), 'asm': 'osd-aa RAM: assigned groups (pool order) and their count'},
  {'addr': '0x%06X' % FRAME_DATA, 'old': cur(FRAME_DATA, len(frame_rle)).hex(), 'new': frame_rle.hex(),
-  'asm': 'frame pieces 0x300-0x30F (RLE): rounded bar, 0 outside, 1 edge ring, 3 inside (value editors: white outline)'},
+  'asm': 'frame pieces 0x300-0x30F (RLE): rounded bar from row 12 of the top tile to row 5 of the bottom one, 0 outside, 1 edge ring, 3 inside, 2 in rows 0-8 of the top pieces (header band of the first item; value editors: white outline)'},
  *[{'addr': '0x%06X' % a, 'old': cur(a, 3).hex(), 'new': '50e0%02x' % frame_group(cur(a, 3)[2]),
     'asm': 'item frame 0x256144: piece attribute 0x%02X -> 0x%02X (selection bar palette)' % (cur(a, 3)[2], frame_group(cur(a, 3)[2]))}
    for a in FRAME_ATTR_SITES],
- *[{'addr': '0x%06X' % a, 'old': cur(a, 4).hex(), 'new': S.encode('bg.jal', {'/': L[lab]}, a).hex(),
+ *[{'addr': '0x%06X' % a, 'old': cur(a, 4).hex(), 'new': S.encode('bg.jal', {'/': L2[lab]}, a).hex(),
     'asm': 'item frame 0x256144: jal 0x25C70B (middle %s piece) -> jal %s' % (side, lab)}
    for sites, lab, side in ((FL_LEFT, 'fl_left', 'left'), (FL_RIGHT, 'fl_right', 'right')) for a in sites],
- {'addr': '0x%06X' % ITEM_END, 'old': cur(ITEM_END, 4).hex(), 'new': S.encode('bg.j', {'/': L['it_end']}, ITEM_END).hex(),
+ {'addr': '0x%06X' % ITEM_END, 'old': cur(ITEM_END, 4).hex(), 'new': S.encode('bg.j', {'/': L2['it_end']}, ITEM_END).hex(),
   'asm': 'item draw 0x256597 epilogue -> j it_end (selection bar fill after the item text, then the same epilogue)'},
  {'addr': '0x%06X' % TIMES_SITE, 'old': cur(TIMES_SITE, 3).hex(), 'new': '50e0%02x' % TIMES_CODE,
   'asm': 'resolution line (0x25CE01): separator capital X (code 0x37) -> multiplication sign (code 0x1C)'},
@@ -831,9 +893,9 @@ for e in edits:
 patch = {
  'name': 'osd-aa-font',
  'summary': 'Anti-aliased OSD text: Noto Sans Condensed SemiBold 14 px rendered as 2-bit (4-level) glyphs, smooth edges in every text colour; filled rounded selection bar; multiplication sign in the resolution line',
- 'status': 'experimental; v1 on hardware 2026-10-09: menu items showed parts of other strings; v2 on hardware: strings right, colours wrong (palette rule); v3 (palette entry = attribute & 0xFC + value) hardware-tested: correct, text slightly blurry; v4 (stems on pixel edges, selection bar, ×) hardware test pending',
+ 'status': 'experimental; v1 on hardware 2026-10-09: menu items showed parts of other strings; v2 on hardware: strings right, colours wrong (palette rule); v3 (palette entry = attribute & 0xFC + value) hardware-tested: correct, text slightly blurry; v4 (stems on pixel edges, selection bar, ×) on hardware: text sharper; first item\'s bar touched the header band, item text on the bar had a transparent background (2-bit tiles with attribute 0x61); v5 (text on the bar with attribute 0x60, 3 px gap below the header band) hardware test pending',
  'edits': edits,
- 'labels': {k: '0x%06X' % v for k, v in L.items() if not k.endswith('_ref')},
+ 'labels': {k: '0x%06X' % v for k, v in sorted({**L, **L2}.items(), key=lambda kv: kv[1]) if not k.endswith('_ref')},
  'notes': ("Text tiles become 2-bit glyphs (two code slots each). Logical codes L = bank << 8 | slot map to 2-bit codes: "
            "0x009-0x01B -> 2L+0x66, 0x020-0x150 -> 2L+0x5E, 0x151-0x181 -> 2L+0x6E, 0x1C0-0x1D9 -> 2L+0x4A; vendor icons stay at 0x300-0x30F and "
            "0x372-0x3C9; 2-bit range from 0x078 (0x101C0A). Each text attribute gets a 4-entry palette at entries 0x40-0x6F "

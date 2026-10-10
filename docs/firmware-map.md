@@ -3395,6 +3395,41 @@ behind them, letters partly missing, and the information line in green.
 - All checked in the emulator (renders of the main frame, Picture and OSD
   pages, corner cells, transparency writes); hardware test pending.
 
+**v4 on hardware (2026-10-09, photo with "Input / Output" selected) and v5.**
+- Text sharper; menu corners, × and transparency steps as intended.
+- *Text on the bar:* the tiles of the selected item's text showed the picture
+  unblended (a box of keyed transparency, brighter than the blended window
+  background), while the blank tiles and pieces of the bar showed the grey
+  fill. In the emulator the same tiles are 2-bit codes with attribute `0x61`
+  (group `0x60`, value 0 = fill). So on the monitor **the low two attribute
+  bits of a 2-bit tile are not ignored: with bit 0 set (`0x61`) pixel value 0
+  was transparent**. The exact meaning of bits 1–0 is not known; the vendor
+  only uses multiples of 4 on 2-bit tiles (frames `0x10`–`0x28`, `0xA8`,
+  `0xAC`, `0xEC`, `0xF4`), and all v3/v4 text groups were multiples of 4.
+  Rule kept from now on: 2-bit tiles get attributes with bits 1–0 = 0
+  (`tools/osd_emu_check.py` checks every drawn 2-bit tile).
+- v5: the text placement hook asks whether its run lies inside the pending bar
+  (row of the side pieces, tile address from `0x23C3E5(window, x, y)` = row
+  base + x in every OSD rotation) and then uses attribute `0x60`; the fill at
+  the end of the item draw writes `0x61` only to the 1-bit blank tiles before
+  and after the text (RAM `0x202EB3`/`0x202EB4`: first and end interior tile
+  of the text).
+- *Header band:* the vendor band ends at pixel row 8 of tile row 2 (glyph 2
+  "lower half solid", rows 9–17, with `0xF4`). v4's first-item top pieces used
+  the band colour for value 0 down to the bar (row 11) and around its corners,
+  so the band reached the bar. v5: top pieces have value 2 in rows 0–8, value
+  0 in rows 9–11 (3 px gap), the bar from row 12 to row 5 of the bottom tile
+  (6 px above and below the text). Groups: pieces `0x78` [`0x0C0C0C`, edge,
+  `0x0C0C0C`, `0x3F3F3F`] (vendor `0x78`–`0x7B` are zeros, unused), first
+  item's top pieces `0x6C` [`0x0C0C0C`, edge, `0x2A2A2A`, `0x3F3F3F`]; the
+  value editors' first-row top pieces (vendor `0x10`) get [0, white,
+  `0x2A2A2A`, 0] so the band continues above them as with the vendor glyphs.
+- Code: the bar routines (`fl_left`, `fl_right`, `it_end`) moved to a second
+  cave `0x202EC0`–`0x202FAF` (main cave full).
+- The whole OSD, bar included, is blended with the picture by the
+  transparency setting (photo: the header band and the bar show the picture
+  through them alike).
+
 
 ## 57. 4K 144 Hz arrives on two links; stuck "quick input menu" flag (2026-10-09)
 
