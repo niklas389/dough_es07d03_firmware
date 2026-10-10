@@ -1243,8 +1243,9 @@ None of them is a status query; meanings not traced.
     HDMI 2). The next port's status gets `|= 0x0C`, so it starts as
     "no signal".
   - With `0x4551AC` bit 5 set, it picks the port from SAR ADC channels 6
-    and 8 (`sub_23DCE4`) compared with fixed levels. These look like the
-    key ladder, so input selection by key (inference).
+    and 8 (`sub_23DCE4`) compared with fixed levels. Correction (§59): these
+    are the cable-detect levels of `sub_23EDA4`, not a key ladder, so this
+    mode picks the next port with a cable; it is not enabled here.
 - GP27U (`0x26AEEA`): next port = (port + 1) mod 6 (`0x270180`), skipping
   ports with type bit `0x1000` without `0x800`.
 - Neither firmware asks the front-end which inputs are active during the
@@ -3551,3 +3552,54 @@ paired). The real handler runs cleanly in the emulator (pair report →
 `+0x94` = 1, single report → 0); the decision logic is emulator-checked.
 Hardware test pending. If the fault recurs with this patch,
 `widthdump.sh` shows the report copy and the replay count.
+
+## 59. Automatic scan timing, cable detection, the link-event pause (2026-10-10)
+
+**Cable detection `sub_23EDA4(port)`** (1 = cable present): for ports with
+type bit `0x20000` it reads SAR ADC channel 8 (ports 0/1) or 6 (ports 2/3)
+and compares it with fixed levels: channel 8 ≈ `0x6F` USB-C, ≈ `0x36` DP,
+≈ `0x25` both; channel 6 ≈ `0x44` HDMI 1, ≈ `0x98` HDMI 2, ≈ `0x28` both
+(±7, ±4 for `0x25`); other ports use `sub_20EF11`. Only with `0x45504C` set.
+The levels are inferred from the code; not measured.
+
+**No-signal decision** (port monitor `sub_23B068`, one pass per 20 ms):
+- pass counter `+0x16`, threshold `+0x1A` (125 passes = 2.5 s with
+  `port-nosignal` v4); decision `sub_23E64A(port, 2)` at `0x23B2E9`;
+- fast path `0x23B26F`–`0x23B2BF`: with no cable the counter jumps to the
+  threshold after 50 passes (1 s), 5 in the factory mode. Log of 2026-10-08
+  21:47: DP (cable) 2.49 s, HDMI 1 / HDMI 2 (no cable) 0.99 s each, a scan
+  step ≈ 0.05 s.
+
+**Scan rounds** (`sub_25FE39`, callback 3 of `sub_23E258`, called by the port
+monitor at every multiple of `+0x1A` passes, i.e. once per no-signal
+decision): the decision counter `0x453BF2` is incremented on each call; while
+it is ≤ 8 (≤ 4 in the factory mode) the scan steps to the next input, on the
+9th (5th) decision it shows "No signal" (`sub_26A809`). The counter is
+cleared only when a port finds a signal (`0x23B35C`) and at start-up
+(`0x23FF45`). So after a working picture is lost, the scan makes two full
+rounds over the four inputs before "No signal". Estimate for DP and USB-C
+cabled, no HDMI cable, all sources off, `scan-active-first` skipping USB-C:
+2.5 s + 8 × ~1.05 s ≈ 11 s (≈ 14 s if the dock keeps the DP link, which then
+counts as "source active" and is visited every round). Fixed input: 2.5 s.
+
+**Factory mode** = `0x4551AE` bit 0 or settings `+0x48` bit 2, set with the
+`0x55AA`/`0xAA55` marker at settings `+0x46` (`0x2637D9`, `0x26E8C7`,
+`0x26EE8D`): scan limit 4 and fast path 5 passes (0.1 s).
+
+**Link-event pause, `0x453C70` bit 13 (candidate for the black screen after
+repeated DP unplug/replug, not confirmed):**
+- The port monitor `sub_23B068` does nothing while bit 13 is set
+  (`0x23B096`): no detection, no scan, no "No signal", no standby.
+- Set at `0x258C80` in the OSD timer-end handler `sub_258AB1` (called by the
+  OSD tick `sub_258E5D` when `0x453C70` bit 0 is set): when bit 14 ("No
+  signal" restart) is set and the OSD state is 4 or 6, it sets bit 13, clears
+  bit 14 and enters OSD state `0x0D`.
+- Cleared by `sub_265EAE` (which also restarts detection on all ports)
+  only: at the next timer end if the OSD state is still `0x0D`
+  (`0x258B2F`), from a list editor apply (`0x265F36`), and in `sub_26A632`.
+- Not cleared when the state leaves `0x0D` before its timer ends (the key
+  handler has no `0x0D` guard), nor when the timer ends with bit 3 set (the
+  standby gate's power-save bit, `0x260F63`/`0x26100A`): that branch
+  (`0x258AD8`) goes to state 6 and leaves bit 13 set.
+- Check in the stuck state: `tools/poke.sh read 0x453C71` (bit 5 = bit 13)
+  or `tools/widthdump.sh`; `diag-log-ring` logs `0x453C71` changes.
