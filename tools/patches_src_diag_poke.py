@@ -29,7 +29,8 @@ Safety:
   wake port that the PM51 reports (0x453C74 / 0x453C78), RAM 0x4824xx-0x4825xx
   for the settings mirror at 0x4824D0; for the half-width DP picture: RAM
   0x3B49xx-0x3B4Bxx window records, 0x47F7xx-0x47F9xx scaler DP receiver
-  records, 0x4821xx-0x4823xx input path records); no data-port or controller
+  records, 0x4821xx-0x4823xx input path records; PM SAR ADC 0x3Axx for the
+  cable detect, section 59, tools/cabledump.sh); no data-port or controller
   registers whose read could have side effects.
 - Addresses 0x20xxxx, 0x3Bxxxx, 0x45xxxx, 0x47xxxx and 0x48xxxx are RAM and are
   read with a plain byte load.
@@ -66,7 +67,7 @@ WRITE_OK = [0x00000422, 0x00000426, 0x00000428, 0x00000434, 0x00000436, 0x000004
             0x00000393]                 # PM 0x0393: 00 after a mains start, 01 after a wake (PM51 sub_88EB), 11 at
                                         # standby entry; written by the PM51 at every sleep/wake. Allowed for the
                                         # slow-mailbox test (write the mains value 00 after a wake).
-READ_PAGES = [0x000300, 0x000400, 0x000500, 0x101E00, 0x102F00, 0x103C00, 0x103D00, 0x202200, 0x202300, 0x202400, 0x203900,
+READ_PAGES = [0x000300, 0x000400, 0x000500, 0x003A00, 0x101E00, 0x102F00, 0x103C00, 0x103D00, 0x202200, 0x202300, 0x202400, 0x203900,
               0x453C00,                 # RAM 0x453C74-0x453C7B: wake info from the PM51 (event +0, port +4), copied at start by sub_20E254
               0x482400, 0x482500,       # RAM settings mirror 0x4824D0 (+0x4F input 0x48251F, +0x59 0x482529, +0xA5 0x482575)
               # half-width DP picture (docs/firmware-map.md section 50), read-only RAM:

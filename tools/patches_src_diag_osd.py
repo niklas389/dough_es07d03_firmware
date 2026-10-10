@@ -210,7 +210,7 @@ code, L = S.assemble(prog, CODE)
 for a, b, x in A.disasm(code, CODE, CODE + len(code), CODE):
     lab = [k for k, v in L.items() if v == a]
     print(('%-9s' % (lab[0] + ':' if lab else '')) + '%08x: %-12s %-9s %s' % (a, b.hex(' '), x['mnem'], x['ops']))
-assert CODE + len(code) <= GTAB
+assert CODE + len(code) <= 0x202900                 # menu-flag-clear v2 uses 0x202900-0x2029FF
 assert GTAB + len(gtab) <= TTAB and TTAB + len(ttab) <= 0x202E00
 assert cur(GTAB, len(gtab)) == b'\0' * len(gtab) and cur(TTAB, len(ttab)) == b'\0' * len(ttab)
 assert cur(0x2024B2, 1) == b'\0'

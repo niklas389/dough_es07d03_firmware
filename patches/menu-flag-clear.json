@@ -1,18 +1,18 @@
 {
   "name": "menu-flag-clear",
-  "summary": "Clears the \"quick input menu open\" flag (0x453C70 bit 16) once the OSD is back in state 6; stock leaves it set when the menu is closed by a key, which blocks \"No signal\" and the standby countdown",
-  "status": "untested",
+  "summary": "Clears the \"quick input menu open\" flag (0x453C70 bit 16) once the OSD is back in state 6; stock leaves it set when the menu is closed by a key, which blocks \"No signal\" and the standby countdown. v2: also ends a link-event pause (bit 13) left set outside its OSD state 0x0D, which stops all input detection",
+  "status": "v2 untested (emulator-checked; v1 untested)",
   "edits": [
     {
-      "addr": "0x201E00",
-      "old": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-      "new": "c0e008a1f0c77854d0c601feecc73c72c0a0002144a62cd0a00182c8a00011c105000f98d944c834c0c5000decc73c72c0bfffc1c8a5ffff44c62cecc73c70c8a00011c105000de4013de1",
-      "asm": "mf_task (image head zero area 0x201E00): OSD state 6 and 0x453C70 bit 16 set -> clear bit 16"
+      "addr": "0x202900",
+      "old": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "new": "c0e008a1f0c77854d0c601feecc73c72c0a0002144a62cd0a00182c8a00011c105000f98d944c834c0c5000decc73c72c0bfffc1c8a5ffff44c62cecc73c70c8a00011c105000dc0e008a1ecc73c72c4a62000d0a0028af0c77854d0cd024a1c21fc0d2100e40c6a92c0e00901f0e7faf5c8c000b040c63bc0e00761fce7495040c63cf0a6001cc8a50001f8a6001cc0e00401f0a724eb1ca501f8a724eb0d21021c2104e4012727",
+      "asm": "mf_task (image head zero area 0x202900): OSD state 6 and 0x453C70 bit 16 set -> clear bit 16; bit 13 set outside OSD state 0x0D -> sub_265EAE + restart detection; RAM 0x2024EB recoveries"
     },
     {
       "addr": "0x262128",
       "old": "e7f5381e",
-      "new": "e7f3f9b0",
+      "new": "e7f40fb0",
       "asm": "main loop: jal sub_20BD37 -> jal mf_task"
     }
   ],

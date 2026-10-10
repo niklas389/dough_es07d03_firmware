@@ -3603,3 +3603,24 @@ repeated DP unplug/replug, not confirmed):**
   (`0x258AD8`) goes to state 6 and leaves bit 13 set.
 - Check in the stuck state: `tools/poke.sh read 0x453C71` (bit 5 = bit 13)
   or `tools/widthdump.sh`; `diag-log-ring` logs `0x453C71` changes.
+
+**Patches (2026-10-10, emulator-checked, hardware test pending):**
+- `scan-one-round`: the normal scan limit 8 → 4 (`0x26002E`, factory value):
+  emulated, "No signal" at the 5th decision instead of the 9th.
+- `scan-active-first` v2: the scan step classifies the next three inputs
+  (visited in this search; DP-class by the link query, an active source first;
+  HDMI by `sub_23EDA4`) and, with no candidate left, continues in the
+  handler's "No signal" branch `0x2600C1`. Visited set RAM `0x2024EA`, reset
+  at the first decision of a search (`0x453BF2` = 1). v1's jump guard
+  (`0x2024E8`/`E9`) is gone; `gate-all-dp` still clears `0x2024E8`, which is
+  now unused. Emulated: 11 step scenarios and the whole handler (DP lost with
+  nothing else → "No signal" at its first decision; laptop on USB-C → switch
+  to USB-C; HDMI 1 cabled → HDMI 1 with the vendor's hot-plug pulse).
+- `menu-flag-clear` v2 (cave moved to `0x202900`): bit 13 set while the OSD
+  state is not `0x0D` → `sub_265EAE` and the current port's restart bit, as
+  at `0x258C18`; RAM `0x2024EB` counts recoveries. Emulated with the vendor
+  clear running: no action in state `0x0D`, recovery in states 6 and `0x0E`,
+  bit-16 behaviour unchanged.
+- `diag-poke` reads page `0x3Axx`; `tools/cabledump.sh` decodes the two ADC
+  channels as `sub_23EDA4` does (channel 6 = `0x3A30`, channel 8 = `0x3A34`,
+  16-bit value >> 2).
