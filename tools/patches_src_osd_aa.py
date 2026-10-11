@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 niklas389 and contributors
 """Source of patches/osd-aa-font.json. Run in an unpacked work dir (RT=runtime_0x200000.bin).
 
 Anti-aliased OSD text: the menu text is rendered into 2-bit (4-level) glyphs

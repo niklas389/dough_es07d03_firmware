@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 niklas389 and contributors
 """logread.py - read and decode the diag-log event log over DDC (needs diag-poke + a diag-log variant).
 
     tools/logread.py                       read the log (default LOG=diag-log-ring)

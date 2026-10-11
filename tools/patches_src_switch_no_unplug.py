@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 niklas389 and contributors
 """Source of patches/switch-no-unplug.json. Run in an unpacked work dir (RT=runtime_0x200000.bin).
 
 EXPERIMENTAL. Input switches between DP and USB-C without an emulated unplug,

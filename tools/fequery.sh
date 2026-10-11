@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 niklas389 and contributors
 # fequery.sh - ask the input front-end for the link status of connectors (needs diag-poke + diag-fe).
 #
 #   ./fequery.sh            query USB-C (8), DP (7), HDMI 1 (1), HDMI 2 (3), then raw ids r7 (USB-C), r8 (DP)

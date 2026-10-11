@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 niklas389 and contributors
 """Emulator checks for the anti-aliased OSD font (patches/osd-aa-font.json), no hardware needed.
 
   RT=runtime_0x200000.bin python3 tools/osd_emu_check.py [PATCH ...] [--png page.png]

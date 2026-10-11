@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 niklas389 and contributors
 # watch.sh - log the monitor's power state every few seconds on a diag-poke build.
 #
 #   MON=1 SPECCTL=./specctl tools/watch.sh [seconds] | tee watch.log

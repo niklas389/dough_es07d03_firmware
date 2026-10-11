@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 niklas389 and contributors
 # poke.sh - read/write one allowlisted chip register on a diag-poke build.
 #
 #   ./poke.sh read  0x44A           print the byte (BLOCKED if not allowlisted)
@@ -12,7 +11,7 @@ set -euo pipefail
 SPECCTL=${SPECCTL:-specctl}
 MON=${MON:-0}
 
-[ $# -ge 2 ] || { sed -n '4,10p' "$0"; exit 2; }
+[ $# -ge 2 ] || { sed -n '3,9p' "$0"; exit 2; }
 command -v "$SPECCTL" >/dev/null 2>&1 || { echo "specctl not found as '$SPECCTL': set SPECCTL=/path/to/specctl" >&2; exit 1; }
 op=$1; addr=$(( $2 ))
 hi=$(( (addr >> 16) & 0xFFFF )); lo=$(( addr & 0xFFFF ))

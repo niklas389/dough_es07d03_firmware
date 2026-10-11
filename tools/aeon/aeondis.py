@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 niklas389 and contributors
 """MStar AEON R2 disassembler.
 
 Table-driven: the opcode encodings, operand letters and display rules come from

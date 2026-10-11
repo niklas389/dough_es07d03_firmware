@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 niklas389 and contributors
 """Source of patches/diag-poke.json. Run in an unpacked work dir (RT=runtime_0x200000.bin).
 
 DIAGNOSTIC: read and write a small, fixed set of chip registers over DDC/CI

@@ -181,5 +181,3 @@ Not covered by any of these licences:
   applies to the right image. No rights to the vendor firmware are granted.
 - Firmware images you build. They combine the vendor firmware with the patches;
   the vendor's rights to its part are unaffected.
-
-Copyright (C) 2026 niklas389 and contributors.

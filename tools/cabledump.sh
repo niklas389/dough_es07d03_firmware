@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 niklas389 and contributors
 # cabledump.sh - read the SAR ADC levels of the vendor cable detect (sub_23EDA4,
 # docs/firmware-map.md section 59) on a diag-poke build and decode them as the
 # firmware does. Read-only.

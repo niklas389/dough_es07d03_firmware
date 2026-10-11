@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 niklas389 and contributors
 """ES07D03 (MStar MST9U4) firmware package tool.
 
 Works on the vendor USB/ISP update package, e.g.

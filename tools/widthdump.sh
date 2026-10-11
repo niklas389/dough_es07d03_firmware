@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 niklas389 and contributors
 # widthdump.sh - read the values that decide the DP input width (half-width
 # picture, docs/firmware-map.md section 50) on a diag-poke build, then decode them.
 #

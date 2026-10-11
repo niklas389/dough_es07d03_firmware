@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 niklas389 and contributors
 """Minimal AEON R2 assembler for small firmware patches.
 
 Instructions are written with explicit vendor opcode names (as in isa_r2.json)

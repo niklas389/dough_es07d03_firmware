@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 niklas389 and contributors
 """Small AEON R2 instruction-set emulator for checking runtime patches without hardware.
 
 Covers the integer subset the OSD code uses (loads/stores, ALU, compares, flag and

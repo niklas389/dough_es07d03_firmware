@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 niklas389 and contributors
 """Source of patches/popup-flat.json. Run in an unpacked work dir (RT=runtime_0x200000.bin).
 
 The small OSD popups (OSD states 2-5, 8, 9, 0x0C, 0x19; frame code in sub_256C92)

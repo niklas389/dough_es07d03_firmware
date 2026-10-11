@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 niklas389 and contributors
 # regdump.sh - read register ranges on a diag-poke build, one "addr value" line each.
 #
 #   MON=1 SPECCTL=./specctl tools/regdump.sh 0x400-0x45F 0x2E902F40-0x2E902F5F > a.txt
@@ -15,7 +14,7 @@
 set -u
 SPECCTL=${SPECCTL:-specctl}
 MON=${MON:-0}
-[ $# -ge 1 ] || { sed -n '4,14p' "$0"; exit 2; }
+[ $# -ge 1 ] || { sed -n '3,13p' "$0"; exit 2; }
 
 vset() { "$SPECCTL" set "$1" "$2" -d "$MON" --fast >/dev/null 2>&1 || true; }
 vget() { "$SPECCTL" get "$1" -d "$MON" --fast 2>/dev/null | sed -n 's/.*= \([0-9]*\) .*/\1/p' || true; }

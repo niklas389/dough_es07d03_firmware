@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 niklas389 and contributors
 """Source of patches/standby-lhs.json. Run in an unpacked work dir (RT=runtime_0x200000.bin)."""
 import sys, json
 sys.path.insert(0,'/home/user/dough_es07d03_firmware/tools/aeon')
