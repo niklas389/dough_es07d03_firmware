@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 niklas389 and contributors
 """Source of patches/nosignal-once.json. Run in an unpacked work dir (RT=runtime_0x200000.bin).
 
 v3: "No signal" is not entered again while it is already the OSD state AND its

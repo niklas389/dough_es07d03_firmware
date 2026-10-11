@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Read the risk warning first
+    url: https://github.com/niklas389/dough_es07d03_firmware#readme
+    about: Flashing modified firmware can make the monitor permanently unusable. This project is not affiliated with Eve, Dough or any successor and offers no support obligation.

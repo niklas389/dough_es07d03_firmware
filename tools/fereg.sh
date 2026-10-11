@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 niklas389 and contributors
 # fereg.sh - read registers of the input front-end (MSB3300) through its debug read command
 # (needs diag-poke + diag-fe v3; docs/firmware-map.md section 53).
 #
@@ -25,7 +27,7 @@ MON=${MON:-0}
 HERE=$(cd "$(dirname "$0")" && pwd)
 TRIES=${TRIES:-4}
 command -v "$SPECCTL" >/dev/null 2>&1 || { echo "specctl not found as '$SPECCTL': set SPECCTL=/path/to/specctl" >&2; exit 1; }
-[ $# -ge 1 ] || { sed -n '2,24p' "$0"; exit 2; }
+[ $# -ge 1 ] || { sed -n '4,23p' "$0"; exit 2; }
 
 vset() { "$SPECCTL" set "$1" "$2" -d "$MON" --fast >/dev/null 2>&1 || true; }
 vget() { "$SPECCTL" get "$1" -d "$MON" --fast 2>/dev/null | sed -n 's/.*= \([0-9]*\) .*/\1/p' || true; }

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 niklas389 and contributors
 """Source of patches/select-no-replug.json and patches/attach-no-replug.json.
 
 SUPERSEDED by tools/patches_src_switch_no_unplug.py (2026-10-08): without the

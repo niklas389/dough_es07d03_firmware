@@ -1,0 +1,54 @@
+name: Hardware test report
+description: Results of testing a patch on a real monitor (works, partly works, fails)
+labels: ["test report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Most patches are marked "untested" or "emulator-checked". A report from a real monitor moves a patch towards "hardware-tested", whether the result is good or bad.
+        **Do not attach vendor firmware files or built firmware images** (`*.bin`).
+  - type: checkboxes
+    id: ack
+    attributes:
+      label: Before you report
+      options:
+        - label: I have read the risk warning in the README and flashed at my own risk.
+          required: true
+  - type: input
+    id: patches
+    attributes:
+      label: Patch(es) tested
+      placeholder: scan-active-first, scan-one-round
+    validations:
+      required: true
+  - type: dropdown
+    id: result
+    attributes:
+      label: Result
+      options:
+        - Works as described
+        - Partly works
+        - Does not work
+        - Made things worse
+    validations:
+      required: true
+  - type: textarea
+    id: build
+    attributes:
+      label: Build
+      description: The exact `es07fw.py patch …` command (full patch list) and the repository commit.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: test
+    attributes:
+      label: What you tested and what you observed
+      description: Steps, timings (a stopwatch is fine), and anything unexpected. Include the setup (sources, cables, input setting).
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and readings (optional)
+      render: text

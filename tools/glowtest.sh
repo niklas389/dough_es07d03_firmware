@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 niklas389 and contributors
 # glowtest.sh - backlight-glow test on a diag-poke build: drive one PM51 standby
 # output (0x434 bit 6 or bit 7) low in link-held standby, then restore it.
 #

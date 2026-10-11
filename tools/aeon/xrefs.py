@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 niklas389 and contributors
 import sys, os, pickle, collections, bisect
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import aeondis as A

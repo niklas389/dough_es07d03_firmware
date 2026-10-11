@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 niklas389 and contributors
 """Source of patches/panel-t12.json. Run in an unpacked work dir (RT=runtime_0x200000.bin).
 
 LM270WR8 spec 3-6, T12: VLCD must stay off >= 1000 ms before it is applied again.

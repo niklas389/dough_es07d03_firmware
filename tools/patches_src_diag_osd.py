@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 niklas389 and contributors
 """Source of patches/diag-osd.json. Run in an unpacked work dir (RT=runtime_0x200000.bin).
 
 DIAGNOSTIC (requires diag-poke and diag-fe): plain byte access to the OSD

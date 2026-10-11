@@ -1,0 +1,92 @@
+name: Bug report
+description: A patched build behaves wrongly, or a stock firmware bug that is not yet covered
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please give enough detail to reproduce the problem; logs and exact build lists help most.
+        **Do not attach vendor firmware files or built firmware images** (`*.bin`): they contain the vendor's firmware, which this project does not distribute.
+  - type: checkboxes
+    id: ack
+    attributes:
+      label: Before you report
+      options:
+        - label: I have read the risk warning in the README and flashed at my own risk.
+          required: true
+        - label: I understand that this project is not affiliated with Eve, Dough or any successor company, and that help here is voluntary.
+          required: true
+        - label: I searched the existing issues for this problem.
+          required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps from a known state (e.g. "input set to Select Automatically, laptop on USB-C, DP output disabled, …"). Say how often it happens (always / sometimes / once).
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: build
+    attributes:
+      label: Build
+      description: The exact `es07fw.py patch …` command (full patch list) and the repository commit (`git rev-parse --short HEAD`).
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: base
+    attributes:
+      label: Base package
+      description: Vendor package the build was made from, and whether `es07fw.py info` verified it.
+      placeholder: ES07D03_Beta03_rev1169-E771_USB_update.bin, info OK
+    validations:
+      required: true
+  - type: dropdown
+    id: input
+    attributes:
+      label: Input setting
+      options:
+        - Select Automatically
+        - Fixed input (DP)
+        - Fixed input (USB-C)
+        - Fixed input (HDMI 1 / HDMI 2)
+        - Not relevant / unknown
+    validations:
+      required: true
+  - type: textarea
+    id: setup
+    attributes:
+      label: Setup
+      description: Sources and cables per input (PC, laptop, dock / MST hub, GPU, OS), resolution and refresh rate, DisplayPort Mode setting, other OSD settings you changed.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and readings
+      description: |
+        On a diagnostic build (`diag-poke`, `diag-log-ring`): output of `python3 tools/logread.py` right after the problem, and any of `tools/widthdump.sh`, `tools/cabledump.sh`, `tools/fequery.sh`, `tools/poke.sh read …` that apply. Without a diagnostic build, say so.
+      render: text
+  - type: textarea
+    id: media
+    attributes:
+      label: Photos or videos
+      description: A photo of the screen helps for OSD and picture problems.
+  - type: textarea
+    id: recovery
+    attributes:
+      label: Current state and recovery
+      description: Does the monitor still start and accept a USB update? What did you try (power cycle, mains cycle, flashing the stock package)?
+    validations:
+      required: true

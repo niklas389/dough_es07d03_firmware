@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 niklas389 and contributors
 """Annotated listing of a function or address range.
 
 Environment: IMG (default runtime_0x200000.bin), BASE (0x200000), FUNCS, XREFS.

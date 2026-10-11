@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 niklas389 and contributors
 """osdtest.py - OSD font/tile experiments over DDC (needs diag-poke + diag-fe + diag-osd).
 
 Firmware-side test (diag-osd v3; seconds instead of a slow DDC upload):

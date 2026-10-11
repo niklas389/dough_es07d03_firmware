@@ -10,6 +10,37 @@ The vendor firmware is **not** included. Get
 from the usual public sources. Flashing is done with `specflash` from
 [dough-monitor-tools](https://github.com/niklas389/dough-monitor-tools).
 
+> [!CAUTION]
+> **Flashing modified firmware can make your monitor permanently unusable.**
+> Read this before you build or flash anything from this repository.
+>
+> - Everything here is provided **as is, without any warranty**, under the
+>   terms of the licences below. You flash at your own risk; the authors and
+>   contributors are **not responsible** for any damage, data loss, cost or
+>   inconvenience, including a monitor that no longer starts, shows no picture
+>   or can no longer be updated over USB.
+> - A flash can fail through an interrupted or wrong file, a power loss, a bug
+>   in a patch or in the tools, or a hardware difference between units. Most
+>   patches are **experimental or untested** (see the status column below).
+>   Some change the power sequencing of the panel and backlight; a mistake
+>   there could in principle stress or damage the panel or its power supply.
+> - If the monitor no longer accepts a USB update, recovery can require
+>   opening the case and an SPI flash programmer (`docs/flash-reference.md`),
+>   which carries its own risk of damage and voids any remaining warranty.
+> - There is no manufacturer support and no support obligation from this
+>   project. Help in issues is voluntary and may not come.
+> - Only flash if you understand these risks and accept losing the monitor.
+>   Keep the unmodified vendor package and know the recovery path **before**
+>   you flash.
+
+> [!NOTE]
+> This is an independent community project. It is **not affiliated with,
+> endorsed by, sponsored by or connected to** Eve Devices, Dough, or any
+> company that has acquired, succeeded or licensed their products, firmware or
+> brands. "Eve", "Dough", "Spectrum" and other names are trademarks of their
+> respective owners and are used here only to identify the hardware. MStar,
+> MediaTek and other product names likewise belong to their owners.
+
 | Path | What |
 |---|---|
 | `docs/firmware-map.md` | Package layout, boot chain, checksums, memory map, located subsystems |
@@ -134,8 +165,21 @@ python3 ../tools/aeon/xrefs.py runtime_0x200000.bin 0x200000 funcs.pkl xrefs.pkl
 cp ../tools/aeon/names.txt . && python3 ../tools/aeon/fdis.py 26ad19 | less
 ```
 
-## Credits / licences
+## Licence
 
-The AEON R2 instruction tables in `tools/aeon/isa_r2.json` are derived from
-[eb4x/ghidra-plugin-aeon](https://github.com/eb4x/ghidra-plugin-aeon)
-(Apache-2.0, see `NOTICE`).
+| Path | Licence |
+|---|---|
+| `tools/` (scripts, generators `tools/patches_src_*.py`, emulator, disassembler) | [GPL-3.0-only](LICENSE) |
+| `patches/*.json` (generated from `tools/patches_src_*.py`) | [GPL-3.0-only](LICENSE), except the parts named below |
+| `docs/` | [CC BY-SA 4.0](docs/LICENSE) |
+| `tools/aeon/isa_r2.json` | Apache-2.0, derived from [eb4x/ghidra-plugin-aeon](https://github.com/eb4x/ghidra-plugin-aeon); see [`NOTICE`](NOTICE) and [`tools/aeon/LICENSE-Apache-2.0.txt`](tools/aeon/LICENSE-Apache-2.0.txt) |
+| Glyph data in `patches/osd-aa-font.json` (rendered from Noto Sans Condensed SemiBold) | SIL Open Font License 1.1, see [`docs/licenses/NotoSans-OFL.txt`](docs/licenses/NotoSans-OFL.txt) |
+
+Not covered by any of these licences:
+- The vendor firmware. It is not included. The `old` fields of the patch files
+  hold short excerpts of it, only so that `es07fw.py` can check that a patch
+  applies to the right image. No rights to the vendor firmware are granted.
+- Firmware images you build. They combine the vendor firmware with the patches;
+  the vendor's rights to its part are unaffected.
+
+Copyright (C) 2026 niklas389 and contributors.

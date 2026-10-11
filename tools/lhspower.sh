@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 niklas389 and contributors
 # lhspower.sh - link-held standby power test on a diag-poke build: drive one of
 # the outputs that deep standby switches off (0x44A bits 7, 6, 2, 1) low, let the
 # owner note the power meter and the PC side, then restore it.

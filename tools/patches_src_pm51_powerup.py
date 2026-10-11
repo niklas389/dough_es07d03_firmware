@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 niklas389 and contributors
 """Source of patches/pm51-powerup.json. Run in an unpacked work dir (PM=pm51_0x10080.bin).
 
 PM51 standby controller, wake from deep standby: the settle time after the

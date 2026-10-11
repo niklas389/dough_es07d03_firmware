@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 niklas389 and contributors
 """Source of patches/port-accept.json. Run in an unpacked work dir (RT=runtime_0x200000.bin).
 
 Shorter signal-acceptance time for the input ports of type 0x20 (ports 0
