@@ -45,6 +45,7 @@ from the usual public sources. Flashing is done with `specflash` from
 |---|---|
 | `docs/firmware-map.md` | Package layout, boot chain, checksums, memory map, located subsystems |
 | `docs/flash-reference.md` | SPI flash map, package/section layout, CRCs, USB/ISP flash access (from the hardware sessions) |
+| `docs/standby-banding.md` | Observed fault: gradient banding on one unit after resume from standby, cleared by a monitor power cycle (2026-10-29) |
 | `tools/es07fw.py` | `info` / `unpack` / `patch` / `diff`: verifies and rebuilds packages (deflate + both CRCs); patches the main image or the PM51 code |
 | `patches/*.json` | Byte patches by runtime address, with original bytes checked before applying |
 | `tools/aeon/aeondis.py` | AEON R2 disassembler (vendor-table driven) |
